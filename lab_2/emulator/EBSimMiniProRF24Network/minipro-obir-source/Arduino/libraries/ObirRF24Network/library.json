@@ -1,0 +1,16 @@
+{
+  "name": "ObirRF24Network",
+  "keywords": "rf, radio, wireless, spi",
+  "description": "Optimized Network Layer for nRF24L01(+) Radios",
+  "repository":
+  {
+    "type": "git",
+    "url": ""
+  },
+  "frameworks": "arduino",
+  "platforms": [
+    "atmelavr",
+    "atmelsam",
+    "teensy"
+  ]
+}
