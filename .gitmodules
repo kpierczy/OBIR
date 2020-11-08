@@ -1,3 +1,6 @@
 [submodule "common/ESP8266_RTOS_SDK"]
 	path = common/ESP8266_RTOS_SDK
 	url = https://github.com/espressif/ESP8266_RTOS_SDK.git
+[submodule "common/Copper"]
+	path = common/Copper
+	url = https://github.com/mkovatsc/Copper
