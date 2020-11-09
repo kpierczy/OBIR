@@ -5,8 +5,10 @@
 #include "nvs_flash.h"         // Non-Volatile storage flash
 #include "station.h"           // WiFi connection [auth]
 
+
 /* ---------------------------------- Configuration ---------------------------------- */
 
+// WiFi access point data
 #define EXAMPLE_ESP_WIFI_SSID      "Andrzej"
 #define EXAMPLE_ESP_WIFI_PASS      "Gnp64wpewynh"
 
@@ -20,7 +22,7 @@ TaskHandle_t main_handler;
 
 /* ------------------------------------- Declarations --------------------------------- */
 
-void udp_server_task(void *pvParameters);
+void coap_example_thread(void *p);
 
 /* ---------------------------------------- Code -------------------------------------- */
 
@@ -39,7 +41,7 @@ void app_main(){
     wifi_connect(EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
 
     // Create UDP server tasl
-    xTaskCreate(udp_server_task, "udp_server", 4096, NULL, 5, NULL);
+    xTaskCreate(coap_example_thread, "coap", 1024 * 5, NULL, 5, NULL);
     // Wait for udpp server task to finish
     main_handler = xTaskGetCurrentTaskHandle();
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);

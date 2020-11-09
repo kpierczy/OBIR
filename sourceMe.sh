@@ -8,8 +8,9 @@
 #===========================================================================
 
 PROJECT_HOME="/home/cris/Desktop/Pierczyk_Krzysztof"
+FIREFOX_VERSION="52.9.0esr"
 
-# ----------------------------------- ESP ----------------------------------
+# ------------------------------------ ESP ------------------------------------
 
 # ESP8266 SDK download
 if [[ ! -d common/ESP8266_RTOS_SDK ]]; then
@@ -26,28 +27,31 @@ fi
 export     PATH=$PROJECT_HOME/common/xtensa-lx106-elf/bin:$PATH
 export IDF_PATH=$PROJECT_HOME/common/ESP8266_RTOS_SDK/
 
-# --------------------------------- Copper ---------------------------------
+# ---------------------------------- Copper -----------------------------------
 
 # Check if firexof 55.0.3 is installed
 if [[ ! -d $PROJECT_HOME/common/firefox ]]; then
 
-    wget "https://ftp.mozilla.org/pub/firefox/releases/55.0.3/linux-x86_64/en-GB/firefox-55.0.3.tar.bz2"
-    tar -xjf firefox-55.0.3.tar.bz2 -C $PROJECT_HOME/common
+    wget "https://ftp.mozilla.org/pub/firefox/releases/$FIREFOX_VERSION/linux-x86_64/en-GB/firefox-$FIREFOX_VERSION.tar.bz2"
+    tar -xjf firefox-$FIREFOX_VERSION.tar.bz2 -C $PROJECT_HOME/common
 
-    # If mozilla was not installed yet, the ~/.mozilla folder does not exist
-    if [[ ! -d $HOME/.mozilla ]]; then
-        # We need to run firefox for a while to create the folder
-        echo "Please wait for firefox to open and close it"
-        $PROJECT_HOME/common/firefox/firefox > /dev/null &
-        wait $!
-        # Then, we need to reinstall firefox in case it aut-updated in the first run
-        rm -r $PROJECT_HOME/common/firefox
-        tar -xjf firefox-55.0.3.tar.bz2 -C $PROJECT_HOME/common
-    
+    # If mozilla was installed yet, the ~/.mozilla folder exist in unknown state
+    # We decide to delete it from the system and create one more time
+    if [[ -d $HOME/.mozilla ]]; then
+        rm -r $HOME/.mozilla
     fi
 
-    rm firefox-55.0.3.tar.bz2
-    
+    # We need to run firefox for a while to create the folder
+    echo "Please wait for firefox to open and close it"
+    echo ""
+    $PROJECT_HOME/common/firefox/firefox > /dev/null &
+    wait $!
+
+    # Then, we need to reinstall firefox in case it aut-updated in the first run
+    rm -r $PROJECT_HOME/common/firefox
+    tar -xjf firefox-$FIREFOX_VERSION.tar.bz2 -C $PROJECT_HOME/common
+    rm firefox-$FIREFOX_VERSION.tar.bz2
+
 fi
 
 # Modify firefox settings if nessesary
@@ -60,7 +64,7 @@ SETTINGS=(
 )
 
 for setting in ${SETTINGS[@]}; do
-    if grep -q $setting $DEFAULT/prefs.js > /dev/null; then
+    if grep -q "$setting" $DEFAULT/prefs.js > /dev/null; then
         sed -i "s/$setting/${setting/true/false}/g" $DEFAULT/prefs.js
     else
         echo "${setting/true/false}" >> $DEFAULT/prefs.js
@@ -73,13 +77,22 @@ if [[ ! -d $PROJECT_HOME/common/Copper ]]; then
 fi
 
 # Set path to the Copper extension in the firefox
-if [[ ! -e $DEFAULT/extensions/copper@vs.inf.ethz.ch ]]; then
-    echo "$PROJECT_HOME/common/Copper/" > $DEFAULT/extensions/copper@vs.inf.ethz.ch
-fi
+EXTENSION_FILE=$DEFAULT/extensions/copper@vs.inf.ethz.ch
+mkdir -p $DEFAULT/extensions
+echo "$PROJECT_HOME/common/Copper/" > $EXTENSION_FILE
 # Allow unsigned add-ons
 SIGNATURE_SETTING='user_pref("xpinstall.signatures.required", true);'
-if grep -q $SIGNATURE_SETTING $DEFAULT/prefs.js > /dev/null; then
+if grep -q "$SIGNATURE_SETTING" $DEFAULT/prefs.js > /dev/null; then
     sed -i "s/$SIGNATURE_SETTING/${SIGNATURE_SETTING/true/false}/g" $DEFAULT/prefs.js
 else
     echo "${SIGNATURE_SETTING/true/false}" >> $DEFAULT/prefs.js
+fi
+
+# -------------------------------- Wireshark ----------------------------------
+
+# Install Wireshark
+if ! which wireshark > /dev/null; then
+    echo "LOG: Wireshark will be installed..."
+    sudo apt install wireshark
+    sudo apt isntall libcap-dev
 fi
