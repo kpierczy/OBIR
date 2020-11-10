@@ -1,20 +1,13 @@
-#include <string.h>
-#include <sys/socket.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h"
-#include "esp_log.h"
-#include "esp_wifi.h"
-#include "esp_event.h"
-#include "esp_netif.h"
-#include "nvs_flash.h"
-#include "protocol_examples_common.h"
-#include "coap.h"
+#include <string.h>            // Basic string operations
+#include <sys/socket.h>        // Sockets-related constants
+#include "esp_log.h"           // Logging
+#include "coap.h"              // CoAP implementation
+#include "coap_handlers.h"     // Handlers for CoAP resources [auth]
 
 /* ---------------------------------- Configuration ---------------------------------- */
 
 // Set this to 9 to get verbose logging from within libcoap
-#define COAP_LOGGING_LEVEL 9
+#define COAP_LOGGING_LEVEL 0
 
 /* --------------------------- Global & static definitions --------------------------- */
 
@@ -22,108 +15,13 @@
 static char *TAG = "coap_server";
 
 // Data buffers for CoAP communication
-static char espressif_data[100];
-static int espressif_data_len = 0;
+char espressif_data[100];
+int espressif_data_len = 0;
 
 /* ------------------------------------- Declarations --------------------------------- */
 
 // Global variables initialization
 extern TaskHandle_t main_handler;
-
-/* ------------------------------------ Static Code ----------------------------------- */
-
-/**
- * @brief Handler for GET request
- */
-static void
-hnd_espressif_get(
-    coap_context_t *ctx,
-    coap_resource_t *resource,
-    coap_session_t *session, 
-    coap_pdu_t *request,
-    coap_binary_t *token, 
-    coap_string_t *query,
-    coap_pdu_t *response
-){
-    // Sens data with dedicated function
-    coap_add_data_blocked_response(
-        resource,
-        session,
-        request,
-        response,
-        token,
-        COAP_MEDIATYPE_TEXT_PLAIN,
-        0,
-        (size_t)espressif_data_len,
-        (const u_char *) espressif_data
-    );
-}
-
-/**
- * @brief Handler for PUT request
- */
-static void
-hnd_espressif_put(
-    coap_context_t *ctx,
-    coap_resource_t *resource,
-    coap_session_t *session,
-    coap_pdu_t *request,
-    coap_binary_t *token,
-    coap_string_t *query,
-    coap_pdu_t *response
-){
-    // Initializes sending notifications about resource state's change to observers
-    coap_resource_notify_observers(resource, NULL);
-
-    // Response with 'Created' code if data was not initialized by client yet
-    if (strcmp (espressif_data, "no data") == 0) {
-        response->code = COAP_RESPONSE_CODE(201);
-    }
-    // Response with 'Changed' code if data was initialized by client
-    else {
-        response->code = COAP_RESPONSE_CODE(204);
-    }
-
-    // Get payload from the PDU
-    size_t size;
-    unsigned char *data;
-    coap_get_data(request, &size, &data);
-
-    // If payload is empty, deinitialize the data
-    if (size == 0) {
-        snprintf(espressif_data, sizeof(espressif_data), "no data");
-        espressif_data_len = strlen(espressif_data);
-    } 
-    // Otherwise, update value of the resource
-    else {
-        espressif_data_len = size > sizeof (espressif_data) ? sizeof (espressif_data) : size;
-        memcpy (espressif_data, data, espressif_data_len);
-    }
-}
-
-/**
- * @brief Handler for DELETE request
- */
-static void
-hnd_espressif_delete(
-    coap_context_t *ctx,
-    coap_resource_t *resource,
-    coap_session_t *session,
-    coap_pdu_t *request,
-    coap_binary_t *token,
-    coap_string_t *query,
-    coap_pdu_t *response
-){
-    // Notify observers about rejecting a resource 
-    coap_resource_notify_observers(resource, NULL);
-
-    // Deinitialize the resource
-    snprintf(espressif_data, sizeof(espressif_data), "no data");
-    espressif_data_len = strlen(espressif_data);
-
-    // Set return code on 'Deleted'
-    response->code = COAP_RESPONSE_CODE(202);
-}
 
 /* ------------------------------------ Thread Code ----------------------------------- */
 
@@ -160,6 +58,7 @@ void coap_example_thread(void *pvParameters){
          * @note : htonl() and htons() functions revert IP and PORT byte order to 
          * suite network order.
          */
+        ESP_LOGI(TAG, "Initializing CoAP socket");
         coap_address_t   serv_addr;
         coap_address_init(&serv_addr);
         serv_addr.addr.sin.sin_addr.s_addr = INADDR_ANY;
@@ -173,6 +72,7 @@ void coap_example_thread(void *pvParameters){
         }
 
         // Create UDP endpoint
+        ESP_LOGI(TAG, "Creating the endpoint");
         coap_endpoint_t *ep_udp = coap_new_endpoint(ctx, &serv_addr, COAP_PROTO_UDP);
         if (!ep_udp) {
            break;
@@ -186,6 +86,7 @@ void coap_example_thread(void *pvParameters){
         coap_resource_t *resource = NULL;
         if( !(resource = coap_resource_init(coap_make_str_const("Espressif"), 0) ))
            break;
+        ESP_LOGI(TAG, "Initializing server's resources");
         coap_register_handler(resource,    COAP_REQUEST_GET, hnd_espressif_get);
         coap_register_handler(resource,    COAP_REQUEST_PUT, hnd_espressif_put);
         coap_register_handler(resource, COAP_REQUEST_DELETE, hnd_espressif_delete);
@@ -194,6 +95,7 @@ void coap_example_thread(void *pvParameters){
 
 
         // Run main processing loop
+        ESP_LOGI(TAG, "Beginning dispatch loop");
         unsigned wait_ms = COAP_RESOURCE_CHECK_TIME * 1000;
         while (1) {
 
@@ -213,6 +115,7 @@ void coap_example_thread(void *pvParameters){
     }
 
     // Clean context of the CoAP module before finishing task
+    ESP_LOGI(TAG, "Cleaning up CoAP context");
     coap_free_context(ctx);
     coap_cleanup();
 

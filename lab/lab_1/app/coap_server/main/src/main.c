@@ -1,10 +1,7 @@
 #include "freertos/FreeRTOS.h" // FreeRTOS tasks
-#include "freertos/task.h"     // xTaskNotifify API
 #include "esp_log.h"           // Logging mechanisms
-#include "esp_err.h"           // Error checking macros
 #include "nvs_flash.h"         // Non-Volatile storage flash
 #include "station.h"           // WiFi connection [auth]
-
 
 /* ---------------------------------- Configuration ---------------------------------- */
 

@@ -1,5 +1,2 @@
-#
-# "main" pseudo-component makefile.
-#
-# (Uses default behaviour of compiling all source files in directory, adding 'include' to include path.)
-
+# Relative path to the source code directory of a component
+COMPONENT_SRCDIRS := src
