@@ -142,7 +142,7 @@ void udp_server_task(void *pvParameters){
                 // PODAJ
                 else if(strncmp(rx_buffer, "PODAJ", strlen("PODAJ")) == 0){
 
-                    char buf[12];
+                    char buf[12] = {0};
                     snprintf(buf, sizeof(buf), "%d\n", result);
 
                     ESP_LOGI(TAG, "Sending back result: %s", buf);
