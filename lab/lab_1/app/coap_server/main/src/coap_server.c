@@ -6,6 +6,9 @@
 
 /* ---------------------------------- Configuration ---------------------------------- */
 
+// Local port
+#define PORT 5683
+
 // Set this to 9 to get verbose logging from within libcoap
 #define COAP_LOGGING_LEVEL 0
 
@@ -13,10 +16,6 @@
 
 // Source file's tag
 static char *TAG = "coap_server";
-
-// Data buffers for CoAP communication
-char espressif_data[100];
-int espressif_data_len = 0;
 
 /* ------------------------------------- Declarations --------------------------------- */
 
@@ -34,11 +33,8 @@ void coap_example_thread(void *pvParameters){
     // Wait for main to block on xTaskNotifyTake()
     vTaskDelay(pdMS_TO_TICKS(1000));
 
-    // Initialize data buffer
-    snprintf(espressif_data, sizeof(espressif_data), "no data");
-    espressif_data_len = strlen(espressif_data);
-
-    // Set CoAP module logging level
+    // Startup CoAP stack
+    coap_startup();
     coap_set_log_level(COAP_LOGGING_LEVEL);
 
     // Create CoAP module's context
@@ -46,6 +42,16 @@ void coap_example_thread(void *pvParameters){
 
     // Run CoAP initialization process
     while (1) {
+
+        // Initialize CoAP's contex structure
+        ctx = coap_new_context(NULL);
+        if (!ctx) {
+           continue;
+        }
+
+        // Initialize server's resources
+        if(resources_init(ctx))
+            break;
 
         /* Prepare the CoAP server socket (it's wrapper around BSD socket approach)
          *
@@ -63,13 +69,7 @@ void coap_example_thread(void *pvParameters){
         coap_address_init(&serv_addr);
         serv_addr.addr.sin.sin_addr.s_addr = INADDR_ANY;
         serv_addr.addr.sin.sin_family      = AF_INET;
-        serv_addr.addr.sin.sin_port        = htons(COAP_DEFAULT_PORT);
-
-        // Initialize CoAP's contex structure
-        ctx = coap_new_context(NULL);
-        if (!ctx) {
-           continue;
-        }
+        serv_addr.addr.sin.sin_port        = htons(PORT);
 
         // Create UDP endpoint
         ESP_LOGI(TAG, "Creating the endpoint");
@@ -77,22 +77,6 @@ void coap_example_thread(void *pvParameters){
         if (!ep_udp) {
            break;
         }
-
-        /* ================================================================= */
-        /*                   Initialize server's resources                   */
-        /* ================================================================= */
-
-        // Resource: 'Espressif' (string) observable
-        coap_resource_t *resource = NULL;
-        if( !(resource = coap_resource_init(coap_make_str_const("Espressif"), 0) ))
-           break;
-        ESP_LOGI(TAG, "Initializing server's resources");
-        coap_register_handler(resource,    COAP_REQUEST_GET, hnd_espressif_get);
-        coap_register_handler(resource,    COAP_REQUEST_PUT, hnd_espressif_put);
-        coap_register_handler(resource, COAP_REQUEST_DELETE, hnd_espressif_delete);
-        coap_resource_set_get_observable(resource, 1);
-        coap_add_resource(ctx, resource);
-
 
         // Run main processing loop
         ESP_LOGI(TAG, "Beginning dispatch loop");
@@ -103,8 +87,10 @@ void coap_example_thread(void *pvParameters){
             int result = coap_run_once(ctx, wait_ms);
 
             // Back to CoAP server initialization, when error occurs 
-            if (result < 0)
+            if (result < 0){
+                coap_free_context(ctx);
                 break;
+            }
             // Decrement timeout if the last one was shorter than expected
             else if (result < wait_ms)
                 wait_ms -= result;
@@ -116,6 +102,7 @@ void coap_example_thread(void *pvParameters){
 
     // Clean context of the CoAP module before finishing task
     ESP_LOGI(TAG, "Cleaning up CoAP context");
+    resources_deinit(ctx);
     coap_free_context(ctx);
     coap_cleanup();
 

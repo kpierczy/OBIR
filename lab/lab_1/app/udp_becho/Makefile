@@ -1,0 +1,4 @@
+PROJECT_NAME := udp_becho
+
+# Obligatory global makefile (SDK stuff)
+include $(IDF_PATH)/make/project.mk

@@ -1,3 +1,20 @@
+
+/**
+ * @brief Initializes resources present on the server
+ * 
+ * @param context Pointer to the CoAP context stack
+ * @returns 0 on success and a negative number at failure. At the failure
+ *  all resources are deleted from the context.
+ */
+int resources_init(coap_context_t *context);
+
+/**
+ * @brief Clears all resources from the context and closes SNTP deamon.
+ * 
+ * @param context Context related with resources to delete
+ */
+void resources_deinit(coap_context_t *context);
+
 /**
  * @brief 
  * 
@@ -9,7 +26,7 @@
  * @param query 
  * @param response 
  */
-void hnd_espressif_get(
+void hnd_get(
     coap_context_t *ctx,
     coap_resource_t *resource,
     coap_session_t *session, 
@@ -30,7 +47,7 @@ void hnd_espressif_get(
  * @param query 
  * @param response 
  */
-void hnd_espressif_put(
+void hnd_put(
     coap_context_t *ctx,
     coap_resource_t *resource,
     coap_session_t *session,
@@ -51,7 +68,7 @@ void hnd_espressif_put(
  * @param query 
  * @param response 
  */
-void hnd_espressif_delete(
+void hnd_delete(
     coap_context_t *ctx,
     coap_resource_t *resource,
     coap_session_t *session,

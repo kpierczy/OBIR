@@ -10,6 +10,10 @@
 PROJECT_HOME="/home/cris/Desktop/Pierczyk_Krzysztof"
 FIREFOX_VERSION="52.9.0esr"
 
+# -------------------------------- Preparation --------------------------------
+
+export PROJECT_HOME=$PROJECT_HOME
+
 # ------------------------------------ ESP ------------------------------------
 
 # ESP8266 SDK download
@@ -94,5 +98,12 @@ fi
 if ! which wireshark > /dev/null; then
     echo "LOG: Wireshark will be installed..."
     sudo apt install wireshark
+    sudo apt isntall libcap-dev
+fi
+
+# Install TShark
+if ! which tshark > /dev/null; then
+    echo "LOG: TShark will be installed..."
+    sudo apt install tshark
     sudo apt isntall libcap-dev
 fi
