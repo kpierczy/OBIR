@@ -7,12 +7,24 @@
 #        make use of 'update-alternatives'.
 #===========================================================================
 
+# Home location of the project
 PROJECT_HOME="/home/cris/Desktop/Pierczyk_Krzysztof"
+
+# Location of SDK's additional tools (like xtensa-gcc)
+IDF_TOOLS_PATH=$PROJECT_HOME/common/idf-tools
+
+# Firefox version downloaded to run Copper
 FIREFOX_VERSION="52.9.0esr"
 
 # -------------------------------- Preparation --------------------------------
 
-export PROJECT_HOME=$PROJECT_HOME
+export PROJECT_HOME
+export IDF_TOOLS_PATH
+
+# Just awesome tool <3 (no more struggling with 'find')
+if ! which locate >> /dev/null; then
+    sudo apt isntall mlocate
+fi
 
 # ------------------------------------ ESP ------------------------------------
 
@@ -20,16 +32,15 @@ export PROJECT_HOME=$PROJECT_HOME
 if [[ ! -d common/ESP8266_RTOS_SDK ]]; then
     git submodule update --init --recursive
 fi
-# ESP8266 Toolchain download [5.2.0]
-if [[ ! -d common/xtensa-lx106-elf ]]; then
-    wget "https://dl.espressif.com/dl/xtensa-lx106-elf-gcc8_4_0-esp-2020r3-linux-amd64.tar.gz"
-    tar -xzf xtensa-lx106-elf-gcc8_4_0-esp-2020r3-linux-amd64.tar.gz -C $PROJECT_HOME/common
-    rm xtensa-lx106-elf-gcc8_4_0-esp-2020r3-linux-amd64.tar.gz
-fi
 
-# ESP8266 exports
-export     PATH=$PROJECT_HOME/common/xtensa-lx106-elf/bin:$PATH
-export IDF_PATH=$PROJECT_HOME/common/ESP8266_RTOS_SDK/
+# Configure ESP-IDF tools and exports
+mkdir -p $IDF_TOOLS_PATH
+cd common/ESP8266_RTOS_SDK
+./install.sh
+source ./export.sh
+source ./add_path.sh
+
+cd $PROJECT_HOME
 
 # ---------------------------------- Copper -----------------------------------
 

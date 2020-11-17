@@ -32,6 +32,8 @@ void app_main(){
     // Initialize NVS flash for other components' use
     ESP_ERROR_CHECK(nvs_flash_init());
 
+    ESP_LOGI(TAG, "%d\n", *((int *) NULL));
+
     // LOG start of the Programm
     ESP_LOGI(TAG, "Connecting to WiFi AP...");
 
