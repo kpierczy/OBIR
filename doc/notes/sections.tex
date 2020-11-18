@@ -1,0 +1,147 @@
+% ============================================================================================================================= %
+%                                                          Wstêp                                                                %
+% ============================================================================================================================= %
+
+\chapter{Wstêp}
+
+Po pierwsze, w Internecie  jest strasznie informacji mieszaj¹cych ró¿ne kwestie zwi¹zane ze starym i nowym SDK. W zwi¹zku z tym warto amiêtaæ, ¿e jedyne Ÿród³a informacji na jakich mo¿na polegaæ to:
+
+\begin{itemize}
+    \item \textbf{oficjalna dokumentacja IDF}: kwestie interfejsu progamistycznego oraz organizacji pamieci flash (nale¿y pamiêtaæ, ¿e ESP32 i ESP8266 nie s¹ jeszcze w pe³ni zgodne w tej materii)
+    \item \textbf{oficjalna dokumentacja SDK} (aktualna): ma³a iloœc informacji, ale pokazuje te  drobne ró¿nice miêdzy ESP32 i ESP8266
+    \item \textbf{oficjalne dokumenty Espressif, które \textit{obecnie} znajduj¹ siê na stronie}: tylko kwestie dokumentacji technicznej (nie API)
+    \item \textbf{fanowska wiki}: co siê da
+    \item \textbf{nieliczne artyku³y}, których autorzy podjêli wysi³ek przeanalizowania dostepnego jawnie kodu
+\end{itemize}
+
+\noindent
+Pozosta³e Ÿród³a nale¿y raczej omijaæ szerokim ³ukiem, gdy¿ nawet jeœli informacje w nich zawarte nie s¹ zupe³nie zmyœlone, to jednak ich utorzy wykazuj¹ siê czêsto niezrozumieniem kwestii, o których pisz¹.
+
+
+
+\section {Nowe IDF-SDK}
+
+Espressif podjê³o w ostatnim czasie tytaniczny trud przepisania SDK dla ESP8266 w taki sposób, aby upodobniæ je do przemyœlanego i na bie¿¹co wspieranego IDF (ang. \textit{IoT Development Framework}) dla ESP32. M³odszy uk³ad jest zniacznie lepiej udokumentowany, a sama platforma od samego pocz¹tku dobrze przymyœlana (w porównaniu do starego SDK dla ESP8266). Chocia¿ niektóre kwestie zwi¹zane z nowym SDK (przede wszystkim zwi¹zane z mechanik¹ dzia³ania, a nie z API) s¹ mocno zakorzenione w dawnym SDK i korzystaj¹ ze starego kodu, to jednak mo¿e najczêœciej przyj¹æ, ¿e biblioteki dzia³aj¹ w sposób niemal identyczny jak w IDF. Drobne ró¿nice wynikaj¹ przede wszystkim z ró¿nic w fizycznej strukturze uk³adów, jak np. ró¿ne d³ugoœci MMU mapuj¹cego pamiêæ Flash do przestrzeni adresowej (24 bity w ESP8266 pozwalaj¹ mapowaæ jedynie 1MiB w jednym czasie). 
+
+
+% ============================================================================================================================= %
+%                                                   Specyfikacja techniczna                                                     %
+% ============================================================================================================================= %
+
+
+\chapter{Specyfikacja techniczna}
+
+% =====> Pamiêæ
+\section{Pamiêæ}
+
+%--------------> RAM
+\subsection{RAM}
+
+Wiêkszoœæ kluczowych informacji zawarta jest w dokumentach dostêpnych na stronie Espressif. Jednak jako, ¿e s¹ tam dostepne Ÿród³a odnosz¹ce siê do starego SDK warto skorygowaæ kwestie zwi¹zane z pamiêci¹ dostêpn¹ w ESP8266. Uk³ad posiada \textbf{160KiB statycznej pamiêci RAM}. Jest on zaprojektowane w architekturze Harvardzkiej w zwi¹zku z czym dostêp do danych i instrukcji odbywa siê poprzez osobne magistrale. Co za tym idzie wbudowany SRAM zosta³ podzielony na dwa bloki:
+
+\begin{itemize}
+    \item \textbf{96KiB dRAM} przechowuj¹cy dane programu (m.in. stos i stertê) [0x3FFE8000-0x3fffffff]
+    \subitem - ostatnie 16KiB jest pamiêci¹ Read-only wykorzystywan¹ przez ETS (przerwania wewnêtrzne uk³adu, np. zegarowe)
+    \item \textbf{64KiB iRAM} przy czym:
+    \subitem \textbf{48KiB iRAM} pozwala przechowywaæ kod programu [0x40100000-0x4010Bfff]
+    \subitem \textbf{16KiB cache} s³u¿y do buforowania kodu umieszczonego w pamiêci Flash [0x4010C000-0x4010ffff]
+\end{itemize}
+
+\noindent
+Konfiguracja "Component config ---> ESP8266-specific ---> Enable full cache mode" pozwala przeznaczyæ dolne 16KiB segmentu iRAM na rozszerzenie cache'u dla pamiêci flash. Mapa pamiêci stworzona na fanowskiej wiki wskazuje, ¿e obszar cache mo¿e byæ sprzêtowo ca³kowicie wy³¹czony, co pozwala uzyskaæ 64KiB pamiêci iRAM. Taki scenariusz nie jest jednak wspierany przez œrodowisko IDF-SDK.
+
+%--------------> RAM
+\subsection{Flash}
+
+Uk³ad SoC ESP8266 nie posiada wewnêtrznej pamiêci Flash. Mo¿liwe jest jednak pod³¹czenie do niego \textbf{zewnêtrznej pamiêci SPI Flash}. Na chwilê obecn¹ IDF-SDK obs³uguje do 8MiB takiej pamiêci, chocia¿ pliki nag³ówkowe umieszczaj¹ definicje do 64MiB dla kompatybilnoœci z oprogramowaniem NodeMCU. Pamiêæ ta przechowuje wszystkie elementy potrzebne do uruchomienia programu. Sposób jej formatowania przez SDK zosta³ opisany w sekcji "Partycjonowanie pamiêci Flash".
+
+\noindent
+Sam modu³ ESP8266 obs³ugujedo 16KiB Flash w trybie QSPI. Mo¿liwe jest tak¿e do³¹czenie kolejnego modu³u pamiêci obs³ugiwanego przez standardowy protoku³ SPI. Dostêp do tej pamiêci odbywaæ siê mo¿e programowo przez sterownik SPI zaimplementowane w SDK. Uk³ad zawiera jednak równie¿ dedykowan¹ jednostkê MMU, która pozwala zmapowaæ do 1MiB tej pamiêci w przestrzeñ adresow¹ [0x40200000-0x402fffff]. Domyœlnie jest to pocz¹tkowy 1MiB jednak mo¿liwe jest przemapowanie w trakcie dzia³ania programu. W SDK mo¿liwe jest to tylko na etapie Bootloadera 2-go poziomu.
+
+\subsubsection{esptool}
+
+Narzêdziem s³u¿acym do komunikacji z ESP8266 z poziomu PC jest \textbf{esptool.py}. Wbudowany na sta³e w uk³ad bootlaoader (patrz sekcje "Wbudowana pamiêæ ROM" oraz "Botowanie") ma mo¿liwoœc komunikowania siê przez port szeregowy celem zaprogramowania pamiêci Flash. Narzêdzie esptool.py (które jest wewnêtrznie wykorzystywane przez \textit{idf.py}) komunikuje siê z nim po uruchomieniu w~celu wgrania do pamiêci programu \textit{flasher stub}. Jest to dedykowany bootloader o znacznie szerszych mo¿liwoœciach ni¿ ten tkwi¹cy w~wewnêtrznej pamiêci ROM. Po jego wgraniu nastêpuje reset systemu, uruchomienie stub'a przez wbudowany bootloader i faktyczne programowanie pamiêci Flash przeznaczon¹ do tego aplikacj¹ odbywa siê ju¿ poprzez komunikacjê esptool-\textit{flasher stub}. Dziêki temu mo¿liwe jest nie tylko wgrywanie w³aœciwego programu ale tak¿e pozyskiwanie informacji na temat uk³adu SoC i do³¹czonej pamiêci.
+
+%--------------> Wewnêtrzny ROM
+\subsection{Wbudowana pamiêæ ROM}
+
+ESP8266 posiada wbudowany na sta³e Bootloader 1-go poziomu, który rezyduje w \textbf{wewnêtrznej pamiêci ROM} [0x40000000-0x4000ffff] (64KiB). Pamiêæ ta jest dostêpna jedynie w trybie do odczytu.
+
+%--------------> Pamiêæ RTX
+\subsection{Pamiêæ modu³u RTC}
+
+Uk³ad ESP8266 posiada wbudowany modu³ RTC (ang \textbf{Real Time Clock}), który pozwala odmierzaæ czas w trybach g³êbokiego uœpienia. Wœród rejestrów RTC znajduj¹ siê dwa banki pamiêci po 512B ka¿dy. Pierwszy z nich przeznaczony jest na dane systemowe. Drugi, dostepny jest dla u¿ytkownika [0x60001200-0x600013ff]. Dane te \textit{przetrwaj¹ stany g³êbokiego uœpienia} i bêda dostepne od razu do przebudzeniu. Jest to pamiêæ o znacznie krótszym czasie dostepu ni¿ pamiêæ Flash.
+
+%--------------> Pamiêæ RTX
+\subsection{Kontrola pracy linkera}
+
+Domyœlny skrypt linkera sk³adaj¹cy aplikacje dzieli j¹ na segmenty. W zale¿noœci od rodzaju danych (modyfikowalne/niemodyfikowalne, dane, instrukcje) wyznacza im ró¿ne adresy docelowe w nag³ówku segmentu (patrz sekcja "Partycjonowanie pamiêci Flash"). Kod ten jest póŸniej kopiowany w miare potrzeb z pamiêci Flash do iRAM/dRAM przez bootloader. Kontrola rozlokowanie fragmentów kodu i danych bez ingerencji w plik linkera mo¿liwa jest dziêki odpowiednim makrodefinicjom zawartym w \textbf{komponencie esp8266} (nag³ówek \textit{esp\_attr.h}). 
+
+\noindent
+Domyœlnie \textbf{kod} umieszczany jest docelowo w zmapowanym do przestrzeni adresowej obszarze pamiêci Flash i cache'owany w trakcie dostêpu. Zdefiniowanie funkcji z odpowiednim atrybutem sprawia, ¿e linker umieœci j¹ w segmencie, który bootloader przeniesie do pamiêci iRAM w trakcie bootup'u. \textbf{Dane niemodyfikowalne} równiez umieszczane s¹ w pamiêci Flash. Tutaj równie¿ mo¿liwe jest zadeklarowanie ich z atrybutem, który przeniesie je do segmentu iROM. Nalezy pamiêtaæ, ¿e dane umieszczone w pamiêci Flash \underline{nie s¹ cachoe'owane przy dostêpie}. \textbf{Dane modyfikowalne} (stos, sterta, zmienne globalne) s¹ zawsze przenoszone/inicjalizowane w dRAM. Mo¿liwe jest jednak zadeklarowanie zich  atrybutem dziêki któremu \st{bootloader} startup aplikacji powstrzyma siê od ich inicjalizowania (zerowania w przypadku zmiennych globalnych/statycznych).Istnieje tak¿e atrybut, który pozwala umieœciæ dane w pamiêci modu³u RTC.
+
+\noindent \\
+\verb|DODATEK:| Komponent \textbf{spi\_ram} pozwala wykorzystywaæ pamiêæ Flash jako obszar modyfikowalnych danych
+
+
+
+% =====> WiFi
+\section{WiFi}
+
+ESP8266 posiada uk³ad umo¿lwiaj¹cy transmitowanie danych z wykorzystaniem protoko³ów IEEE 802.11b/g/n. Chocia¿ fizycznie zawiera on jedynie jedno wyjœcie, to mo¿liwe jednak \underline{wirtualnie} mo¿liwe jest korzystanie z dwóch interfejsów (dziêki czemu mo¿liwy jest tryb \textbf{AP+Station}).
+
+
+
+% ============================================================================================================================= %
+%                                                         Bootowanie                                                            %
+% ============================================================================================================================= %
+
+\chapter{Bootowanie}
+
+Wektor resetu procesora znajduje siê pod adresem [0x40000080], który to mieœcie siê w obszarze wewnêtrznego ROMu. Dziêki temu, po uruchomieniu uk³ad zaczyna wykonywaæ kod Bootloadera pierwszego poziomu. Ten oto bada stan na odpowiednich pinach chipu i w zale¿noœci od wyniku rozpocz¹æ jeden z dwóch (trzech) mo¿liwych scenariuszy:
+
+\begin{itemize}
+    \item bootowanie z pamiêci Flash
+    \item komunikacja z zewnêtrznym narzêdziem przez interfejs UART
+    \item (bootowanie z pamiêci SPI SD)(?)
+\end{itemize}
+
+Drugi scenariusz zosta³ opisany w czêœæi "esptool". Pierwszy polega na odczytaniu zawartoæi pamiêci Flash, odczytaniu nag³ówka obrazu oraz nag³ówków segmentów, za³adowaniu odpowiednich segmentów do pamiêci RAM \st{zainicjalizowaniu segmentu .bss} (inicjalizacja odbywa siê w startup'ie aplikacji) i przeskoczeniu do punktu wejœcieowego (ang. \textit{entry point}) programu u¿ytkownika. Po bardziej szczegó³owe informacje patrz sekcja "Partycjonowanie pamiêci Flash".
+
+% =====> Bootloader drugiego poziomu
+\section{Bootloader drugiego poziomu}
+
+Œrodowisko IDF-SDK wraz z ka¿da aplikacj¹ kompiluje tak¿e bootloader 2-go poziomu. Bootloader ten jest wgrywany razem z programem jako jedna  partycji. Dla ESP32 rozpoczyna on siê od adresu [0x00001000] a dla ESP8266 od adresu [0x00000000]. G³ównym zadaniem bootloadera jest wgranie aplikacji u¿ytkownika do pamiêci z uwzglêdnieniem segmentów stworzonych przez linkera, \st{zainicjalizowanie danych} (inicjalizacja odbywa siê w startup'ie aplikacji) oraz wykonanie skoku do punktu wejœciowego. Bootloader ten jest jednak dalece bardziej rozbudowany ni¿ ten 1-go poziomu. Przede wszystkim uwzglêdnia on mo¿liwoœæ istnienia w pamiêci wielu aplikacji i uruchomienie tej z nich, która zosta³a uwzglêdniona w odpowiedniej sekcji konfiguracyjnej. Ponadto bootloader ten inicjalizuje wiele modu³ów sprzêtowych wykorzystywanych przez IDF-SDK.
+
+Punkt wejœciowy bootloadera 2-go poziomu znajduje siê na chwilê obecn¹ w komponencie \textit{bootloader}. Jest to funkcja \textbf{call\_start\_cpu()}. Punkt wejœciowy aplikacji u¿ytkownika to z kolei równie¿ funkcja \textbf{call\_start\_cpu()} ale z komponentu \textbf{esp8266} (plik \textit{startup.c}).
+
+Je¿eli Flash zawiera wiêcej ni¿ jedn¹ aplikacjê u¿ytkownika, to w zale¿noœci od tego, czy znajduje siê ona w tym samym, czy w innym 1MiB-ajtowym segmencie, co bootloader 2-go poziomu, przed za³adowaniem programu do RAMu przeprowadzi on remapowanie pamiêci Flash w przestrzeñ adresow¹. Nale¿y zwróciæ uwagê, ¿e wówczas kod bootloader musi znajdowaæ siê ca³kowicie w RAMie. W zwi¹zku z tym pocz¹tkowe zapotrzebowanie aplikacji na RAM musi byæ odpowiednio ma³e, aby bootloader nie nadpisa³ swojego, aktualnie dzia³aj¹cego kodu oraz zaalokowanych danych. 
+
+% =====> Partycjonowanie pamiêci Flash
+\section{Partycjonowanie pamiêci Flash}
+
+IDF-SDK wykorzystuje partycjonowanie pamiêci Flash. Dziêki temu jest ona korzystaæ z niej w sposób zorganizowany, co umo¿liwia jednoczesne przechowywanie a pamiêci wielu aplikacji równolegle z systemami plików, czy obszarami danych konfiguracyjncyh.
+
+\begin{figure}
+    \centering
+    \includegraphics[scale=0.6]{img/partitioning.pdf}
+\end{figure}
+
+Powy¿szy obraz ukazuje podstawy schematu partycjonowania w IDF-SDK (po szczegó³wy dotycz¹ce partycji zobacz dokumentacjê IDF). Na pocz¹tku pamiêci Flash znajduje siê zawsze 8-bajtowy nag³ówek obrazu bootloadera drugiego poziomu (oczywiœcie 'zawsze' tak d³ugo, jak mówimy o IDF-SDK). Jest on wykorzystywany przez bootloader 1-go poziomu do za³adowania bootloadera 2-go poziomu. Ten ostatni rezyduje za nag³ówkiem obrazu i mieœcie siê zawsze w pierwszych 64KiB pamiêci Flash. 
+
+Za bootloaderem umiesczane s¹ partycje danych zwi¹zanych z SDK. S¹ to (w zale¿noœci od konfiguracji) partycje NVS (ang \textit{Non-Volatile Storage}) oraz OTA (ang. \textit{Over The Air}). Nastêpne w kolejnoœci s¹ partycje aplikacji. Ka¿da taka partycja ma swój nag³ówek, który tak jak w przypadku bootloadera 2-go poziomu okreœla m.in. adres wejœciowy aplikacji. Po nag³ówku nastêpuj¹ kolejne segmenty programu (uproszczone rozwi¹zanie znane z linuxowych plików .elf). Ka¿dy segment zaczyna siê od nag³ówka, który okreœla w jakim obszarze pamiêci musi znaleŸæ siê segment przed rozpoczêciem wykonywania aplikacji. Dziêki temu bootloader 2-go poziomu wie, które fragmenty nale¿y przekopiowaæ do RAMu. Segment koñczy siê sum¹ kontroln¹ (na chwilê obecn¹ jest to hash SHA256). Kod i dane statyczne (czyli te, które docelowo rezyduj¹ we Flashu) s¹ umieszczone po segmentach i nie wymagaj¹ ju¿ dedykowanego nag³ówka.
+
+Ostatnie 4KiB ka¿dego MiB pamiêci Flash zarezerwowane s¹ dla danych konfiguracyjnych WiFi. Dziêki temu, niezale¿nie od tego który segment 1MiB zostanie zmapowany do przestrzeni adresowej, SDK bêdzie mia³o do nich dostêp.
+
+
+
+
+% ============================================================================================================================= %
+%                                                         Komponenty                                                            %
+% ============================================================================================================================= %
+
+\chapter{Komponenty}
+
+\section{esp8266}
+
+Komponent \textbf{esptool8266} zawiera wszystkie kluczowe funkcje systemu (aplikacji u¿ytkownika). Przechowuje on podstawowe biblioteki dostarczane przez Xtensa'ê, sterowniki peryferiów oraz implementacjê biblioteki standardowej. Zawiera tak¿e implementacjê biblioteki standardowej jêzyka C oraz domyœlne skrypty linkera. To tutaj znajduje siê punkt wejœciowy aplikacji.

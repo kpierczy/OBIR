@@ -21,6 +21,8 @@ FIREFOX_VERSION="52.9.0esr"
 export PROJECT_HOME
 export IDF_TOOLS_PATH
 
+mkdir -p $PROJECT_HOME/common
+
 # Just awesome tool <3 (no more struggling with 'find')
 if ! which locate >> /dev/null; then
     sudo apt isntall mlocate
@@ -39,6 +41,9 @@ cd common/ESP8266_RTOS_SDK
 ./install.sh
 source ./export.sh
 source ./add_path.sh
+
+# Export additional tools for OTA updates
+export PATH=$PATH:$IDF_PATH/components/app_update
 
 cd $PROJECT_HOME
 
