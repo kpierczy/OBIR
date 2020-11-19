@@ -1,3 +1,25 @@
+/* ============================================================================================================
+ *  File: async.h
+ *  Author: Olaf Bergmann
+ *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  Modified by: Krzysztof Pierczyk
+ *  Modified time: 2020-11-19 20:02:38
+ *  Description: 
+ *
+ *      This file is a modification of the original libcoap source file. Aim of the modification was to 
+ *      provide cleaner, richer documented and ESP8266-optimised version of the library. Core API of the 
+ *      project was not changed or expanded, although some elemenets (e.g. DTLS support) have been removed 
+ *      due to lack of needings from the modifications' authors. 
+ * 
+ *  Note: 
+ *      
+ *      This file contains depreciated API that is no longer supported by the libcoap. Header file and 
+ *      implementations has been left unchanged for back compatibilty.
+ * 
+ * ============================================================================================================ */
+
+/* -------------------------------------------- [Original header] --------------------------------------------- */
+
 /*
  * async.h -- state management for asynchronous messages
  *
@@ -11,6 +33,9 @@
  * @file async.h
  * @brief State management for asynchronous messages
  */
+
+/* ------------------------------------------------------------------------------------------------------------ */
+
 
 #ifndef COAP_ASYNC_H_
 #define COAP_ASYNC_H_

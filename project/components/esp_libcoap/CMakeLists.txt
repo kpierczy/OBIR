@@ -1,5 +1,5 @@
 # Include directories
-set(include_dirs include)
+set(include_dirs include include/port include/port/coap)
 
 # Source code files
 set(srcs
@@ -32,7 +32,7 @@ idf_component_register(
 )
 
 # Originally, this file triggers ggc's 'format-truncation' warning
-set_source_files_properties(libcoap/src/coap_debug.c PROPERTIES COMPILE_FLAGS -Wno-format-truncation)
+set_source_files_properties(src/coap_debug.c PROPERTIES COMPILE_FLAGS -Wno-format-truncation)
 
 # For some reason it may be required by the build as long as the macro WITH_POSIX is used
 target_compile_definitions(${COMPONENT_LIB} PUBLIC WITH_POSIX)

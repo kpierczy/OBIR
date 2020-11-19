@@ -1,3 +1,27 @@
+/* ============================================================================================================
+ *  File:
+ *  Author: Olaf Bergmann
+ *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  Modified by: Krzysztof Pierczyk
+ *  Modified time: 2020-11-19 20:00:57
+ *  Description:
+ *  Credits: 
+ *
+ *      This file is a modification of the original libcoap source file. Aim of the modification was to 
+ *      provide cleaner, richer documented and ESP8266-optimised version of the library. Core API of the 
+ *      project was not changed or expanded, although some elemenets (e.g. DTLS support) have been removed 
+ *      due to lack of needings from the modifications' authors. 
+ * 
+ *  Note: 
+ *      
+ *      Header file and implementations has been left unchanged for compatibilty, but in fact it is not
+ *      ued in the project. ESP8266-SDK has no real port for any of the supported by libcop TSL 
+ *      implementations.
+ * 
+ * ============================================================================================================ */
+
+/* -------------------------------------------- [Original header] --------------------------------------------- */
+
 /*
  * coap_dtls.h -- (Datagram) Transport Layer Support for libcoap
  *
@@ -7,6 +31,9 @@
  * This file is part of the CoAP library libcoap. Please see README for terms
  * of use.
  */
+
+/* ------------------------------------------------------------------------------------------------------------ */
+
 
 #ifndef COAP_DTLS_H_
 #define COAP_DTLS_H_

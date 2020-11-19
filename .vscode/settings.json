@@ -1,0 +1,35 @@
+{
+    "files.associations": {
+        "ctime": "cpp",
+        "*.contiki": "c",
+        "string_view": "cpp",
+        "regex": "cpp",
+        "rope": "cpp",
+        "tuple": "cpp"
+    },
+    "files.encoding": "utf8",
+    "editor.wordWrap": "on",
+    "autoHeader": {
+        "format": {
+            "startWith": "/* ============================================================================================================",
+            "middleWith": "*",
+            "endWith"  : "* ============================================================================================================ */\n\n\n/* -------------------------------------------- [Original header] --------------------------------------------- */\n/* ------------------------------------------------------------------------------------------------------------ */",
+            "headerPrefix": "",
+        },
+        "header": {
+            "File": "",
+            "Author": "Olaf Bergmann",
+            "Source" : "https://github.com/obgm/libcoap/tree/develop/include/coap2",
+            "Modified by": {
+                "type": "modifier",
+                "value": "Krzysztof Pierczyk",
+            },
+            "Modified time": {
+                "type": "modifyTime",
+                "format": "YYYY-MM-DD HH:mm:ss"
+            },
+            "Description": "",
+            "Credits": "\n *\n *      This file is a modification of the original libcoap source file. Aim of the modification was to \n *      provide cleaner, richer documented and ESP8266-optimised version of the library. Core API of the \n *      project was not changed or expanded, although some elemenets (e.g. DTLS support) have been removed \n *      due to lack of needings from the modifications' authors. \n * ",
+        }
+    }
+}
