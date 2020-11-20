@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-19 19:00:07
+ *  Modified time: 2020-11-20 10:19:02
  *  Description:
  * 
  *      File contains abstraction layer constituting IP adresses API used by the library.

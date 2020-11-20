@@ -189,13 +189,11 @@ coap_mfree_endpoint(struct coap_endpoint_t *ep) {
 }
 
 int
-coap_socket_bind_udp(coap_socket_t *sock,
+coap_socket_bind_udp(
+  coap_socket_t *sock,
   const coap_address_t *listen_addr,
   coap_address_t *bound_addr) {
   int on = 1, off = 0;
-#ifdef _WIN32
-  u_long u_on = 1;
-#endif
 
   sock->fd = socket(listen_addr->addr.sa.sa_family, SOCK_DGRAM, 0);
 
@@ -205,11 +203,7 @@ coap_socket_bind_udp(coap_socket_t *sock,
     goto error;
   }
 
-#ifdef _WIN32
-  if (ioctlsocket(sock->fd, FIONBIO, &u_on) == COAP_SOCKET_ERROR) {
-#else
   if (ioctl(sock->fd, FIONBIO, &on) == COAP_SOCKET_ERROR) {
-#endif
     coap_log(LOG_WARNING,
          "coap_socket_bind_udp: ioctl FIONBIO: %s\n", coap_socket_strerror());
   }
@@ -755,20 +749,10 @@ coap_network_send(coap_socket_t *sock, const coap_session_t *session, const uint
 
   if (!coap_debug_send_packet()) {
     bytes_written = (ssize_t)datalen;
-#ifndef WITH_CONTIKI
   } else if (sock->flags & COAP_SOCKET_CONNECTED) {
-#ifdef _WIN32
-    bytes_written = send(sock->fd, (const char *)data, (int)datalen, 0);
-#else
     bytes_written = send(sock->fd, data, datalen, 0);
-#endif
-#endif
   } else {
 #ifndef WITH_CONTIKI
-#ifdef _WIN32
-    DWORD dwNumberOfBytesSent = 0;
-    int r;
-#endif
 #ifndef COAP_BAD_RECVMSG
     /* a buffer large enough to hold all packet info types, ipv6 is the largest */
     char buf[CMSG_SPACE(sizeof(struct in6_pktinfo))];
@@ -877,19 +861,12 @@ coap_network_send(coap_socket_t *sock, const coap_session_t *session, const uint
     }
 #endif /* ! COAP_BAD_RECVMSG */
 
-#ifdef _WIN32
-    r = WSASendMsg(sock->fd, &mhdr, 0 /*dwFlags*/, &dwNumberOfBytesSent, NULL /*lpOverlapped*/, NULL /*lpCompletionRoutine*/);
-    if (r == 0)
-      bytes_written = (ssize_t)dwNumberOfBytesSent;
-    else
-      bytes_written = -1;
-#else
 #ifndef COAP_BAD_RECVMSG
     bytes_written = sendmsg(sock->fd, &mhdr, 0);
 #else /* COAP_BAD_RECVMSG */
     bytes_written = sendto(sock->fd, data, datalen, 0, &session->remote_addr.addr.sa, session->remote_addr.size);
 #endif /* COAP_BAD_RECVMSG */
-#endif
+
 #else /* WITH_CONTIKI */
     /* FIXME: untested */
     /* FIXME: is there a way to check if send was successful? */

@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-19 20:29:58
+ *  Modified time: 2020-11-20 10:35:06
  *  Description:
  * 
  *      File contains API for intra-library logging and debugging mechanisms.
@@ -45,22 +45,22 @@ struct coap_address_t;
  * @brief: Pre-defined log levels akin to what is used in 'syslog'. 
  */
 typedef enum {
-  // Emergency
-  LOG_EMERG = 0,
-  // Alert 
-  LOG_ALERT,
-  // Critical
-  LOG_CRIT,
-  // Error
-  LOG_ERR,
-  // Warning
-  LOG_WARNING,
-  // Notice
-  LOG_NOTICE,
-  // Info
-  LOG_INFO,
-  // Debug
-  LOG_DEBUG
+    // Emergency
+    LOG_EMERG = 0,
+    // Alert 
+    LOG_ALERT,
+    // Critical
+    LOG_CRIT,
+    // Error
+    LOG_ERR,
+    // Warning
+    LOG_WARNING,
+    // Notice
+    LOG_NOTICE,
+    // Info
+    LOG_INFO,
+    // Debug
+    LOG_DEBUG
 } coap_log_t;
 
 /**
@@ -103,8 +103,8 @@ void coap_log_impl(coap_log_t level, const char *format, ...);
  */
 #ifndef coap_log
 #define coap_log(level, ...) do { \
-  if ((int)((level))<=(int)coap_get_log_level()) \
-     coap_log_impl((level), __VA_ARGS__); \
+    if ((int)((level))<=(int)coap_get_log_level()) \
+        coap_log_impl((level), __VA_ARGS__); \
 } while(0)
 #endif
 

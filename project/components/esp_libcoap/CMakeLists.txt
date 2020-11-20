@@ -8,6 +8,7 @@ set(srcs
     "src/block.c"
     "src/coap_event.c"
     "src/coap_hashkey.c"
+    "src/coap_io.c"
     "src/coap_session.c"
     "src/coap_time.c"
     "src/coap_debug.c"
@@ -21,7 +22,6 @@ set(srcs
     "src/subscribe.c"
     "src/uri.c"
     "src/coap_notls.c"
-    "src/coap_io.c"
 )
 
 # Register component in the IDF

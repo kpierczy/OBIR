@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-19 20:37:21
+ *  Modified time: 2020-11-20 10:32:20
  *  Description:
  *  Credits: 
  *
@@ -81,7 +81,7 @@ void coap_hash_impl(const unsigned char *s, unsigned int len, coap_key_t h);
  *    @t coap_key_t buffer to store the calculated hash key
  */
 #define coap_hash(String, Length, Result) \
-  coap_hash_impl((String),(Length),(Result))
+    coap_hash_impl((String),(Length),(Result))
 
 /**
  * @brief: This is used to control the pre-set hash-keys for resources.
@@ -106,9 +106,9 @@ void coap_hash_impl(const unsigned char *s, unsigned int len, coap_key_t h);
  * @hideinitializer
  */
 #define coap_str_hash(Str,H) {               \
-    assert(Str);                             \
-    memset((H), 0, sizeof(coap_key_t));      \
-    coap_hash((Str)->s, (Str)->length, (H)); \
-  }
+        assert(Str);                             \
+        memset((H), 0, sizeof(coap_key_t));      \
+        coap_hash((Str)->s, (Str)->length, (H)); \
+    }
 
 #endif /* COAP_HASHKEY_H_ */
