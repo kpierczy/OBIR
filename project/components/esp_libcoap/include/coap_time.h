@@ -1,3 +1,24 @@
+/* ============================================================================================================
+ *  File:
+ *  Author: Olaf Bergmann
+ *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  Modified by: Krzysztof Pierczyk
+ *  Modified time: 2020-11-20 15:23:10
+ *  Description:
+ * 
+ *      Basic time functions wrappers for the libcoap usage.
+ * 
+ *  Credits: 
+ *
+ *      This file is a modification of the original libcoap source file. Aim of the modification was to 
+ *      provide cleaner, richer documented and ESP8266-optimised version of the library. Core API of the 
+ *      project was not changed or expanded, although some elemenets (e.g. DTLS support) have been removed 
+ *      due to lack of needings from the modifications' authors. 
+ * 
+ * ============================================================================================================ */
+
+/* -------------------------------------------- [Original header] --------------------------------------------- */
+
 /*
  * coap_time.h -- Clock Handling
  *
@@ -12,151 +33,110 @@
  * @brief Clock Handling
  */
 
+/* ------------------------------------------------------------------------------------------------------------ */
+
+
 #ifndef COAP_TIME_H_
 #define COAP_TIME_H_
 
-/**
- * @defgroup clock Clock Handling
- * Default implementation of internal clock.
- * @{
- */
-
-#if defined(WITH_LWIP)
-
-#include <stdint.h>
-#include <lwip/sys.h>
-
-/* lwIP provides ms in sys_now */
-#define COAP_TICKS_PER_SECOND 1000
-
-typedef uint32_t coap_tick_t;
-typedef uint32_t coap_time_t;
-typedef int32_t coap_tick_diff_t;
-
-COAP_STATIC_INLINE void coap_ticks_impl(coap_tick_t *t) {
-  *t = sys_now();
-}
-
-COAP_STATIC_INLINE void coap_clock_init_impl(void) {
-}
-
-#define coap_clock_init coap_clock_init_impl
-#define coap_ticks coap_ticks_impl
-
-COAP_STATIC_INLINE coap_time_t coap_ticks_to_rt(coap_tick_t t) {
-  return t / COAP_TICKS_PER_SECOND;
-}
-
-#elif defined(WITH_CONTIKI)
-
-#include "clock.h"
-
-typedef clock_time_t coap_tick_t;
-typedef clock_time_t coap_time_t;
-
-/**
- * This data type is used to represent the difference between two clock_tick_t
- * values. This data type must have the same size in memory as coap_tick_t to
- * allow wrapping.
- */
-typedef int coap_tick_diff_t;
-
-#define COAP_TICKS_PER_SECOND CLOCK_SECOND
-
-COAP_STATIC_INLINE void coap_clock_init(void) {
-  clock_init();
-}
-
-COAP_STATIC_INLINE void coap_ticks(coap_tick_t *t) {
-  *t = clock_time();
-}
-
-COAP_STATIC_INLINE coap_time_t coap_ticks_to_rt(coap_tick_t t) {
-  return t / COAP_TICKS_PER_SECOND;
-}
-
-#else
 #include <stdint.h>
 
+
+/* ------------------------------------------- [Macrodefinitions] --------------------------------------------- */
+
 /**
- * This data type represents internal timer ticks with COAP_TICKS_PER_SECOND
- * resolution.
+ * @brief: Uses [ms] resolution on POSIX systems
+ */
+#define COAP_TICKS_PER_SECOND ((coap_tick_t)(1000U))
+
+
+/* -------------------------------------------- [Data structures] --------------------------------------------- */
+
+/**
+ * @brief: Fata type representing internal timer ticks with (1 / COAP_TICKS_PER_SECOND)
+ *    resolution.
  */
 typedef uint64_t coap_tick_t;
 
 /**
- * CoAP time in seconds since epoch.
+ * @brief: CoAP time in seconds since epoch.
  */
 typedef time_t coap_time_t;
 
 /**
- * This data type is used to represent the difference between two clock_tick_t
- * values. This data type must have the same size in memory as coap_tick_t to
- * allow wrapping.
+ * @brief: Data type is used to represent the difference between two clock_tick_t
+ *    values. This data type must have the same size in memory as coap_tick_t to
+ *    allow wrapping.
  */
 typedef int64_t coap_tick_diff_t;
 
-/** Use ms resolution on POSIX systems */
-#define COAP_TICKS_PER_SECOND ((coap_tick_t)(1000U))
+
+/* ----------------------------------------------- [Functions] ------------------------------------------------ */
 
 /**
- * Initializes the internal clock.
+ * @brief: Initializes the internal clock.
  */
 void coap_clock_init(void);
 
 /**
- * Sets @p t to the internal time with COAP_TICKS_PER_SECOND resolution.
+ * @brief: Sets @p t to the internal time with (1 / COAP_TICKS_PER_SECOND) resolution.
  */
 void coap_ticks(coap_tick_t *t);
 
 /**
- * Helper function that converts coap ticks to wallclock time. On POSIX, this
- * function returns the number of seconds since the epoch. On other systems, it
- * may be the calculated number of seconds since last reboot or so.
+ * @brief: Helper function that converts coap ticks to wallclock time. On POSIX, this
+ *    function returns the number of seconds since the epoch. On other systems, it
+ *    may be the calculated number of seconds since last reboot or so.
  *
- * @param t Internal system ticks.
- *
- * @return  The number of seconds that has passed since a specific reference
- *          point (seconds since epoch on POSIX).
+ * @param t:
+ *    internal system ticks.
+ * @returns:
+ *    the number of seconds that has passed since a specific reference point (seconds 
+ *    since epoch on POSIX).
  */
 coap_time_t coap_ticks_to_rt(coap_tick_t t);
 
 /**
-* Helper function that converts coap ticks to POSIX wallclock time in us.
-*
-* @param t Internal system ticks.
-*
-* @return  The number of seconds that has passed since a specific reference
-*          point (seconds since epoch on POSIX).
-*/
+ * @brief: Helper function that converts coap ticks to POSIX wallclock time in us.
+ *
+ * @param t:
+ *    internal system ticks.
+ * @returns:
+ *    the number of seconds that has passed since a specific reference point (seconds
+ *    since epoch on POSIX).
+ */
 uint64_t coap_ticks_to_rt_us(coap_tick_t t);
 
 /**
-* Helper function that converts POSIX wallclock time in us to coap ticks.
-*
-* @param t POSIX time is us
-*
-* @return  coap ticks
-*/
+ * @brief: Helper function that converts POSIX wallclock time in us to coap ticks.
+ *
+ * @param t:
+ *    POSIX time is us
+ * @returns:
+ *    coap ticks
+ */
 coap_tick_t coap_ticks_from_rt_us(uint64_t t);
-#endif
+
+
+/* ---------------------------------------- [Static-inline functions] ----------------------------------------- */
 
 /**
- * Returns @c 1 if and only if @p a is less than @p b where less is defined on a
- * signed data type.
+ * @returns:
+ *    1 if and only if @p a is less than @p b where less is defined on a signed data
+ *    type.
  */
-COAP_STATIC_INLINE int coap_time_lt(coap_tick_t a, coap_tick_t b) {
+COAP_STATIC_INLINE int
+coap_time_lt(coap_tick_t a, coap_tick_t b) {
   return ((coap_tick_diff_t)(a - b)) < 0;
 }
 
 /**
- * Returns @c 1 if and only if @p a is less than or equal @p b where less is
- * defined on a signed data type.
+ * @returns:
+ *    1 if and only if @p a is less than or equal @p b where less is defined on 
+ *    a signed data type.
  */
 COAP_STATIC_INLINE int coap_time_le(coap_tick_t a, coap_tick_t b) {
   return a == b || coap_time_lt(a,b);
 }
-
-/** @} */
 
 #endif /* COAP_TIME_H_ */

@@ -3,8 +3,11 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-20 10:32:20
+ *  Modified time: 2020-11-20 13:46:22
  *  Description:
+ * 
+ *      Basic implementation of simple string hashes.
+ * 
  *  Credits: 
  *
  *      This file is a modification of the original libcoap source file. Aim of the modification was to 

@@ -1,3 +1,25 @@
+/* ============================================================================================================
+ *  File:
+ *  Author: Olaf Bergmann
+ *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  Modified by: Krzysztof Pierczyk
+ *  Modified time: 2020-11-20 17:13:06
+ *  Description:
+ * 
+ *      
+ * 
+ *  Credits: 
+ *
+ *      This file is a modification of the original libcoap source file. Aim of the modification was to 
+ *      provide cleaner, richer documented and ESP8266-optimised version of the library. Core API of the 
+ *      project was not changed or expanded, although some elemenets (e.g. DTLS support) have been removed 
+ *      due to lack of needings from the modifications' authors. 
+ * 
+ * ============================================================================================================ */
+
+
+/* -------------------------------------------- [Original header] --------------------------------------------- */
+
 /*
  * uri.h -- helper functions for URI treatment
  *
@@ -7,101 +29,118 @@
  * of use.
  */
 
+/* ------------------------------------------------------------------------------------------------------------ */
+
 #ifndef COAP_URI_H_
 #define COAP_URI_H_
 
 #include <stdint.h>
-
 #include "str.h"
+
 struct coap_pdu_t;
 
-/**
- * The scheme specifiers. Secure schemes have an odd numeric value,
- * others are even.
- */
-enum coap_uri_scheme_t {
-  COAP_URI_SCHEME_COAP=0,
-  COAP_URI_SCHEME_COAPS=1,
-  COAP_URI_SCHEME_COAP_TCP=2,
-  COAP_URI_SCHEME_COAPS_TCP=3
-};
+/* ------------------------------------------- [Macrodefinitions] --------------------------------------------- */
 
 /** This mask can be used to check if a parsed URI scheme is secure. */
 #define COAP_URI_SCHEME_SECURE_MASK 0x01
 
+
+/* -------------------------------------------- [Data structures] --------------------------------------------- */
+
 /**
- * Representation of parsed URI. Components may be filled from a string with
- * coap_split_uri() and can be used as input for option-creation functions.
+ * @brief: The scheme specifiers. Secure schemes have an odd numeric value, others are even.
+ */
+enum coap_uri_scheme_t {
+    COAP_URI_SCHEME_COAP=0,
+    COAP_URI_SCHEME_COAPS=1,
+    COAP_URI_SCHEME_COAP_TCP=2,
+    COAP_URI_SCHEME_COAPS_TCP=3
+};
+
+/**
+ * @brief: Representation of parsed URI. Components may be filled from a string with
+ *    @f coap_split_uri() and can be used as input for option-creation functions.
  */
 typedef struct {
-  coap_str_const_t host;  /**< host part of the URI */
-  uint16_t port;          /**< The port in host byte order */
-  coap_str_const_t path;  /**< Beginning of the first path segment.
-                           Use coap_split_path() to create Uri-Path options */
-  coap_str_const_t query; /**<  The query part if present */
 
-  /** The parsed scheme specifier. */
+  // Host part of the URI
+  coap_str_const_t host;  
+  // The port in host byte order
+  uint16_t port;          
+  // Beginning of the first path segment.
+  coap_str_const_t path;  
+  // The query part if present
+  coap_str_const_t query; 
+
+  // The parsed scheme specifier.
   enum coap_uri_scheme_t scheme;
+  
 } coap_uri_t;
 
-static inline int
-coap_uri_scheme_is_secure(const coap_uri_t *uri) {
-  return uri && ((uri->scheme & COAP_URI_SCHEME_SECURE_MASK) != 0);
-}
+
+/* ----------------------------------------------- [Functions] ------------------------------------------------ */
 
 /**
- * Creates a new coap_uri_t object from the specified URI. Returns the new
- * object or NULL on error. The memory allocated by the new coap_uri_t
- * must be released using coap_free().
+ * @brief: Creates a new coap_uri_t object from the specified URI. Returns the new
+ *    object or NULL on error. The memory allocated by the new coap_uri_t must be released
+ *    using coap_free().
  *
- * @param uri The URI path to copy.
- * @param length The length of uri.
- *
- * @return New URI object or NULL on error.
+ * @param uri:
+ *    the URI path to copy.
+ * @param length:
+ *    the length of uri.
+ * @returns:
+ *    new URI object or NULL on error.
  */
 coap_uri_t *coap_new_uri(const uint8_t *uri, unsigned int length);
 
 /**
- * Clones the specified coap_uri_t object. Thie function allocates sufficient
- * memory to hold the coap_uri_t structure and its contents. The object must
- * be released with coap_free(). */
+ * @brief: Clones the specified @t coap_uri_t object. Thie function allocates sufficient
+ *    memory to hold the coap_uri_t structure and its contents. The object must
+ *    be released with coap_free(). 
+ *
+ * @param uri:
+ *    URI to be cloned 
+ * @returns:
+ *    cloned URI
+ */
 coap_uri_t *coap_clone_uri(const coap_uri_t *uri);
 
 /**
- * @defgroup uri_parse URI Parsing Functions
+ * @brief: Parses a given string into URI components. The identified syntactic
+ *    components are stored in the result parameter @p uri. Optional URI
+ *    components that are not specified will be set to { 0, 0 }, except for the
+ *    port which is set to @c COAP_DEFAULT_PORT. This function returns @p 0 if
+ *    parsing succeeded, a value less than zero otherwise.
  *
- * CoAP PDUs contain normalized URIs with their path and query split into
- * multiple segments. The functions in this module help splitting strings.
- * @{
- */
-
-/**
- * Parses a given string into URI components. The identified syntactic
- * components are stored in the result parameter @p uri. Optional URI
- * components that are not specified will be set to { 0, 0 }, except for the
- * port which is set to @c COAP_DEFAULT_PORT. This function returns @p 0 if
- * parsing succeeded, a value less than zero otherwise.
- *
- * @param str_var The string to split up.
- * @param len     The actual length of @p str_var
- * @param uri     The coap_uri_t object to store the result.
- * @return        @c 0 on success, or < 0 on error.
+ * @param str_var:
+ *    the string to split up.
+ * @param len:
+ *    the actual length of @p str_var
+ * @param uri:
+ *    the coap_uri_t object to store the result.
+ * @returns:
+ *    0 on success, or < 0 on error.
  *
  */
 int coap_split_uri(const uint8_t *str_var, size_t len, coap_uri_t *uri);
 
 /**
- * Splits the given URI path into segments. Each segment is preceded
- * by an option pseudo-header with delta-value 0 and the actual length
- * of the respective segment after percent-decoding.
+ * @brief: Splits the given URI path into segments. Each segment is preceded
+ *    by an option pseudo-header with delta-value 0 and the actual length
+ *    of the respective segment after percent-decoding.
  *
- * @param s      The path string to split.
- * @param length The actual length of @p s.
- * @param buf    Result buffer for parsed segments.
- * @param buflen Maximum length of @p buf. Will be set to the actual number
- *               of bytes written into buf on success.
- *
- * @return       The number of segments created or @c -1 on error.
+ * @param s:
+ *    the path string to split.
+ * @param length:
+ *    the actual length of @p s.
+ * @param buf:
+ *    result buffer for parsed segments.
+ * @param buflen:
+ *    maximum length of @p buf. Will be set to the actual number of bytes written
+ *    into buf on success.
+ * @returns:
+ *    the number of segments created or @c -1 on error.
  */
 int coap_split_path(const uint8_t *s,
                     size_t length,
@@ -109,17 +148,22 @@ int coap_split_path(const uint8_t *s,
                     size_t *buflen);
 
 /**
- * Splits the given URI query into segments. Each segment is preceded
- * by an option pseudo-header with delta-value 0 and the actual length
- * of the respective query term.
+ * @brief: Splits the given URI query into segments. Each segment is preceded
+ *    by an option pseudo-header with delta-value 0 and the actual length
+ *    of the respective query term.
  *
- * @param s      The query string to split.
- * @param length The actual length of @p s.
- * @param buf    Result buffer for parsed segments.
- * @param buflen Maximum length of @p buf. Will be set to the actual number
- *               of bytes written into buf on success.
+ * @param s:
+ *    the query string to split.
+ * @param length:
+ *    the actual length of @p s.
+ * @param buf:
+ *    result buffer for parsed segments.
+ * @param buflen:
+ *    maximum length of @p buf. Will be set to the actual number of bytes written
+ *    into buf on success.
  *
- * @return       The number of segments created or @c -1 on error.
+ * @returns:
+ *    the number of segments created or @c -1 on error.
  *
  * @bug This function does not reserve additional space for delta > 12.
  */
@@ -129,19 +173,39 @@ int coap_split_query(const uint8_t *s,
                      size_t *buflen);
 
 /**
- * Extract query string from request PDU according to escape rules in 6.5.8.
- * @param request Request PDU.
- * @return        Reconstructed and escaped query string part.
+ * @brief: Extract query string from request PDU according to escape rules in 6.5.8.
+ * 
+ * @param request:
+ *    request PDU.
+ * @returns:
+ *    reconstructed and escaped query string part.
  */
 coap_string_t *coap_get_query(const struct coap_pdu_t *request);
 
 /**
- * Extract uri_path string from request PDU
- * @param request Request PDU.
- * @return        Reconstructed and escaped uri path string part.
+ * @brief: Extract uri_path string from request PDU
+ * 
+ * @param request:
+ *    request PDU.
+ * @returns:
+ *    reconstructed and escaped uri path string part.
  */
 coap_string_t *coap_get_uri_path(const struct coap_pdu_t *request);
 
-/** @} */
+
+/* ---------------------------------------- [Static-inline functions] ----------------------------------------- */
+
+/**
+ * @brief: Checks whether URI scheme is secure
+ * 
+ * @param uri:
+ *    URI to be checked
+ * @return int:
+ *    0 if URI is not secure, != 0 otherwise
+ */
+static inline int
+coap_uri_scheme_is_secure(const coap_uri_t *uri) {
+  return uri && ((uri->scheme & COAP_URI_SCHEME_SECURE_MASK) != 0);
+}
 
 #endif /* COAP_URI_H_ */

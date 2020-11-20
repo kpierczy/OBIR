@@ -3,10 +3,10 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-20 13:40:58
+ *  Modified time: 2020-11-20 13:46:52
  *  Description:
  * 
- *       
+ *       File contains basic IO interface declaration for the library.
  * 
  *  Credits: 
  *
