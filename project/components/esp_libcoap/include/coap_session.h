@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-20 15:08:01
+ *  Modified time: 2020-11-21 16:32:46
  *  Description:
  * 
  *      File contains header associated with CoAP session abstraction.
@@ -226,9 +226,20 @@ typedef struct coap_session_t {
 } coap_session_t;
 
 /**
-* @brief: Abstraction of a virtual endpoint that can be attached to @t coap_context_t. The
-*    tuple (handle, addr) must uniquely identify this endpoint.
-*/
+ * @brief: Abstraction of a virtual endpoint that can be attached to @t coap_context_t. The
+ *    tuple (handle, addr) must uniquely identify this endpoint. It is structure describing
+ *    higher abstraction of the local, integrated (all-in-one) CoAP's interface used for 
+ *    communication with peers.
+ * 
+ *    An endpoint is an entity directly possessed by the CoAP context and it's representation
+ *    of the single CoAP client/server instance. In one @t coap_context_t many instances
+ *    of the @t coap_endpoint_t can be registered and so many clients/servers can work 
+ *    paralelly.    
+ * 
+ *    Single endpoint CAN be used for double-type communication, i.e. it can function as
+ *    server and client enpoint simultaneously, although only one system socket can be
+ *    associated with it.
+ */
 typedef struct coap_endpoint_t {
 
     // Value used for storing sessions as a forward list
@@ -356,7 +367,6 @@ size_t coap_session_max_pdu_size(const coap_session_t *session);
  *    address of local interface. It is recommended to use NULL to let the operating 
  *    system choose a suitable local interface. If an address is specified, the port
  *    number should be zero, which means that a free port is automatically selected.
- * 
  * @param server:
  *    the server's address. If the port number is zero, the default port for the
  *    protocol will be used.
@@ -374,6 +384,7 @@ coap_session_t *coap_new_client_session(
 
 /**
  * @brief: Creates a new client session to the designated server with PSK credentials
+ * 
  * @param ctx:
  *    the CoAP context.
  * @param local_if:
@@ -438,7 +449,6 @@ coap_session_t *coap_new_client_session_pki(
  *    the CoAP context.
  * @param ep:
  *    an endpoint where an incoming connection request is pending.
- *
  * @returns:
  *    a new CoAP session or NULL if failed. Call coap_session_release to free.
  */
@@ -460,8 +470,11 @@ coap_session_t *coap_new_server_session(
  * @returns:
  *    the number of bytes written on success, or a value less than zero on error.
  */
-ssize_t coap_session_send(coap_session_t *session,
-  const uint8_t *data, size_t datalen);
+ssize_t coap_session_send(
+    coap_session_t *session,
+    const uint8_t *data,
+    size_t datalen
+);
 
 /**
  * @brief: Function interface for stream data transmission. This function returns the number
@@ -477,8 +490,11 @@ ssize_t coap_session_send(coap_session_t *session,
  * @returns:
  *    the number of bytes written on success, or a value less than zero on error.
  */
-ssize_t coap_session_write(coap_session_t *session,
-  const uint8_t *data, size_t datalen);
+ssize_t coap_session_write(
+    coap_session_t *session,
+    const uint8_t *data,
+    size_t datalen
+);
 
 /**
  * @brief: Send a pdu according to the session's protocol. This function returns the number of
@@ -492,7 +508,10 @@ ssize_t coap_session_write(coap_session_t *session,
  * @returns:
  *    the number of bytes written on success, or a value less than zero on error.
  */
-ssize_t coap_session_send_pdu(coap_session_t *session, coap_pdu_t *pdu);
+ssize_t coap_session_send_pdu(
+    coap_session_t *session,
+    coap_pdu_t *pdu
+);
 
 /**
  * @brief: Get session description.
@@ -505,24 +524,28 @@ ssize_t coap_session_send_pdu(coap_session_t *session, coap_pdu_t *pdu);
 const char *coap_session_str(const coap_session_t *session);
 
 /**
- * @brief 
+ * @brief: Appends @p pdu to the end of the @p session's delayqueue. If pdu is currently
+ *    scheduled for sending in the @p session->context's sendqueue pointed by @p node
+ *    it is removed from it.
  * 
- * @param session 
- * @param pdu 
- * @param node 
- * @return ssize_t 
+ * @param session:
+ *    session to delay PDU with
+ * @param pdu:
+ *    PDU to be delayed
+ * @param node [in/out]:
+ *    if not NULL points to the entity in the @t coap_context_t->sendqueue
+ *    if NULL will point to the created entity in the @p session->delayqueue
+ * @return ssize_t:
+ *    @c COAP_PDU_DELAYED on success
+ *    @c COAP_INVALID_TID when @p pdu->tid is already in the in the delayqueue
+ *    @c COAP_INVALID_TID if new entity in the delayqueue cannot be created
  */
 ssize_t
-coap_session_delay_pdu(coap_session_t *session, coap_pdu_t *pdu,
-                       struct coap_queue_t *node);
-
-/**
-* 
-*
-* @param context        
-* @param listen_addr: 
-* @param proto          Protocol used on this endpoint
-*/
+coap_session_delay_pdu(
+    coap_session_t *session,
+    coap_pdu_t *pdu,
+    struct coap_queue_t *node
+);
 
 /**
  * @brief: Create a new endpoint for communicating with peers.
@@ -534,11 +557,20 @@ coap_session_delay_pdu(coap_session_t *session, coap_pdu_t *pdu,
  *    requests from. Use NULL to specify that no incoming request will be accepted and 
  *    use a random endpoint.
  * @param proto:
- *     
+ *    one from:
+ *       @c COAP_PROTO_UDP
+ *       @c COAP_PROTO_DTLS
+ *       @c COAP_PROTO_TCP
+ *       @c COAP_PROTO_TLS
  * @returns:
- *
+ *    created endpoint on success
+ *    NULL on failure
  */
-coap_endpoint_t *coap_new_endpoint(struct coap_context_t *context, const coap_address_t *listen_addr, coap_proto_t proto);
+coap_endpoint_t *coap_new_endpoint(
+    struct coap_context_t *context,
+    const coap_address_t *listen_addr,
+    coap_proto_t proto
+);
 
 /**
  * @brief: Set the endpoint's default MTU. This is the maximum message size that can be
@@ -549,19 +581,22 @@ coap_endpoint_t *coap_new_endpoint(struct coap_context_t *context, const coap_ad
  * @param mtu:
  *    maximum message size
  */
-void coap_endpoint_set_default_mtu(coap_endpoint_t *endpoint, unsigned mtu);
+void coap_endpoint_set_default_mtu(
+    coap_endpoint_t *endpoint,
+    unsigned mtu
+);
 
 /**
- * @brief: 
+ * @brief: Frees resources dynamicly allocated by the library on @p ep's behalf
  * 
  * @param ep:
- *     
+ *    endpoint to be freed     
  */
 void coap_free_endpoint(coap_endpoint_t *ep);
 
 
 /**
- * @brief: Get endpoint description.
+ * @brief: Get endpoint's human-readable description.
  *
  * @param endpoint:
  *    the CoAP endpoint.
@@ -571,8 +606,8 @@ void coap_free_endpoint(coap_endpoint_t *ep);
 const char *coap_endpoint_str(const coap_endpoint_t *endpoint);
 
 /**
- * @brief: Lookup the server session for the packet received on an endpoint, or create
- *    a new one.
+ * @brief: Lookup the enpoint's (i.e. server's) session for the packet received, or
+ *    creates a new one session for incoming packet.
  *
  * @param endpoint:
  *    active endpoint the packet was received on.
@@ -583,8 +618,11 @@ const char *coap_endpoint_str(const coap_endpoint_t *endpoint);
  * @returns:
  *    the CoAP session.
  */
-coap_session_t *coap_endpoint_get_session(coap_endpoint_t *endpoint,
-  const struct coap_packet_t *packet, coap_tick_t now);
+coap_session_t *coap_endpoint_get_session(
+    coap_endpoint_t *endpoint,
+    const struct coap_packet_t *packet,
+    coap_tick_t now
+);
 
 /**
  * @brief: Create a new DTLS session for the @p endpoint.
@@ -603,60 +641,70 @@ coap_session_t *coap_endpoint_new_dtls_session(coap_endpoint_t *endpoint,
   const struct coap_packet_t *packet, coap_tick_t now);
 
 /**
- * @brief:
+ * @brief: Finds session object in the @p ctx->sessions basing on a given peer's
+ *    address.
  * 
  * @param ctx:
- *    
+ *    context associated with a session
  * @param remote_addr:
- *    
+ *    peer's address
  * @param ifindex:
- *    
+ *    session's interface
  * @returns:
- *    coap_session_t* 
+ *    session found on sucess
+ *    NULL on failure
  */
-coap_session_t *coap_session_get_by_peer(struct coap_context_t *ctx,
-  const struct coap_address_t *remote_addr, int ifindex);
+coap_session_t *coap_session_get_by_peer(
+    struct coap_context_t *ctx,
+    const struct coap_address_t *remote_addr,
+    int ifindex
+);
 
 /**
- * @brief:
+ * @brief: Releases resources allocated by the library fo the session
  * 
  * @param session:
- *    
+ *    session to be freed
  */
 void coap_session_free(coap_session_t *session);
 
 /**
- * @brief:
+ * @brief: Releases resources allocated by the library fo the session
+ *    Part of the @f coap_session_free's inner implementation.
  * 
  * @param session:
- *     
+ *    session to be freed
  */
 void coap_session_mfree(coap_session_t *session);
 
 /**
- * @brief: Set the CoAP maximum retransmit count before failure. Number of message
- *    retransmissions before message sending is stopped
+ * @brief: Set the CoAP maximum retransmit count before failure. Number 
+ *    of message retransmissions before message sending is held.
  *
  * @param session:
  *    the CoAP session.
  * @param value:
  *    the value to set to. The default is 4 and should not normally get changed.
  */
-void coap_session_set_max_retransmit(coap_session_t *session,
-                                     unsigned int value);
+void coap_session_set_max_retransmit(
+    coap_session_t *session,
+    unsigned int value
+);
 
 /**
- * @brief: Set the CoAP initial ack response timeout before the next re-transmit. 
- *    Number of seconds when to expect an ACK or a response to an outstanding CON
- *    message.
+ * @brief: Set the CoAP initial ack response timeout before the next re-transmit,
+ *    i.e. number of seconds when to expect an ACK or a response to an outstanding 
+ *    CON message.
  *
  * @param session:
  *    the CoAP session.
  * @param value:
  *    the value to set to. The default is 2 and should not normally get changed.
  */
-void coap_session_set_ack_timeout(coap_session_t *session,
-                                  coap_fixed_point_t value);
+void coap_session_set_ack_timeout(
+    coap_session_t *session,
+    coap_fixed_point_t value
+);
 
 /**
  * @brief: Set the CoAP ack randomize factor. A factor that is used to randomize the
@@ -667,8 +715,10 @@ void coap_session_set_ack_timeout(coap_session_t *session,
  * @param value:
  *    the value to set to. The default is 1.5 and should not normally get changed.
  */
-void coap_session_set_ack_random_factor(coap_session_t *session,
-                                        coap_fixed_point_t value);
+void coap_session_set_ack_random_factor(
+    coap_session_t *session,
+    coap_fixed_point_t value
+);
 
 /**
  * @brief: Get the CoAP maximum retransmit before failure. Number of message retransmissions 

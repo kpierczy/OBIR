@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-20 16:30:18
+ *  Modified time: 2020-11-21 16:33:16
  *  Description:
  * 
  *      Basic encoding for unsigned integer values.
@@ -36,6 +36,7 @@
 
 #include <strings.h>
 #include <stdint.h>
+#include <libcoap.h>
 
 
 /* ----------------------------------------------- [Functions] ------------------------------------------------ */
