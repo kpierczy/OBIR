@@ -552,11 +552,7 @@ coap_log_impl(coap_log_t level, const char *format, ...) {
     return;
 
   if (log_handler) {
-#if defined(WITH_CONTIKI) || defined(WITH_LWIP)
-    char message[128];
-#else
     char message[8 + 1024 * 2]; /* O/H + Max packet payload size * 2 */
-#endif
     va_list ap;
     va_start(ap, format);
     vsnprintf( message, sizeof(message), format, ap);

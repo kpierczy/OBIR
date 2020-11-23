@@ -10,10 +10,7 @@
 
 #include "coap_config.h"
 
-#if defined(HAVE_ASSERT_H) && !defined(assert)
 # include <assert.h>
-#endif
-
 #include <stdio.h>
 #include <string.h>
 

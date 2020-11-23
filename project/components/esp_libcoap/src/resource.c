@@ -16,47 +16,9 @@
 #include "subscribe.h"
 #include "utlist.h"
 
-#if defined(WITH_LWIP)
-/* mem.h is only needed for the string free calls for
- * COAP_ATTR_FLAGS_RELEASE_NAME / COAP_ATTR_FLAGS_RELEASE_VALUE /
- * COAP_RESOURCE_FLAGS_RELEASE_URI. not sure what those lines should actually
- * do on lwip. */
-
-#include <lwip/memp.h>
-
-#define COAP_MALLOC_TYPE(Type) \
-  ((coap_##Type##_t *)memp_malloc(MEMP_COAP_##Type))
-#define COAP_FREE_TYPE(Type, Object) memp_free(MEMP_COAP_##Type, Object)
-
-#elif defined(WITH_CONTIKI)
-#include "memb.h"
-
-#define COAP_MALLOC_TYPE(Type) \
-  ((coap_##Type##_t *)memb_alloc(&(Type##_storage)))
-#define COAP_FREE_TYPE(Type, Object) memb_free(&(Type##_storage), (Object))
-
-MEMB(subscription_storage, coap_subscription_t, COAP_MAX_SUBSCRIBERS);
-
-void
-coap_resources_init() {
-  memb_init(&subscription_storage);
-}
-
-COAP_STATIC_INLINE coap_subscription_t *
-coap_malloc_subscription() {
-  return memb_alloc(&subscription_storage);
-}
-
-COAP_STATIC_INLINE void
-coap_free_subscription(coap_subscription_t *subscription) {
-  memb_free(&subscription_storage, subscription);
-}
-
-#else
 #define COAP_MALLOC_TYPE(Type) \
   ((coap_##Type##_t *)coap_malloc(sizeof(coap_##Type##_t)))
 #define COAP_FREE_TYPE(Type, Object) coap_free(Object)
-#endif
 
 #define COAP_PRINT_STATUS_MAX (~COAP_PRINT_STATUS_MASK)
 
@@ -159,16 +121,11 @@ match(const coap_str_const_t *text, const coap_str_const_t *pattern, int match_p
  *         @p buf. COAP_PRINT_STATUS_TRUNC is set when the output has been
  *         truncated.
  */
-#if defined(__GNUC__) && defined(WITHOUT_QUERY_FILTER)
-coap_print_status_t
-coap_print_wellknown(coap_context_t *context, unsigned char *buf, size_t *buflen,
-                size_t offset,
-                coap_opt_t *query_filter __attribute__ ((unused))) {
-#else /* not a GCC */
+
 coap_print_status_t
 coap_print_wellknown(coap_context_t *context, unsigned char *buf, size_t *buflen,
                 size_t offset, coap_opt_t *query_filter) {
-#endif /* GCC */
+
   size_t output_length = 0;
   unsigned char *p = buf;
   const uint8_t *bufend = buf + *buflen;
@@ -176,7 +133,7 @@ coap_print_wellknown(coap_context_t *context, unsigned char *buf, size_t *buflen
   coap_print_status_t result;
   const size_t old_offset = offset;
   int subsequent_resource = 0;
-#ifndef WITHOUT_QUERY_FILTER
+
   coap_str_const_t resource_param = { 0, NULL }, query_pattern = { 0, NULL };
   int flags = 0; /* MATCH_SUBSTRING, MATCH_PREFIX, MATCH_URI */
 #define MATCH_URI       0x01
@@ -187,9 +144,7 @@ coap_print_wellknown(coap_context_t *context, unsigned char *buf, size_t *buflen
     {2, (const uint8_t *)"if"},
     {3, (const uint8_t *)"rel"},
     {0, NULL}};
-#endif /* WITHOUT_QUERY_FILTER */
 
-#ifndef WITHOUT_QUERY_FILTER
   /* split query filter, if any */
   if (query_filter) {
     resource_param.s = coap_opt_value(query_filter);
@@ -231,11 +186,9 @@ coap_print_wellknown(coap_context_t *context, unsigned char *buf, size_t *buflen
       }
     }
   }
-#endif /* WITHOUT_QUERY_FILTER */
 
   RESOURCES_ITER(context->resources, r) {
 
-#ifndef WITHOUT_QUERY_FILTER
     if (resource_param.length) { /* there is a query filter */
 
       if (flags & MATCH_URI) {        /* match resource URI */
@@ -258,7 +211,6 @@ coap_print_wellknown(coap_context_t *context, unsigned char *buf, size_t *buflen
           continue;
       }
     }
-#endif /* WITHOUT_QUERY_FILTER */
 
     if (!subsequent_resource) {        /* this is the first resource  */
       subsequent_resource = 1;
@@ -417,12 +369,7 @@ coap_delete_attr(coap_attr_t *attr) {
     coap_delete_str_const(attr->value);
   }
 
-#ifdef WITH_LWIP
-  memp_free(MEMP_COAP_RESOURCEATTR, attr);
-#endif
-#ifndef WITH_LWIP
   coap_free_type(COAP_RESOURCEATTR, attr);
-#endif
 }
 
 static void
@@ -446,12 +393,7 @@ coap_free_resource(coap_resource_t *resource) {
     COAP_FREE_TYPE( subscription, obs );
   }
 
-#ifdef WITH_LWIP
-  memp_free(MEMP_COAP_RESOURCE, resource);
-#endif
-#ifndef WITH_LWIP
   coap_free_type(COAP_RESOURCE, resource);
-#endif /* WITH_CONTIKI */
 }
 
 void
@@ -588,7 +530,6 @@ coap_register_handler(coap_resource_t *resource,
   resource->handler[method-1] = handler;
 }
 
-#ifndef WITHOUT_OBSERVE
 coap_subscription_t *
 coap_find_observer(coap_resource_t *resource, coap_session_t *session,
                      const coap_binary_t *token) {
@@ -936,4 +877,3 @@ coap_handle_failed_notify(coap_context_t *context,
         coap_remove_failed_observers(context, r, session, token);
   }
 }
-#endif /* WITHOUT_NOTIFY */

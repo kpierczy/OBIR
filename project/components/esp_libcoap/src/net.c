@@ -33,30 +33,9 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <errno.h>
-#ifdef HAVE_LIMITS_H
 #include <limits.h>
-#endif
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#elif HAVE_SYS_UNISTD_H
-#include <sys/unistd.h>
-#endif
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
-#endif
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-#ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
-#endif
-#ifdef HAVE_WS2TCPIP_H
-#include <ws2tcpip.h>
-#endif
-
 
 #include "libcoap.h"
 #include "utlist.h"
@@ -685,12 +664,9 @@ coap_retransmit(coap_context_t *context, coap_queue_t *node) {
 
   /* no more retransmissions, remove node from system */
 
-#ifndef WITH_CONTIKI
   coap_log(LOG_DEBUG, "** %s: tid=%d: give up after %d attempts\n",
            coap_session_str(node->session), node->id, node->retransmit_cnt);
-#endif
 
-#ifndef WITHOUT_OBSERVE
   /* Check if subscriptions exist that should be canceled after
      COAP_MAX_NOTIFY_FAILURES */
   if (node->pdu->code >= 64) {
@@ -701,7 +677,7 @@ coap_retransmit(coap_context_t *context, coap_queue_t *node) {
 
     coap_handle_failed_notify(context, node->session, &token);
   }
-#endif /* WITHOUT_OBSERVE */
+
   if (node->session->con_active) {
     node->session->con_active--;
     if (node->session->state == COAP_SESSION_STATE_ESTABLISHED) {
@@ -1429,7 +1405,7 @@ error:
  */
 static int
 coap_cancel(coap_context_t *context, const coap_queue_t *sent) {
-#ifndef WITHOUT_OBSERVE
+
   coap_binary_t token = { 0, NULL };
   int num_cancelled = 0;    /* the number of observers cancelled */
 
@@ -1445,9 +1421,6 @@ coap_cancel(coap_context_t *context, const coap_queue_t *sent) {
   }
 
   return num_cancelled;
-#else /* WITOUT_OBSERVE */
-  return 0;
-#endif /* WITOUT_OBSERVE */
 }
 
 /**

@@ -8,14 +8,8 @@
 
 #include "coap_config.h"
 
-#if defined(HAVE_ASSERT_H) && !defined(assert)
-# include <assert.h>
-#endif
-
-#if defined(HAVE_LIMITS_H)
+#include <assert.h>
 #include <limits.h>
-#endif
-
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>

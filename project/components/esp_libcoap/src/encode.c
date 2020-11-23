@@ -16,13 +16,10 @@
 #include "encode.h"
 
 /* Carsten suggested this when fls() is not available: */
-#ifndef HAVE_FLS
 int coap_fls(unsigned int i) {
   return coap_flsll(i);
 }
-#endif
 
-#ifndef HAVE_FLSLL
 int coap_flsll(long long i)
 {
   int n;
@@ -30,7 +27,6 @@ int coap_flsll(long long i)
     i >>= 1;
   return n;
 }
-#endif
 
 unsigned int
 coap_decode_var_bytes(const uint8_t *buf,unsigned int len) {

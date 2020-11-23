@@ -8,10 +8,7 @@
 
 #include "coap_config.h"
 
-#if defined(HAVE_ASSERT_H) && !defined(assert)
 # include <assert.h>
-#endif
-
 #include "libcoap.h"
 #include "coap_debug.h"
 #include "block.h"
@@ -22,7 +19,6 @@
 #define min(a,b) ((a) < (b) ? (a) : (b))
 #endif
 
-#ifndef WITHOUT_BLOCK
 unsigned int
 coap_opt_block_num(const coap_opt_t *block_opt) {
   unsigned int num = 0;
@@ -267,5 +263,3 @@ error:
                 strlen(coap_response_phrase(response->code)),
                 (const unsigned char *)coap_response_phrase(response->code));
 }
-
-#endif /* WITHOUT_BLOCK  */

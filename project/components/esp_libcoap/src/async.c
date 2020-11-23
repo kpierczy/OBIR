@@ -11,8 +11,6 @@
  * @brief state management for asynchronous messages
  */
 
-#ifndef WITHOUT_ASYNC
-
 #include "coap_config.h"
 #include "coap.h"
 #include "async.h"
@@ -109,7 +107,3 @@ coap_free_async(coap_async_state_t *s) {
     coap_free(s);
   }
 }
-
-#else
-void does_not_exist(void);        /* make some compilers happy */
-#endif /* WITHOUT_ASYNC */

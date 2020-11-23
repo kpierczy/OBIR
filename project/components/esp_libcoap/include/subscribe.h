@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-22 23:48:04
+ *  Modified time: 2020-11-23 12:23:48
  *  Description:
  * 
  *      File defines basic API related to CoAP's subcription model.
@@ -38,6 +38,7 @@
 
 #include "address.h"
 #include "coap_io.h"
+#include "coap_session.h"
 #include "block.h"
 
 

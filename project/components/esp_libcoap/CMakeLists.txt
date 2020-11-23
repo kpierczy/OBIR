@@ -1,5 +1,5 @@
 # Include directories
-set(include_dirs include include/port include/port/coap)
+set(include_dirs include)
 
 # Source code files
 set(srcs

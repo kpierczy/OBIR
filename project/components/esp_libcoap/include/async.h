@@ -42,11 +42,7 @@
 
 #include "net.h"
 
-#ifndef WITHOUT_ASYNC
-
 /**
- * @defgroup coap_async Asynchronous Messaging
- * @{
  * Structure for managing asynchronous state of CoAP resources. A
  * coap_resource_t object holds a list of coap_async_state_t objects that can be
  * used to generate a separate response in case a result of an operation cannot
@@ -166,9 +162,5 @@ coap_async_state_t *coap_find_async(coap_context_t *context, coap_session_t *ses
  */
 COAP_STATIC_INLINE void
 coap_touch_async(coap_async_state_t *s) { coap_ticks(&s->created); }
-
-/** @} */
-
-#endif /*  WITHOUT_ASYNC */
 
 #endif /* COAP_ASYNC_H_ */
