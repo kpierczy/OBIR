@@ -242,77 +242,88 @@ coap_opt_delta(const coap_opt_t *opt) {
   return n;
 }
 
-uint16_t
-coap_opt_length(const coap_opt_t *opt) {
-  uint16_t length;
+uint16_t coap_opt_length(const coap_opt_t *opt) {
 
-  length = *opt & 0x0f;
-  switch (*opt & 0xf0) {
-  case 0xf0:
-    coap_log(LOG_DEBUG, "illegal option delta\n");
-    return 0;
-  case 0xe0:
-    ++opt;
-    /* fall through */
-    /* to skip another byte */
-  case 0xd0:
-    ++opt;
-    /* fall through */
-    /* to skip another byte */
-  default:
-    ++opt;
-  }
+    // Shortes options have their length encoded onto lower 4 bits of the 1st byte
+    uint16_t length = *opt & 0x0f;
 
-  switch (length) {
-  case 0x0f:
-    coap_log(LOG_DEBUG, "illegal option length\n");
-    return 0;
-  case 0x0e:
-    length = (*opt++ << 8) + 269;
-    /* fall through */
-  case 0x0d:
-    length += *opt++;
-    break;
-  default:
-    ;
-  }
-  return length;
+    // Inspect "Option Delta" field to check if delta notation is extended
+    switch (*opt++ & 0xf0) {
+    case 0xf0:
+        coap_log(LOG_DEBUG, "illegal option delta\n");
+        return 0;
+    // If delta = 14, it's notation will be extended by 2 bytes
+    // (i.e potential length's extension will start at 3rd byte)
+    case 0xe0:
+        opt += 2;
+        break;
+    // If delta = 13, it's notation will be extended by 1 byte
+    // (i.e potential length's extension will start at 2nd byte)
+    case 0xd0:
+        opt += 1;
+        break;
+    }
+
+    // Inspect "Option Length" field to check if length notation is extended
+    switch (length) {
+        case 0x0f:
+            coap_log(LOG_DEBUG, "illegal option length\n");
+            return 0;
+        // If length notation is extended by 2 bytes; these bytes are equal to option's
+        // value length substracted by 269
+        case 0x0e:
+            length = (opt[0] << 8) + opt[1] + 269;
+            break;
+        // If length notation is extended by 1 bytes; this bytes is equal to option's
+        // value length substracted by 13 (i.e 0x0d)
+        case 0x0d:
+            length += opt[0];
+            break;
+    }
+
+    return length;
 }
 
-const uint8_t *
-coap_opt_value(const coap_opt_t *opt) {
-  size_t ofs = 1;
 
-  switch (*opt & 0xf0) {
-  case 0xf0:
-    coap_log(LOG_DEBUG, "illegal option delta\n");
-    return 0;
-  case 0xe0:
-    ++ofs;
-    /* fall through */
-  case 0xd0:
-    ++ofs;
-    break;
-  default:
-    ;
-  }
+const uint8_t *coap_opt_value(const coap_opt_t *opt){
 
-  switch (*opt & 0x0f) {
-  case 0x0f:
-    coap_log(LOG_DEBUG, "illegal option length\n");
-    return 0;
-  case 0x0e:
-    ++ofs;
-    /* fall through */
-  case 0x0d:
-    ++ofs;
-    break;
-  default:
-    ;
-  }
+    // Default offset of value in the option's field is 1 byte
+    size_t data_offsset = 1;
 
-  return (const uint8_t *)opt + ofs;
+    // Inspect "Option Delta" part of the option's header
+    switch (*opt & 0xf0) {
+        case 0xf0:
+            coap_log(LOG_DEBUG, "illegal option delta\n");
+            return 0;
+        // If delta = 14, it's notation will be extended by 2 bytes
+        case 0xe0:
+            data_offsset += 2;
+            break;
+        // If delta = 13, it's notation will be extended by 1 byte
+        case 0xd0:
+            data_offsset += 1;
+            break;
+    }
+
+    // Inspect "Option Length" part of the option's ehader
+    switch (*opt & 0x0f) {
+        case 0x0f:
+            coap_log(LOG_DEBUG, "illegal option length\n");
+            return 0;
+        // If length = 14, it's notation will be extended by 2 bytes
+        case 0x0e:
+            data_offsset += 2;
+            break;
+        // If length = 13, it's notation will be extended by 1 byte
+        case 0x0d:
+            data_offsset += 1;
+            break;
+
+    }
+
+    return (const uint8_t *)opt + data_offsset;
 }
+
 
 size_t
 coap_opt_size(const coap_opt_t *opt) {

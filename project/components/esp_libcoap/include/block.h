@@ -55,10 +55,10 @@ struct coap_session_t;
  * @returns: 
  *    the value of the least significant byte of a Block option @p opt.
  * 
- * @note: for zero-length options (i.e. num == m == szx == 0), COAP_OPT_BLOCK_LAST
+ * @note: for zero-length options (i.e. num == m == szx == 0), COAP_OPT_BLOCK_LAST_BYTE
  *    returns NULL.
  */
-#define COAP_OPT_BLOCK_LAST(opt) \
+#define COAP_OPT_BLOCK_LAST_BYTE(opt) \
   (coap_opt_length(opt) ? (coap_opt_value(opt) + (coap_opt_length(opt)-1)) : 0)
 
 /** 
@@ -66,14 +66,14 @@ struct coap_session_t;
  *    the value of the More-bit field of a Block option @p opt. 
  */
 #define COAP_OPT_BLOCK_MORE(opt) \
-  (coap_opt_length(opt) ? (*COAP_OPT_BLOCK_LAST(opt) & 0x08) : 0)
+  (coap_opt_length(opt) ? (*COAP_OPT_BLOCK_LAST_BYTE(opt) & 0x08) : 0)
 
 /**
  * @returns:
  *    the value of the SZX field of a Block option @p opt.
  */
 #define COAP_OPT_BLOCK_SZX(opt)  \
-  (coap_opt_length(opt) ? (*COAP_OPT_BLOCK_LAST(opt) & 0x07) : 0)
+  (coap_opt_length(opt) ? (*COAP_OPT_BLOCK_LAST_BYTE(opt) & 0x07) : 0)
 
 
 /* -------------------------------------------- [Data structures] --------------------------------------------- */
@@ -109,7 +109,7 @@ unsigned int coap_opt_block_num(const coap_opt_t *block_opt);
  *    The option to search for. Must be either COAP_OPTION_BLOCK1 or COAP_OPTION_BLOCK2.
  *    When option @p type was not found in @p pdu, @p block is initialized with values 
  *    from this option.
- * @param block:
+ * @param block [out]:
  *    The block structure to initilize.
  * @return:
  *    1 on success, 0 otherwise.
@@ -120,9 +120,11 @@ int coap_get_block(coap_pdu_t *pdu, uint16_t type, coap_block_t *block);
  * @brief: Writes a block option of type @p type to message @p pdu basing on @p block
  *    structure. If the requested block size is too large to fit in @p pdu, it is reduced
  *    accordingly. An exception  is made for the final block when less space is required. 
- *    The actual length of the resource is specified in @p data_length.
+ * 
+ *    The actual length of the resource is specified in @p data_length (i.e. length of the
+ *    whole data that has to be sent with sequence of block transfers)
  *
- * @param block:
+ * @param block [in/out]:
  *    The block structure to use. On return, this object is updated according to the values
  *    that have been written to @p pdu.
  * @param type:
@@ -131,40 +133,43 @@ int coap_get_block(coap_pdu_t *pdu, uint16_t type, coap_block_t *block);
  *    The message where the block option should be written.
  * @param data_length:
  *    The length of the actual data that will be added the @p pdu by calling coap_add_block().
- * @return:
- *    1 on success, or a negative value on error.
+ * @returns:
+ *    1 on success
+ *    0 when requested block is out of data range
+ *   -1 when requested block is to big to fit into pdu and it cannot be reduced
  * 
  * @note: This function may change @p block to reflect the values written to @p pdu. As the 
  *    function takes into consideration the remaining space in the @p pdu, no more options
  *    should be added after coap_write_block_opt() has returned.
  */
-int coap_write_block_opt(coap_block_t *block,
-                         uint16_t type,
-                         coap_pdu_t *pdu,
-                         size_t data_length);
+int coap_write_block_opt(
+    coap_block_t *block,
+    uint16_t type,
+    coap_pdu_t *pdu,
+    size_t data_length
+);
 
 /**
  * @brief: Adds the block with num-field @p block_num of size 1 << (@p block_szx + 4) from source
  *    @p data to @p pdu.
  *
  * @param pdu:
- *    The message to add the block.
+ *    the message to add the block.
  * @param len:
- *    The length of @p data.
+ *    the length of @p data.
  * @param data:
- *    The source data to fill the block with.
- * @param block_num:
- *    The actual block number.
- * @param block_szx:
- *    Encoded size of block @p block_number.
+ *    the source data to fill the block with.
+ * @param block:
+ *    block description
  * @returns:
  *    1 on success, 0 otherwise.
  */
-int coap_add_block(coap_pdu_t *pdu,
-                   unsigned int len,
-                   const uint8_t *data,
-                   unsigned int block_num,
-                   unsigned char block_szx);
+int coap_add_block(
+    coap_pdu_t *pdu,
+    unsigned int len,
+    const uint8_t *data,
+    coap_block_t *block
+);
 
 /**
  * @brief: Adds the data of size @p length to @p data or (if block transfer is required)

@@ -148,22 +148,60 @@ struct coap_session_t;
 // PDUs' codes
 #define COAP_RESPONSE_200       COAP_RESPONSE_CODE(200)  /* 2.00 OK                       */
 #define COAP_RESPONSE_201       COAP_RESPONSE_CODE(201)  /* 2.01 Created                  */
-#define COAP_RESPONSE_304       COAP_RESPONSE_CODE(203)  /* 2.03 Valid                    */
+#define COAP_RESPONSE_202       COAP_RESPONSE_CODE(202)  /* 2.02 Deleted                  */
+#define COAP_RESPONSE_203       COAP_RESPONSE_CODE(203)  /* 2.03 Valid                    */
+#define COAP_RESPONSE_204       COAP_RESPONSE_CODE(204)  /* 2.04 Changed                  */
+#define COAP_RESPONSE_205       COAP_RESPONSE_CODE(205)  /* 2.05 Content                  */
+
 #define COAP_RESPONSE_400       COAP_RESPONSE_CODE(400)  /* 4.00 Bad Request              */
+#define COAP_RESPONSE_401       COAP_RESPONSE_CODE(401)  /* 4.01 Unauthorized             */
+#define COAP_RESPONSE_402       COAP_RESPONSE_CODE(402)  /* 4.02 Bad Option               */
+#define COAP_RESPONSE_403       COAP_RESPONSE_CODE(403)  /* 4.03 Forbidden                */
 #define COAP_RESPONSE_404       COAP_RESPONSE_CODE(404)  /* 4.04 Not Found                */
 #define COAP_RESPONSE_405       COAP_RESPONSE_CODE(405)  /* 4.05 Method Not Allowed       */
+#define COAP_RESPONSE_406       COAP_RESPONSE_CODE(400)  /* 4.06 Not Acceptable           */
+#define COAP_RESPONSE_412       COAP_RESPONSE_CODE(412)  /* 4.12 Precondition Failed      */
+#define COAP_RESPONSE_413       COAP_RESPONSE_CODE(413)  /* 4.13 Request Entity Too Large */
 #define COAP_RESPONSE_415       COAP_RESPONSE_CODE(415)  /* 4.15 Unsupported Media Type   */
+
 #define COAP_RESPONSE_500       COAP_RESPONSE_CODE(500)  /* 5.00 Internal Server Error    */
 #define COAP_RESPONSE_501       COAP_RESPONSE_CODE(501)  /* 5.01 Not Implemented          */
+#define COAP_RESPONSE_502       COAP_RESPONSE_CODE(502)  /* 5.02 Bad Gateway              */
 #define COAP_RESPONSE_503       COAP_RESPONSE_CODE(503)  /* 5.03 Service Unavailable      */
 #define COAP_RESPONSE_504       COAP_RESPONSE_CODE(504)  /* 5.04 Gateway Timeout          */
-#define COAP_RESPONSE_X_242     COAP_RESPONSE_CODE(402)  /* Critical Option not supported */
+#define COAP_RESPONSE_505       COAP_RESPONSE_CODE(505)  /* 5.05 Proxying Not Supported   */
 
 #define COAP_SIGNALING_CSM     COAP_SIGNALING_CODE(701)
 #define COAP_SIGNALING_PING    COAP_SIGNALING_CODE(702)
 #define COAP_SIGNALING_PONG    COAP_SIGNALING_CODE(703)
 #define COAP_SIGNALING_RELEASE COAP_SIGNALING_CODE(704)
 #define COAP_SIGNALING_ABORT   COAP_SIGNALING_CODE(705)
+
+// PDUs' codes by names
+#define COAP_RESPONSE_OK                       COAP_RESPONSE_CODE(200)
+#define COAP_RESPONSE_CREATED                  COAP_RESPONSE_CODE(201)
+#define COAP_RESPONSE_DELETED                  COAP_RESPONSE_CODE(202)
+#define COAP_RESPONSE_VALID                    COAP_RESPONSE_CODE(203)
+#define COAP_RESPONSE_CHANGED                  COAP_RESPONSE_CODE(204)
+#define COAP_RESPONSE_CONTENT                  COAP_RESPONSE_CODE(205)
+
+#define COAP_RESPONSE_BAD_REQUEST              COAP_RESPONSE_CODE(400)
+#define COAP_RESPONSE_UNAUTHORIZED             COAP_RESPONSE_CODE(401)
+#define COAP_RESPONSE_BAD_OPTION               COAP_RESPONSE_CODE(402)
+#define COAP_RESPONSE_FORBIDDEN                COAP_RESPONSE_CODE(403)
+#define COAP_RESPONSE_NOT_FOUND                COAP_RESPONSE_CODE(404)
+#define COAP_RESPONSE_METHOD_NOT_ALLOWED       COAP_RESPONSE_CODE(405)
+#define COAP_RESPONSE_NOT_ACCEPTABLE           COAP_RESPONSE_CODE(400)
+#define COAP_RESPONSE_PRECONDITION_FAILED      COAP_RESPONSE_CODE(412)
+#define COAP_RESPONSE_REQUEST_ENTITY_TOO_LARGE COAP_RESPONSE_CODE(413)
+#define COAP_RESPONSE_UNSUPPORTED_MEDIA_TYPE   COAP_RESPONSE_CODE(415)
+
+#define COAP_RESPONSE_INTERNAL_SERVER_ERROR    COAP_RESPONSE_CODE(500)
+#define COAP_RESPONSE_NOT_IMPLEMENTED          COAP_RESPONSE_CODE(501)
+#define COAP_RESPONSE_BAD_GATEWAY              COAP_RESPONSE_CODE(502)
+#define COAP_RESPONSE_SERVICE_UNAVAILABLE      COAP_RESPONSE_CODE(503)
+#define COAP_RESPONSE_GATEWAY_TIMEOUT          COAP_RESPONSE_CODE(504)
+#define COAP_RESPONSE_PROXYING_NOT_SUPPORTED   COAP_RESPONSE_CODE(505)
 
 // Applies to COAP_SIGNALING_CSM
 #define COAP_SIGNALING_OPTION_MAX_MESSAGE_SIZE 2
@@ -485,7 +523,7 @@ int coap_add_token(
  * @param type:
  *     option's type
  * @param len:
- *     length of the
+ *     length of the @p data
  * @param data:
  *     option's value data buffer
  * @returns:
