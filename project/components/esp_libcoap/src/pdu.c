@@ -35,12 +35,12 @@ void
 coap_pdu_clear(coap_pdu_t *pdu, size_t size) {
   assert(pdu);
   assert(pdu->token);
-  assert(pdu->max_hdr_size >= COAP_PDU_MAX_UDP_HEADER_SIZE);
+  
   if (pdu->alloc_size > size)
     pdu->alloc_size = size;
   pdu->type = 0;
   pdu->code = 0;
-  pdu->hdr_size = 0;
+  
   pdu->token_length = 0;
   pdu->tid = 0;
   pdu->max_delta = 0;
@@ -55,16 +55,15 @@ coap_pdu_init(uint8_t type, uint8_t code, uint16_t tid, size_t size) {
 
   pdu = (coap_pdu_t *) coap_malloc(sizeof(coap_pdu_t));
   if (!pdu) return NULL;
-  pdu->max_hdr_size = COAP_PDU_MAX_UDP_HEADER_SIZE;
 
   uint8_t *buf;
   pdu->alloc_size = min(size, 256);
-  buf = (uint8_t*) coap_malloc(pdu->alloc_size + pdu->max_hdr_size);
+  buf = (uint8_t*) coap_malloc(pdu->alloc_size + COAP_HEADER_SIZE);
   if (buf == NULL) {
     coap_free(pdu);
     return NULL;
   }
-  pdu->token = buf + pdu->max_hdr_size;
+  pdu->token = buf + COAP_HEADER_SIZE;
 
   coap_pdu_clear(pdu, size);
   pdu->tid = tid;
@@ -88,7 +87,7 @@ coap_delete_pdu(coap_pdu_t *pdu) {
   if (pdu != NULL) {
 
     if (pdu->token != NULL)
-      coap_free(pdu->token - pdu->max_hdr_size);
+      coap_free(pdu->token - COAP_HEADER_SIZE);
     coap_free(pdu);
   }
 }
@@ -111,12 +110,12 @@ coap_pdu_resize(coap_pdu_t *pdu, size_t new_size) {
     } else {
       offset = 0;
     }
-    new_hdr = (uint8_t*)realloc(pdu->token - pdu->max_hdr_size, new_size + pdu->max_hdr_size);
+    new_hdr = (uint8_t*)realloc(pdu->token - COAP_HEADER_SIZE, new_size + COAP_HEADER_SIZE);
     if (new_hdr == NULL) {
       coap_log(LOG_WARNING, "coap_pdu_resize: realloc failed\n");
       return 0;
     }
-    pdu->token = new_hdr + pdu->max_hdr_size;
+    pdu->token = new_hdr + COAP_HEADER_SIZE;
     if (offset > 0)
       pdu->data = pdu->token + offset;
     else
@@ -360,8 +359,8 @@ next_option_safe(coap_opt_t **optp, size_t *length) {
 
 int
 coap_pdu_parse_header(coap_pdu_t *pdu, coap_proto_t proto) {
-  uint8_t *hdr = pdu->token - pdu->hdr_size;
-  assert(pdu->hdr_size == 4);
+  uint8_t *hdr = pdu->token - COAP_HEADER_SIZE;
+  
   if ((hdr[0] >> 6) != COAP_DEFAULT_VERSION) {
     coap_log(LOG_DEBUG, "coap_pdu_parse: UDP version not supported\n");
     return 0;
@@ -436,36 +435,27 @@ coap_pdu_parse(coap_proto_t proto,
                size_t length,
                coap_pdu_t *pdu)
 {
-  size_t hdr_size = 4;
 
   if (length == 0)
     return 0;
-  if (!hdr_size || hdr_size > length)
+  if (COAP_HEADER_SIZE > length)
     return 0;
-  if (hdr_size > pdu->max_hdr_size)
+  if (!coap_pdu_resize(pdu, length - COAP_HEADER_SIZE))
     return 0;
-  if (!coap_pdu_resize(pdu, length - hdr_size))
-    return 0;
-  memcpy(pdu->token - hdr_size, data, length);
-  pdu->hdr_size = (uint8_t)hdr_size;
-  pdu->used_size = length - hdr_size;
+  memcpy(pdu->token - COAP_HEADER_SIZE, data, length);
+  pdu->used_size = length - COAP_HEADER_SIZE;
   return coap_pdu_parse_header(pdu, proto) && coap_pdu_parse_opt(pdu);
 }
 
-size_t
+void
 coap_pdu_encode_header(coap_pdu_t *pdu, coap_proto_t proto) {
-    assert(pdu->max_hdr_size >= 4);
-    if (pdu->max_hdr_size < 4) {
-      coap_log(LOG_WARNING,
-           "coap_pdu_encode_header: not enough space for UDP-style header\n");
-      return 0;
-    }
-    pdu->token[-4] = COAP_DEFAULT_VERSION << 6
+    
+    uint8_t* header = pdu->token - COAP_HEADER_SIZE;
+
+    header[0] = COAP_DEFAULT_VERSION << 6
                    | pdu->type << 4
                    | pdu->token_length;
-    pdu->token[-3] = pdu->code;
-    pdu->token[-2] = (uint8_t)(pdu->tid >> 8);
-    pdu->token[-1] = (uint8_t)(pdu->tid);
-    pdu->hdr_size = 4;
-  return pdu->hdr_size;
+    header[1] = pdu->code;
+    header[2] = (uint8_t)(pdu->tid >> 8);
+    header[3] = (uint8_t)(pdu->tid);
 }

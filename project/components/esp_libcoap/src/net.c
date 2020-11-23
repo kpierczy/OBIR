@@ -392,9 +392,8 @@ coap_send_ack(coap_session_t *session, coap_pdu_t *request) {
 ssize_t
 coap_session_send_pdu(coap_session_t *session, coap_pdu_t *pdu) {
   ssize_t bytes_written = -1;
-  assert(pdu->hdr_size > 0);
-  bytes_written = coap_session_send(session, pdu->token - pdu->hdr_size,
-                                    pdu->used_size + pdu->hdr_size);
+  bytes_written = coap_session_send(session, pdu->token - COAP_HEADER_SIZE,
+                                    pdu->used_size + COAP_HEADER_SIZE);
   coap_show_pdu(LOG_DEBUG, pdu);
   return bytes_written;
 }
@@ -541,9 +540,7 @@ coap_send(coap_session_t *session, coap_pdu_t *pdu) {
   uint8_t r;
   ssize_t bytes_written;
 
-  if (!coap_pdu_encode_header(pdu, session->proto)) {
-    goto error;
-  }
+  coap_pdu_encode_header(pdu, session->proto);
 
   bytes_written = coap_send_pdu( session, pdu, NULL );
 
@@ -681,11 +678,11 @@ coap_write_session(coap_context_t *ctx, coap_session_t *session, coap_tick_t now
     coap_queue_t *q = session->delayqueue;
     coap_log(LOG_DEBUG, "** %s: tid=%d: transmitted after delay\n",
              coap_session_str(session), (int)q->pdu->tid);
-    assert(session->partial_write < q->pdu->used_size + q->pdu->hdr_size);
+    assert(session->partial_write < q->pdu->used_size + COAP_HEADER_SIZE);
     bytes_written = -1;
     if (bytes_written > 0)
       session->last_rx_tx = now;
-    if (bytes_written <= 0 || (size_t)bytes_written < q->pdu->used_size + q->pdu->hdr_size - session->partial_write) {
+    if (bytes_written <= 0 || (size_t)bytes_written < q->pdu->used_size + COAP_HEADER_SIZE - session->partial_write) {
       if (bytes_written > 0)
         session->partial_write += (size_t)bytes_written;
       break;

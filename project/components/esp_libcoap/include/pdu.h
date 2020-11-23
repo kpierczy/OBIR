@@ -62,6 +62,9 @@ struct coap_session_t;
 // Default Max-Age (in seconds)
 #define COAP_DEFAULT_MAX_AGE     60
 
+// CoAP header's size
+#define COAP_HEADER_SIZE 4
+
 // Default MTU (Maximum Transport Unit) (Excluding IP and UDP overhead)
 #ifndef COAP_DEFAULT_MTU
 #define COAP_DEFAULT_MTU 1152
@@ -268,7 +271,7 @@ typedef int coap_tid_t;
  *    <---header--->|<---token---><---options--->0xff<---payload--->
  * 
  * @note: header is addressed with a negative offset to token (using @attr token); its 
- *    maximum size is max_hdr_size.
+ *    size is @c COAP_HEADER_SIZE.
  * @note: options starts at @attr token + @attr token_length
  * @note: payload starts at @attr data; its length is @attr used_size - (@attr data - @attr token)
  */
@@ -284,10 +287,6 @@ typedef struct coap_pdu_t {
     // highest option number
     uint16_t max_delta;
 
-    // Space reserved for protocol-specific header
-    uint8_t max_hdr_size;
-    // Actaul size used for protocol-specific header
-    uint8_t hdr_size;
     // Length of Token
     uint8_t token_length;
     
@@ -586,12 +585,8 @@ int coap_get_data(
  *    a newly composed PDU
  * @param proto:
  *    the target wire protocol
- * 
- * @returns:
- *    number of header bytes prepended before pdu->token on success
- *    0 on error
  */
-size_t coap_pdu_encode_header(
+void coap_pdu_encode_header(
     coap_pdu_t *pdu,
     coap_proto_t proto
 );
