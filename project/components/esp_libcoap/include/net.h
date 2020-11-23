@@ -3,8 +3,11 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-21 17:18:22
+ *  Modified time: 2020-11-22 22:06:01
  *  Description:
+ * 
+ *      File contains base API related with the CoAP context stack manipulation.
+ * 
  *  Credits: 
  *
  *      This file is a modification of the original libcoap source file. Aim of the modification was to 
@@ -192,7 +195,7 @@ typedef struct coap_context_t {
     // List of asynchronous transactions/
     struct coap_async_state_t *async_state;
 
-    // Queue of packets scheduled to be send
+    // Queue of of sent packets
     coap_queue_t *sendqueue;
     // Base time for time stamps of packets in a sendqueue
     coap_tick_t sendqueue_basetime;
@@ -434,324 +437,441 @@ void coap_set_app_data(coap_context_t *context, void *data);
 
 /**
  * @brief: Returns any application-specific data that has been stored with @p
- * context using the function coap_set_app_data(). This function will
- * return @c NULL if no data has been stored.
+ *    context using the function coap_set_app_data(). This function will
+ *    return @c NULL if no data has been stored.
  *
- * @param context The CoAP context.
+ * @param:
+ *    context The CoAP context.
  *
- * @return The data previously stored or @c NULL if not data stored.
+ * @returns:
+ *    the data previously stored or @c NULL if not data stored.
  */
 void *coap_get_app_data(const coap_context_t *context);
 
 /**
  * @brief: Creates a new ACK PDU with specified error @p code. The options specified by
- * the filter expression @p opts will be copied from the original request
- * contained in @p request. Unless @c SHORT_ERROR_RESPONSE was defined at build
- * time, the textual reason phrase for @p code will be added as payload, with
- * Content-Type @c 0.
- * This function returns a pointer to the new response message, or @c NULL on
- * error. The storage allocated for the new message must be relased with
- * coap_free().
+ *   the filter expression @p opts will be copied from the original request
+ *   contained in @p request. Unless @c SHORT_ERROR_RESPONSE was defined at build
+ *   time, the textual reason phrase for @p code will be added as payload, with
+ *   Content-Type 0.
+ * 
+ *   This function returns a pointer to the new response message, or @c NULL on
+ *   error. The storage allocated for the new message must be relased with
+ *   coap_free().
  *
- * @param request Specification of the received (confirmable) request.
- * @param code    The error code to set.
- * @param opts    An option filter that specifies which options to copy from
- *                the original request in @p node.
- *
- * @return        A pointer to the new message or @c NULL on error.
+ * @param request:
+ *    specification of the received (confirmable) request.
+ * @param code:
+ *    the error code to set.
+ * @param opts:
+ *    an option filter that specifies which options to copy from
+ *    the original request in @p node.
+ * @returns:
+ *    a pointer to the new message on success
+ *    NULL on error
  */
-coap_pdu_t *coap_new_error_response(coap_pdu_t *request,
-                                    unsigned char code,
-                                    coap_opt_filter_t opts);
+coap_pdu_t *coap_new_error_response(
+    coap_pdu_t *request,
+    unsigned char code,
+    coap_opt_filter_t opts
+);
 
 /**
- * @brief: Sends an error response with code @p code for request @p request to @p dst.
- * @p opts will be passed to coap_new_error_response() to copy marked options
- * from the request. This function returns the transaction id if the message was
- * sent, or @c COAP_INVALID_TID otherwise.
+ * @brief: Sends an error response with code @p code for request @p request using
+ *    @p session. @p opts will be passed to coap_new_error_response() to copy marked
+ *    options from the request.
  *
- * @param session         The CoAP session.
- * @param request         The original request to respond to.
- * @param code            The response code.
- * @param opts            A filter that specifies the options to copy from the
- *                        @p request.
- *
- * @return                The transaction id if the message was sent, or @c
- *                        COAP_INVALID_TID otherwise.
+ * @param session:
+ *    the CoAP session.
+ * @param request:
+ *    the original request to respond to.
+ * @param code:
+ *    the response code.
+ * @param opts:
+ *    a filter that specifies the options to copy from the @p request.
+ * @returns:
+ *    the transaction id if the message was sent
+ *    @c COAP_INVALID_TID otherwise.
  */
-coap_tid_t coap_send_error(coap_session_t *session,
-                           coap_pdu_t *request,
-                           unsigned char code,
-                           coap_opt_filter_t opts);
+coap_tid_t coap_send_error(
+    coap_session_t *session,
+    coap_pdu_t *request,
+    unsigned char code,
+    coap_opt_filter_t opts
+);
 
 /**
- * @brief: Helper funktion to create and send a message with @p type (usually ACK or
- * RST). This function returns @c COAP_INVALID_TID when the message was not
- * sent, a valid transaction id otherwise.
+ * @brief: Helper funktion to create and send a message with @p type (usually ACK or RST).
  *
- * @param session         The CoAP session.
- * @param request         The request that should be responded to.
- * @param type            Which type to set.
- * @return                transaction id on success or @c COAP_INVALID_TID
- *                        otherwise.
+ * @param session:
+ *    the CoAP session
+ * @param request:
+ *    the request that should be responded to
+ * @param type:
+ *    which type to set
+ * @returns:
+ *    transaction id on success or @c COAP_INVALID_TID otherwise.
  */
 coap_tid_t
 coap_send_message_type(coap_session_t *session, coap_pdu_t *request, unsigned char type);
 
 /**
- * @brief: Sends an ACK message with code @c 0 for the specified @p request to @p dst.
- * This function returns the corresponding transaction id if the message was
- * sent or @c COAP_INVALID_TID on error.
+ * @brief: Sends an ACK message with code 0 for the specified @p request using @p session.
  *
- * @param session         The CoAP session.
- * @param request         The request to be acknowledged.
- *
- * @return                The transaction id if ACK was sent or @c
- *                        COAP_INVALID_TID on error.
+ * @param session:
+ *    the CoAP session.
+ * @param request:
+ *    the request to be acknowledged.
+ * @returns:
+ *    the transaction id if ACK was sent or @c COAP_INVALID_TID on error.
  */
 coap_tid_t coap_send_ack(coap_session_t *session, coap_pdu_t *request);
 
 
 /**
-* @brief: Sends a CoAP message to given peer. The memory that is
-* allocated by pdu will be released by coap_send().
-* The caller must not use the pdu after calling coap_send().
-*
-* @param session         The CoAP session.
-* @param pdu             The CoAP PDU to send.
-*
-* @return                The message id of the sent message or @c
-*                        COAP_INVALID_TID on error.
-*/
+ * @brief: Sends a CoAP message to the peer given with @p session. The memory that is allocated
+ *     by pdu will be released by coap_send(). The caller must not use the pdu after calling 
+ *     coap_send().
+ *
+ * @param session:
+ *    the CoAP session
+ * @param pdu:
+ *    the CoAP PDU to send
+ * @returns:
+ *    the message id of the sent message or @c COAP_INVALID_TID on error.
+ */
 coap_tid_t coap_send( coap_session_t *session, coap_pdu_t *pdu );
 
 /**
  * @brief: Handles retransmissions of confirmable messages
  *
- * @param context      The CoAP context.
- * @param node         The node to retransmit.
+ * @param context:
+ *    the CoAP context
+ * @param node:
+ *    the packet to retransmit given with @t coap_queue_t node object
  *
- * @return             The message id of the sent message or @c
- *                     COAP_INVALID_TID on error.
+ * @returns:
+ *    the message id of the sent message 
+ *    @c COAP_INVALID_TID on error
  */
 coap_tid_t coap_retransmit(coap_context_t *context, coap_queue_t *node);
 
 /**
-* @brief: For applications with their own message loop, send all pending retransmits and
-* return the list of sockets with events to wait for and the next timeout
-* The application should call coap_read, then coap_write again when any condition below is true:
-* - data is available on any of the sockets with the COAP_SOCKET_WANT_READ
-* - an incoming connection is pending in the listen queue and the COAP_SOCKET_WANT_ACCEPT flag is set
-* - at least some data can be written without blocking on any of the sockets with the COAP_SOCKET_WANT_WRITE flag set
-* - a connection event occured (success or failure) and the COAP_SOCKET_WANT_CONNECT flag is set
-* - the timeout has expired
-* Before calling coap_read or coap_write again, the application should position COAP_SOCKET_CAN_READ and COAP_SOCKET_CAN_WRITE flags as applicable.
-*
-* @param ctx The CoAP context
-* @param sockets array of socket descriptors, filled on output
-* @param max_sockets size of socket array.
-* @param num_sockets pointer to the number of valid entries in the socket arrays on output
-* @param now Current time.
-*
-* @return timeout as maxmimum number of milliseconds that the application should wait for network events or 0 if the application should wait forever.
-*/
-
-unsigned int
-coap_write(coap_context_t *ctx,
-  coap_socket_t *sockets[],
-  unsigned int max_sockets,
-  unsigned int *num_sockets,
-  coap_tick_t now
+ * @brief: For applications with their own message loop, send all pending retransmits and return the
+ *    list of sockets with events to wait for and the next timeout. The application should call coap_read(),
+ *    then coap_write() again when any condition below is true:
+ * 
+ *      - data is available on any of the sockets with the COAP_SOCKET_WANT_READ
+ *      - an incoming connection is pending in the listen queue and the 
+ *        COAP_SOCKET_WANT_ACCEPT flag is set
+ *      - at least some data can be written without blocking on any of the sockets
+ *        with the COAP_SOCKET_WANT_WRITE flag set
+ *      - a connection event occured (success or failure) and the COAP_SOCKET_WANT_CONNECT
+ *        flag is set
+ *      - the timeout has expired
+ * 
+ *    Before calling coap_read() or coap_write again(), the application should position COAP_SOCKET_CAN_READ 
+ *    and COAP_SOCKET_CAN_WRITE flags as applicable.
+ *
+ * @param ctx:
+ *    the CoAP context
+ * @param sockets:
+ *    the array of socket descriptors (filled on output)
+ * @param max_sockets:
+ *    the size of socket array
+ * @param num_sockets:
+ *    the pointer to the number of valid entries in the socket arrays on output
+ * @param now:
+ *    the Current time
+ * @returns:
+ *    timeout as maxmimum number of milliseconds that the application should wait for network events on success
+ *    0 if the application should wait forever.
+ */
+unsigned int coap_write(
+    coap_context_t *ctx,
+    coap_socket_t *sockets[],
+    unsigned int max_sockets,
+    unsigned int *num_sockets,
+    coap_tick_t now
 );
 
 /**
  * @brief: For applications with their own message loop, reads all data from the network.
  *
- * @param ctx The CoAP context
- * @param now Current time
+ * @param ctx:
+ *    the CoAP context
+ * @param now:
+ *    current time
  */
 void coap_read(coap_context_t *ctx, coap_tick_t now);
 
 /**
  * @brief: The main message processing loop.
  *
- * @param ctx The CoAP context
- * @param timeout_ms Minimum number of milliseconds to wait for new messages before returning. If zero the call will block until at least one packet is sent or received.
+ * @param ctx:
+ *    the CoAP context
+ * @param timeout_ms:
+ *    minimum number of milliseconds to wait for new messages before returning. If zero the call will block until
+ *    at least one packet is sent or received
  *
- * @return number of milliseconds spent or @c -1 if there was an error
+ * @returns:
+ *    number of milliseconds spent on success
+ *    -1 on error
  */
 
 int coap_run_once( coap_context_t *ctx, unsigned int timeout_ms );
 
 /**
- * @brief: Parses and interprets a CoAP datagram with context @p ctx. This function
- * returns @c 0 if the datagram was handled, or a value less than zero on
- * error.
+ * @brief: Parses and interprets a CoAP datagram with context @p ctx.
  *
- * @param ctx    The current CoAP context.
- * @param session The current CoAP session.
- * @param data The received packet'd data.
- * @param data_len The received packet'd data length.
+ * @param ctx:
+ *    the current CoAP context
+ * @param session:
+ *    the current CoAP session
+ * @param data:
+ *    the received packet'd data
+ * @param data_len:
+ *    the received packet'd data length
  *
- * @return       @c 0 if message was handled successfully, or less than zero on
- *               error.
+ * @returns:
+ *    0 if message was handled successfully
+ *    less than zero on error
  */
-int coap_handle_dgram(coap_context_t *ctx, coap_session_t *session, uint8_t *data, size_t data_len);
+int coap_handle_dgram(
+    coap_context_t *ctx,
+    coap_session_t *session, 
+    uint8_t *data, 
+    size_t data_len
+);
 
 /**
- * @brief: Invokes the event handler of @p context for the given @p event and
- * @p data.
+ * @brief: Invokes the event handler of @p context for the given @p event and @p data.
  *
- * @param context The CoAP context whose event handler is to be called.
- * @param event   The event to deliver.
- * @param session The session related to @p event.
- * @return The result from the associated event handler or 0 if none was
- * registered.
+ * @param context:
+ *    the CoAP context whose event handler is to be called
+ * @param event:
+ *    the event to deliver
+ * @param session:
+ *    the session related to @p event
+ * @returns:
+ *    the result from the associated event handler or 0 if none was registered.
  */
-int coap_handle_event(coap_context_t *context,
-                      coap_event_t event,
-                      coap_session_t *session);
-/**
- * @brief: This function removes the element with given @p id from the list given list.
- * If @p id was found, @p node is updated to point to the removed element. Note
- * that the storage allocated by @p node is @b not released. The caller must do
- * this manually using coap_delete_node(). This function returns @c 1 if the
- * element with id @p id was found, @c 0 otherwise. For a return value of @c 0,
- * the contents of @p node is undefined.
- *
- * @param queue The queue to search for @p id.
- * @param session The session to look for.
- * @param id    The transaction id to look for.
- * @param node  If found, @p node is updated to point to the removed node. You
- *              must release the storage pointed to by @p node manually.
- *
- * @return      @c 1 if @p id was found, @c 0 otherwise.
- */
-int coap_remove_from_queue(coap_queue_t **queue,
-                           coap_session_t *session,
-                           coap_tid_t id,
-                           coap_queue_t **node);
-
-coap_tid_t
-coap_wait_ack( coap_context_t *context, coap_session_t *session,
-               coap_queue_t *node);
+int coap_handle_event(
+    coap_context_t *context,
+    coap_event_t event,
+    coap_session_t *session
+);
 
 /**
- * @brief: Retrieves transaction from the queue.
+ * @brief: This function removes the element with given @p id from the given list. If @p id was found,
+ *    @p node is updated to point to the removed element. 
+ * 
+ * @param queue:
+ *    the queue to search for @p id
+ * @param session:
+ *    the session to look for
+ * @param id:
+ *    the transaction id to look for
+ * @param node:
+ *    if found, @p node is updated to point to the removed node. You must release the storage pointed to
+ *    by @p node manually.
+ * @returns:
+ *    1 if @p id was found
+ *    0 otherwise.
+ * 
+ * @note: For a return value of 0, the contents of @p node is undefined.
+ * @note: The storage allocated by @p node is @b not released. The caller must do this manually using 
+ *    coap_delete_node(). 
+ */
+int coap_remove_from_queue(
+    coap_queue_t **queue,
+    coap_session_t *session,
+    coap_tid_t id,
+    coap_queue_t **node
+);
+
+/**
+ * @brief: Insertes @p node to the retransmit @p context->sendqueue queue. Timeout of the packet is
+ *    set to the initial value that is relative to the @p context->sendqueue_basetime (if sendqueue 
+ *    is not empty) or absolute (otherwise). Reference ounter on the @p sessio is incremented.
+ * 
+ * @param context:
+ *    context associated with the @p node 
+ * @param session:
+ *    session associated with the @p node
+ * @param node:
+ *    packet node to be retransmitted
+ * @return:
+ *    transaction ID of the node 
+ */
+coap_tid_t coap_wait_ack(
+    coap_context_t *context,
+    coap_session_t *session,
+    coap_queue_t *node
+);
+
+/**
+ * @brief: Retrieves transaction related to given @p sesssion OR of the given @p id
+ *    from the queue.
  *
- * @param queue The transaction queue to be searched.
- * @param session The session to find.
- * @param id    The transaction id to find.
+ * @param queue:
+ *    the transaction queue to be searched
+ * @param session:
+ *    the session to find
+ * @param id:
+ *    the transaction id to find
  *
- * @return      A pointer to the transaction object or @c NULL if not found.
+ * @returns:
+ *    a pointer to the transaction object on success
+ *    NULL if not found
  */
 coap_queue_t *coap_find_transaction(coap_queue_t *queue, coap_session_t *session, coap_tid_t id);
 
 /**
- * @brief: Cancels all outstanding messages for session @p session that have the specified
- * token.
+ * @brief: Cancels all outstanding messages for session @p session that have the 
+ *    specified token.
  *
- * @param context      The context in use.
- * @param session      Session of the messages to remove.
- * @param token        Message token.
- * @param token_length Actual length of @p token.
+ * @param context:
+ *    the context in use
+ * @param session:
+ *    session of the messages to remove
+ * @param token:
+ *    message token
+ * @param token_length:
+ *    act length of @p token
  */
-void coap_cancel_all_messages(coap_context_t *context,
-                              coap_session_t *session,
-                              const uint8_t *token,
-                              size_t token_length);
+void coap_cancel_all_messages(
+    coap_context_t *context,
+    coap_session_t *session,
+    const uint8_t *token,
+    size_t token_length
+);
 
 /**
-* @brief: Cancels all outstanding messages for session @p session.
-*
-* @param context      The context in use.
-* @param session      Session of the messages to remove.
-* @param reason       The reasion for the session cancellation
-*/
+ * @brief: Cancels all outstanding messages for @p session.
+ *
+ * @param context:
+ *    the context in use.
+ * @param session:
+ *    tession of the messages to remove.
+ * @param reason:
+ *    the reason for the session cancellation
+ */
 void
-coap_cancel_session_messages(coap_context_t *context,
-                             coap_session_t *session,
-                             coap_nack_reason_t reason);
+coap_cancel_session_messages(
+    coap_context_t *context,
+    coap_session_t *session,
+    coap_nack_reason_t reason
+);
 
 /**
  * @brief: Dispatches the PDUs from the receive queue in given context.
+ * 
+ * @param context:
+ *    context associated with the @p pdu
+ * @param session 
+ *    session associated with the @p pdu
+ * @param pdu 
+ *    PDU to be dispatched
  */
-void coap_dispatch(coap_context_t *context, coap_session_t *session,
-                   coap_pdu_t *pdu);
+void coap_dispatch(
+    coap_context_t *context,
+    coap_session_t *session,
+    coap_pdu_t *pdu
+);
 
 /**
- * @brief: Returns 1 if there are no messages to send or to dispatch in the context's
- * queues. */
+ * @returns:
+ *    1 if there are no messages to send or to dispatch in the context's queues.
+ *    0 otherwise
+ **/
 int coap_can_exit(coap_context_t *context);
 
 /**
- * @brief: Returns the current value of an internal tick counter. The counter counts \c
- * COAP_TICKS_PER_SECOND ticks every second.
+ * @returns:
+ *    the current value of an internal tick counter
+ * 
+ * @note: The counter counts COAP_TICKS_PER_SECOND ticks every second.
  */
 void coap_ticks(coap_tick_t *);
 
 /**
  * @brief: Verifies that @p pdu contains no unknown critical options. Options must be
- * registered at @p ctx, using the function coap_register_option(). A basic set
- * of options is registered automatically by coap_new_context(). This function
- * returns @c 1 if @p pdu is ok, @c 0 otherwise. The given filter object @p
- * unknown will be updated with the unknown options. As only @c COAP_MAX_OPT
- * options can be signalled this way, remaining options must be examined
- * manually.
+ *    registered at @p ctx, using the function coap_register_option(). A basic set of options
+ *    is registered automatically by coap_new_context(). The given filter object @p unknown 
+ *    will be updated with the unknown options. As only @c COAP_MAX_OPT options can be 
+ *    signalled this way, remaining options must be examined manually.
  *
- * @code
-  coap_opt_filter_t f = COAP_OPT_NONE;
-  coap_opt_iterator_t opt_iter;
-
-  if (coap_option_check_critical(ctx, pdu, f) == 0) {
-    coap_option_iterator_init(pdu, &opt_iter, f);
-
-    while (coap_option_next(&opt_iter)) {
-      if (opt_iter.type & 0x01) {
-        ... handle unknown critical option in opt_iter ...
-      }
-    }
-  }
-   @endcode
+ * @param ctx:
+ *    the context where all known options are registered
+ * @param pdu:
+ *    the PDU to check
+ * @param unknown:
+ *    the output filter that will be updated to indicate the unknown critical options found
+ *    in @p pdu.
  *
- * @param ctx      The context where all known options are registered.
- * @param pdu      The PDU to check.
- * @param unknown  The output filter that will be updated to indicate the
- *                 unknown critical options found in @p pdu.
- *
- * @return         @c 1 if everything was ok, @c 0 otherwise.
+ * @returns:
+ *    1 if everything was ok
+ *    0 otherwise
+ * 
+ * @code:
+ * 
+ *   coap_opt_filter_t f = COAP_OPT_NONE;
+ *   coap_opt_iterator_t opt_iter;
+ *   
+ *   if (coap_option_check_critical(ctx, pdu, f) == 0) {
+ *     coap_option_iterator_init(pdu, &opt_iter, f);
+ *   
+ *     while (coap_option_next(&opt_iter)) {
+ *       if (opt_iter.type & 0x01) {
+ *         ... handle unknown critical option in opt_iter ...
+ *       }
+ *     }
+ *   }
+ * 
+ * @endcode
  */
-int coap_option_check_critical(coap_context_t *ctx,
-                               coap_pdu_t *pdu,
-                               coap_opt_filter_t unknown);
+int coap_option_check_critical(
+    coap_context_t *ctx,
+    coap_pdu_t *pdu,
+    coap_opt_filter_t unknown
+);
 
 /**
- * @brief: Creates a new response for given @p request with the contents of @c
- * .well-known/core. The result is NULL on error or a newly allocated PDU that
- * must be either sent with coap_sent() or released by coap_delete_pdu().
+ * @brief: Creates a new response for given @p request with the contents of @c .well-known/core.
+ *    The result newly allocated PDU that must be either sent with coap_sent() or released
+ *    by coap_delete_pdu().
  *
- * @param context The current coap context to use.
- * @param session The CoAP session.
- * @param request The request for @c .well-known/core .
- *
- * @return        A new 2.05 response for @c .well-known/core or NULL on error.
+ * @param context:
+ *    the current coap context to use
+ * @param session:
+ *    the CoAP session to use
+ * @param request:
+ *    the request for @c .well-known/core 
+ * @returns:
+ *    a new 2.05 response for @c .well-known/core on success
+ *    NULL on error
  */
-coap_pdu_t *coap_wellknown_response(coap_context_t *context,
-                                    coap_session_t *session,
-                                    coap_pdu_t *request);
+coap_pdu_t *coap_wellknown_response(
+    coap_context_t *context,
+    coap_session_t *session,
+    coap_pdu_t *request
+);
 
 /**
- * @brief: Calculates the initial timeout based on the session CoAP transmission
- * parameters 'ack_timeout', 'ack_random_factor', and COAP_TICKS_PER_SECOND.
- * The calculation requires 'ack_timeout' and 'ack_random_factor' to be in
- * Qx.FRAC_BITS fixed point notation, whereas the passed parameter @p r
- * is interpreted as the fractional part of a Q0.MAX_BITS random value.
+ * @brief: Calculates the initial timeout based on the @p session's CoAP transmission
+ *    parameters 'ack_timeout', 'ack_random_factor' and COAP_TICKS_PER_SECOND.
+ *    The calculation requires 'ack_timeout' and 'ack_random_factor' to be in
+ *    Qx.FRAC_BITS (@c FRAC_BITS defined in net.c) fixed point notation, whereas the
+ *    passed parameter @p r is interpreted as the fractional part of a Q0.MAX_BITS
+ *    random value.
  *
- * @param session session timeout is associated with
- * @param r  random value as fractional part of a Q0.MAX_BITS fixed point
- *           value
- * @return   COAP_TICKS_PER_SECOND * 'ack_timeout' *
- *           (1 + ('ack_random_factor' - 1) * r)
+ * @param session:
+ *    session timeout is associated with
+ * @param r:
+ *    random value as fractional part of a Q0.MAX_BITS fixed point value
+ * @returns:
+ *    COAP_TICKS_PER_SECOND * @p session->ack_timeout * (1 + (@p session->ack_random_factor - 1) * r)
  */
 unsigned int coap_calc_timeout(coap_session_t *session, unsigned char r);
 
@@ -827,7 +947,7 @@ coap_register_pong_handler(coap_context_t *context, coap_pong_handler_t handler)
  */
 COAP_STATIC_INLINE void
 coap_register_option(coap_context_t *ctx, uint16_t type){
-  coap_option_setb(ctx->known_options, type);
+  coap_option_filter_set(ctx->known_options, type);
 }
 
 /**

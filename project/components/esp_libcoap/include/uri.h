@@ -3,10 +3,10 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-20 17:13:06
+ *  Modified time: 2020-11-22 23:48:20
  *  Description:
  * 
- *      
+ *      File defines basic API related to CoAP's URIs.
  * 
  *  Credits: 
  *

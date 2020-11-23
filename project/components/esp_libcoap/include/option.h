@@ -1,3 +1,24 @@
+/* ============================================================================================================
+ *  File:
+ *  Author: Olaf Bergmann
+ *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  Modified by: Krzysztof Pierczyk
+ *  Modified time: 2020-11-22 22:10:09
+ *  Description:
+ * 
+ *      File contains main API for CoAP's options creation, parsing and manipulation.
+ * 
+ *  Credits: 
+ *
+ *      This file is a modification of the original libcoap source file. Aim of the modification was to 
+ *      provide cleaner, richer documented and ESP8266-optimised version of the library. Core API of the 
+ *      project was not changed or expanded, although some elemenets (e.g. DTLS support) have been removed 
+ *      due to lack of needings from the modifications' authors. 
+ * 
+ * ============================================================================================================ */
+
+/* -------------------------------------------- [Original header] --------------------------------------------- */
+
 /*
  * option.h -- helpers for handling options in CoAP PDUs
  *
@@ -12,450 +33,514 @@
  * @brief Helpers for handling options in CoAP PDUs
  */
 
+/* ------------------------------------------------------------------------------------------------------------ */
+
+
 #ifndef COAP_OPTION_H_
 #define COAP_OPTION_H_
 
 #include "bits.h"
 #include "pdu.h"
 
-/**
- * Use byte-oriented access methods here because sliding a complex struct
- * coap_opt_t over the data buffer may cause bus error on certain platforms.
- */
-typedef uint8_t coap_opt_t;
-#define PCHAR(p) ((coap_opt_t *)(p))
+
+/* ------------------------------------------- [Macrodefinitions] --------------------------------------------- */
 
 /**
- * Representation of CoAP options.
- */
-typedef struct {
-  uint16_t delta;
-  size_t length;
-  const uint8_t *value;
-} coap_option_t;
-
-/**
- * Parses the option pointed to by @p opt into @p result. This function returns
- * the number of bytes that have been parsed, or @c 0 on error. An error is
- * signaled when illegal delta or length values are encountered or when option
- * parsing would result in reading past the option (i.e. beyond opt + length).
- *
- * @param opt    The beginning of the option to parse.
- * @param length The maximum length of @p opt.
- * @param result A pointer to the coap_option_t structure that is filled with
- *               actual values iff coap_opt_parse() > 0.
- * @return       The number of bytes parsed or @c 0 on error.
- */
-size_t coap_opt_parse(const coap_opt_t *opt,
-                      size_t length,
-                      coap_option_t *result);
-
-/**
- * Returns the size of the given option, taking into account a possible option
- * jump.
- *
- * @param opt An option jump or the beginning of the option.
- * @return    The number of bytes between @p opt and the end of the option
- *            starting at @p opt. In case of an error, this function returns
- *            @c 0 as options need at least one byte storage space.
- */
-size_t coap_opt_size(const coap_opt_t *opt);
-
-/**
- * @defgroup opt_filter Option Filters
- * API functions for access option filters
- * @{
- */
-
-/**
- * The number of option types below 256 that can be stored in an
- * option filter. COAP_OPT_FILTER_SHORT + COAP_OPT_FILTER_LONG must be
- * at most 16. Each coap_option_filter_t object reserves
- * ((COAP_OPT_FILTER_SHORT + 1) / 2) * 2 bytes for short options.
+ * @brief: The number of option types (codes below 256) that can be stored in an option filter.
+ * 
+ *    Each @t coap_option_filter_t object reserves COAP_OPT_FILTER_SHORT (rounded up to the
+ *    closest even value) bytes for short options.
+ * 
+ * @note: COAP_OPT_FILTER_SHORT + COAP_OPT_FILTER_LONG must be at most 16
  */
 #define COAP_OPT_FILTER_SHORT 6
 
 /**
- * The number of option types above 255 that can be stored in an
- * option filter. COAP_OPT_FILTER_SHORT + COAP_OPT_FILTER_LONG must be
- * at most 16. Each coap_option_filter_t object reserves
- * COAP_OPT_FILTER_LONG * 2 bytes for short options.
+ * @brief: The number of option types (codes grater or equal to 256) that can be stored in an
+ *    option filter.
+ * 
+ *    Each coap_option_filter_t object reserves COAP_OPT_FILTER_LONG * 2 bytes for short options.
+ * 
+ * @note: COAP_OPT_FILTER_SHORT + COAP_OPT_FILTER_LONG must be at most 16
  */
 #define COAP_OPT_FILTER_LONG  2
 
-/* Ensure that COAP_OPT_FILTER_SHORT and COAP_OPT_FILTER_LONG are set
- * correctly. */
+/**
+ * @brief: Ensure that COAP_OPT_FILTER_SHORT and COAP_OPT_FILTER_LONG are set correctly. 
+ */
 #if (COAP_OPT_FILTER_SHORT + COAP_OPT_FILTER_LONG > 16)
 #error COAP_OPT_FILTER_SHORT + COAP_OPT_FILTER_LONG must be less or equal 16
-#endif /* (COAP_OPT_FILTER_SHORT + COAP_OPT_FILTER_LONG > 16) */
+#endif
 
-/** The number of elements in coap_opt_filter_t. */
-#define COAP_OPT_FILTER_SIZE                                        \
+/** 
+ * @brief: The number of elements in @t coap_opt_filter_t.
+ */
+#define COAP_OPT_FILTER_SIZE \
   (((COAP_OPT_FILTER_SHORT + 1) >> 1) + COAP_OPT_FILTER_LONG) +1
 
+/** 
+ * @brief: Pre-defined filter that includes all options. 
+ */
+#define COAP_OPT_ALL NULL
+
+
+/* -------------------------------------------- [Data structures] --------------------------------------------- */
+
 /**
- * Fixed-size vector we use for option filtering. It is large enough
- * to hold COAP_OPT_FILTER_SHORT entries with an option number between
- * 0 and 255, and COAP_OPT_FILTER_LONG entries with an option number
- * between 256 and 65535. Its internal structure is
+ * @brief: Basic CoAP option identifier.
+ * 
+ * @note: Use byte-oriented access methods here because sliding a complex struct
+ *    @t coap_opt_t over the data buffer may cause bus error on certain platforms.
+ */
+typedef uint8_t coap_opt_t;
+
+/**
+ * @brief: Representation of CoAP options.
+ */
+typedef struct {
+
+    /**
+     * @note: Options in the header are always sorted so that they can be unambiguously
+     *    identified not by their code but by the increment in the code number between
+     *    subsequent options.
+     */
+
+    // Increment from the previousoption ID to the current
+    uint16_t delta;
+    // Option's value field length
+    size_t length;
+    // Option value field
+    const uint8_t *value;
+    
+} coap_option_t;
+
+/**
+ * @brief: Fixed-size vector used for option filtering. It is large enough to hold
+ *    COAP_OPT_FILTER_SHORT entries with an option number between 0 and 255, and
+ *    COAP_OPT_FILTER_LONG entries with an option number between 256 and 65535.
+ *    Its internal structure is:
  *
  * @code
-struct {
-  uint16_t mask;
-  uint16_t long_opts[COAP_OPT_FILTER_LONG];
-  uint8_t short_opts[COAP_OPT_FILTER_SHORT];
-}
+ * 
+ *    struct {
+ *    uint16_t mask;
+ *    uint16_t long_opts[COAP_OPT_FILTER_LONG];
+ *    uint8_t short_opts[COAP_OPT_FILTER_SHORT];
+ *    }
+ * 
  * @endcode
  *
- * The first element contains a bit vector that indicates which fields
- * in the remaining array are used. The first COAP_OPT_FILTER_LONG
- * bits correspond to the long option types that are stored in the
- * elements from index 1 to COAP_OPT_FILTER_LONG. The next
- * COAP_OPT_FILTER_SHORT bits correspond to the short option types
- * that are stored in the elements from index COAP_OPT_FILTER_LONG + 1
- * to COAP_OPT_FILTER_LONG + COAP_OPT_FILTER_SHORT. The latter
- * elements are treated as bytes.
+ * @attr mask:
+ *    a bit vector that indicates which fields in the remaining array are used. The first
+ *    COAP_OPT_FILTER_LONG bits correspond to the long option types that are stored in the
+ *    elements from index 1 to COAP_OPT_FILTER_LONG. The next COAP_OPT_FILTER_SHORT bits
+ *    correspond to the short option types that are stored in the elements from index
+ *    COAP_OPT_FILTER_LONG + 1 to COAP_OPT_FILTER_LONG + COAP_OPT_FILTER_SHORT
+ * @attr long_opts:
+ *    long options
+ * @attr short_opts:
+ *    short options
  */
 typedef uint16_t coap_opt_filter_t[COAP_OPT_FILTER_SIZE];
 
-/** Pre-defined filter that includes all options. */
-#define COAP_OPT_ALL NULL
-
 /**
- * Clears filter @p f.
+ * @brief: Iterator to run through PDU options. This object must be initialized with 
+ *    coap_option_iterator_init(). Call coap_option_next() to walk through the list of
+ *    options until coap_option_next() returns @c NULL.
  *
- * @param f The filter to clear.
+ * @code
+ * 
+ *    coap_opt_t *option;
+ *    coap_opt_iterator_t opt_iter;
+ *    coap_option_iterator_init(pdu, &opt_iter, COAP_OPT_ALL);
+ *   
+ *    while ((option = coap_option_next(&opt_iter))) {
+ *      ... do something with option ...
+ *    }
+ * 
+ * @endcode
  */
-COAP_STATIC_INLINE void
-coap_option_filter_clear(coap_opt_filter_t f) {
-  memset(f, 0, sizeof(coap_opt_filter_t));
-}
+typedef struct {
+  
+    // Pointer to the unparsed next option
+    coap_opt_t *next_option;
+
+    // Remaining length of PDU
+    size_t length;
+    // Decoded option type
+    uint16_t type;
+
+    // Iterator object is ok if not set
+    unsigned int bad:1;
+    // Denotes whether or not filter is used
+    unsigned int filtered:1;
+    // Option filter
+    coap_opt_filter_t filter;
+
+} coap_opt_iterator_t;
+
 
 /**
- * Sets the corresponding entry for @p type in @p filter. This
- * function returns @c 1 if bit was set or @c 0 on error (i.e. when
- * the given type does not fit in the filter).
+ * @brief: Representation of chained list of CoAP options to install
  *
- * @param filter The filter object to change.
- * @param type   The type for which the bit should be set.
+ * @code
+ * 
+ *    coap_optlist_t *optlist_chain = NULL;
+ *    coap_pdu_t *pdu = coap_new_pdu(session);
+ *   
+ *    ... other set up code ...
+ * 
+ *    coap_insert_optlist(
+ *        &optlist_chain,
+ *        coap_new_optlist(
+ *            COAP_OPTION_OBSERVE,
+ *            COAP_OBSERVE_ESTABLISH,
+ *            NULL
+ *        )
+ *    );
+ * 
+ *    coap_add_optlist_pdu(pdu, &optlist_chain);
+ * 
+ *    ... other code ...
+ * 
+ *    coap_delete_optlist(optlist_chain);
+ * 
+ * @endcode
+ */
+typedef struct coap_optlist_t {
+
+  // Next entry in the optlist chain
+  struct coap_optlist_t *next;
+
+  // The option number (no delta coding)
+  uint16_t number;
+  // The option's value field's length
+  size_t length;
+  // The option's value field
+  uint8_t *data;
+
+} coap_optlist_t;
+
+
+/* ----------------------------------------------- [Functions] ------------------------------------------------ */
+
+/**
+ * @brief: Parses the option pointed to by @p opt into @p result. An error is
+ *    signaled when illegal delta or length values are encountered or when option
+ *    parsing would result in reading past the option (i.e. beyond opt + length).
  *
- * @return       @c 1 if bit was set, @c 0 otherwise.
+ * @param opt:
+ *    the beginning of the option to parse
+ * @param length:
+ *    the maximum length of @p opt
+ * @param result:
+ *    a pointer to the @t coap_option_t structure that is filled with actual values
+ *    if coap_opt_parse() > 0
+ * @returns:
+ *    the number of bytes parsed on success
+ *    0 on error
+ */
+size_t coap_opt_parse(
+    const coap_opt_t *opt,
+    size_t length,
+    coap_option_t *result
+);
+
+/**
+ * @brief: Returns the size of the given option, taking into account a possible option jump.
+ *
+ * @param opt:
+ *    an option jump or the beginning of the option
+ * @returns:
+ *    the number of bytes between @p opt and the end of the option starting at @p opt 
+ *    0 in case of an error, as options need at least one byte storage space.
+ */
+size_t coap_opt_size(const coap_opt_t *opt);
+
+/**
+ * @brief: Sets the corresponding entry for @p type in @p filter. 
+ *
+ * @param filter:
+ *    the filter object to change
+ * @param type:
+ *    the type for which the bit should be set
+ * @returns:
+ *    1 if bit was set
+ *    0 on error (i.e. when the given type does not fit in the filter)
  */
 int coap_option_filter_set(coap_opt_filter_t filter, uint16_t type);
 
 /**
- * Clears the corresponding entry for @p type in @p filter. This
- * function returns @c 1 if bit was set or @c 0 on error (i.e. when
- * the given type does not fit in the filter).
+ * @brief: Clears the corresponding entry for @p type in @p filter.
  *
- * @param filter The filter object to change.
- * @param type   The type that should be cleared from the filter.
+ * @param filter:
+ *    the filter object to change
+ * @param type:
+ *    the type that should be cleared from the filter
  *
- * @return       @c 1 if bit was set, @c 0 otherwise.
+ * @returns:
+ *    1 if bit was set
+ *    0 on error (i.e. when the given type does not fit in the filter)
  */
 int coap_option_filter_unset(coap_opt_filter_t filter, uint16_t type);
 
 /**
- * Checks if @p type is contained in @p filter. This function returns
- * @c 1 if found, @c 0 if not, or @c -1 on error (i.e. when the given
- * type does not fit in the filter).
+ * @brief: Checks if @p type is contained in @p filter. 
  *
- * @param filter The filter object to search.
- * @param type   The type to search for.
- *
- * @return       @c 1 if @p type was found, @c 0 otherwise, or @c -1 on error.
+ * @param filter:
+ *    the filter object to search
+ * @param type:
+ *    the type to search for
+ * @returns:
+ *    1 if @p type was found
+ *    0 if not
+ *   -1 on error (i.e. when the given type does not fit in the filter)
  */
 int coap_option_filter_get(coap_opt_filter_t filter, uint16_t type);
 
 /**
- * Sets the corresponding bit for @p type in @p filter. This function returns @c
- * 1 if bit was set or @c -1 on error (i.e. when the given type does not fit in
- * the filter).
+ * @brief: Initializes the given option iterator @p oi to point to the beginning of the
+ *    @p pdu's option list.
  *
- * @deprecated Use coap_option_filter_set() instead.
- *
- * @param filter The filter object to change.
- * @param type   The type for which the bit should be set.
- *
- * @return       @c 1 if bit was set, @c -1 otherwise.
+ * @param pdu:
+ *    the PDU the options of which should be walked through
+ * @param oi:
+ *    an iterator object that will be initilized
+ * @param filter:
+ *    an optional option type filter. With @p type != @c COAP_OPT_ALL, coap_option_next()
+ *    will return only options matching this bitmask. Fence-post options 14, 28, 42, ...
+ *    are always skipped.
+ * @returns:
+ *    the iterator object @p oi on success
+ *    NULL on error (i.e. when no options exist)
+ * 
+ * @note: A length check on the option list must be performed before coap_option_iterator_init()
+ *    is called.
  */
-COAP_STATIC_INLINE int
-coap_option_setb(coap_opt_filter_t filter, uint16_t type) {
-  return coap_option_filter_set(filter, type) ? 1 : -1;
-}
+coap_opt_iterator_t *coap_option_iterator_init(
+    const coap_pdu_t *pdu,
+    coap_opt_iterator_t *oi,
+    const coap_opt_filter_t filter
+);
 
 /**
- * Clears the corresponding bit for @p type in @p filter. This function returns
- * @c 1 if bit was cleared or @c -1 on error (i.e. when the given type does not
- * fit in the filter).
+ * @brief: Updates the iterator @p oi to point to the next option. The contents of @p oi will be
+ *    updated. In particular, @c oi->n specifies the current option's ordinal number (counted from
+ *    1), @p oi->type is the option's type code, and @p oi->option points to the beginning of the
+ *    current option itself. When advanced past the last option, @p oi->option will be NULL.
  *
- * @deprecated Use coap_option_filter_unset() instead.
- *
- * @param filter The filter object to change.
- * @param type   The type for which the bit should be cleared.
- *
- * @return       @c 1 if bit was set, @c -1 otherwise.
- */
-COAP_STATIC_INLINE int
-coap_option_clrb(coap_opt_filter_t filter, uint16_t type) {
-  return coap_option_filter_unset(filter, type) ? 1 : -1;
-}
-
-/**
- * Gets the corresponding bit for @p type in @p filter. This function returns @c
- * 1 if the bit is set @c 0 if not, or @c -1 on error (i.e. when the given type
- * does not fit in the filter).
- *
- * @deprecated Use coap_option_filter_get() instead.
- *
- * @param filter The filter object to read bit from.
- * @param type   The type for which the bit should be read.
- *
- * @return       @c 1 if bit was set, @c 0 if not, @c -1 on error.
- */
-COAP_STATIC_INLINE int
-coap_option_getb(coap_opt_filter_t filter, uint16_t type) {
-  return coap_option_filter_get(filter, type);
-}
-
-/**
- * Iterator to run through PDU options. This object must be
- * initialized with coap_option_iterator_init(). Call
- * coap_option_next() to walk through the list of options until
- * coap_option_next() returns @c NULL.
- *
- * @code
- * coap_opt_t *option;
- * coap_opt_iterator_t opt_iter;
- * coap_option_iterator_init(pdu, &opt_iter, COAP_OPT_ALL);
- *
- * while ((option = coap_option_next(&opt_iter))) {
- *   ... do something with option ...
- * }
- * @endcode
- */
-typedef struct {
-  size_t length;                /**< remaining length of PDU */
-  uint16_t type;                /**< decoded option type */
-  unsigned int bad:1;           /**< iterator object is ok if not set */
-  unsigned int filtered:1;      /**< denotes whether or not filter is used */
-  coap_opt_t *next_option;      /**< pointer to the unparsed next option */
-  coap_opt_filter_t filter;     /**< option filter */
-} coap_opt_iterator_t;
-
-/**
- * Initializes the given option iterator @p oi to point to the beginning of the
- * @p pdu's option list. This function returns @p oi on success, @c NULL
- * otherwise (i.e. when no options exist). Note that a length check on the
- * option list must be performed before coap_option_iterator_init() is called.
- *
- * @param pdu    The PDU the options of which should be walked through.
- * @param oi     An iterator object that will be initilized.
- * @param filter An optional option type filter.
- *               With @p type != @c COAP_OPT_ALL, coap_option_next()
- *               will return only options matching this bitmask.
- *               Fence-post options @c 14, @c 28, @c 42, ... are always
- *               skipped.
- *
- * @return       The iterator object @p oi on success, @c NULL otherwise.
- */
-coap_opt_iterator_t *coap_option_iterator_init(const coap_pdu_t *pdu,
-                                               coap_opt_iterator_t *oi,
-                                               const coap_opt_filter_t filter);
-
-/**
- * Updates the iterator @p oi to point to the next option. This function returns
- * a pointer to that option or @c NULL if no more options exist. The contents of
- * @p oi will be updated. In particular, @c oi->n specifies the current option's
- * ordinal number (counted from @c 1), @c oi->type is the option's type code,
- * and @c oi->option points to the beginning of the current option itself. When
- * advanced past the last option, @c oi->option will be @c NULL.
- *
- * Note that options are skipped whose corresponding bits in the filter
- * specified with coap_option_iterator_init() are @c 0. Options with type codes
- * that do not fit in this filter hence will always be returned.
- *
- * @param oi The option iterator to update.
- *
- * @return   The next option or @c NULL if no more options exist.
+ * @param oi:
+ *    the option iterator to update
+ * @returns:
+ *    the next option on success
+ *    NULL if no more options exist
+ * 
+ * @note: Note that options are skipped whose corresponding bits in the filter specified with
+ *    coap_option_iterator_init() are 0. Options with type codes that do not fit in this filter
+ *    hence will always be returned.
  */
 coap_opt_t *coap_option_next(coap_opt_iterator_t *oi);
 
 /**
- * Retrieves the first option of type @p type from @p pdu. @p oi must point to a
- * coap_opt_iterator_t object that will be initialized by this function to
- * filter only options with code @p type. This function returns the first option
- * with this type, or @c NULL if not found.
+ * @brief: Retrieves the first option of type @p type from @p pdu. @p oi must point to a
+ *    @t coap_opt_iterator_t object that will be initialized by this function to a filter only options
+ *    with code @p type.
  *
- * @param pdu  The PDU to parse for options.
- * @param type The option type code to search for.
- * @param oi   An iterator object to use.
- *
- * @return     A pointer to the first option of type @p type, or @c NULL if
- *             not found.
+ * @param pdu:
+ *    the PDU to parse for options
+ * @param type:
+ *    the option type code to search for
+ * @param oi:
+ *    an iterator object to use
+ * @returns:
+ *    a pointer to the first option of type @p type
+ *    NULL if not found
  */
-coap_opt_t *coap_check_option(coap_pdu_t *pdu,
-                              uint16_t type,
-                              coap_opt_iterator_t *oi);
+coap_opt_t *coap_check_option(
+    coap_pdu_t *pdu,
+    uint16_t type,
+    coap_opt_iterator_t *oi
+);
 
 /**
- * Encodes the given delta and length values into @p opt. This function returns
- * the number of bytes that were required to encode @p delta and @p length or @c
- * 0 on error. Note that the result indicates by how many bytes @p opt must be
- * advanced to encode the option value.
+ * @brief: Encodes the given delta and length values into @p opt.
  *
- * @param opt    The option buffer space where @p delta and @p length are
- *               written.
- * @param maxlen The maximum length of @p opt.
- * @param delta  The actual delta value to encode.
- * @param length The actual length value to encode.
- *
- * @return       The number of bytes used or @c 0 on error.
+ * @param opt [out]:
+ *    the option buffer space where @p delta and @p length are written
+ * @param maxlen:
+ *    the maximum length of @p opt
+ * @param delta:
+ *    the actual delta value to encode
+ * @param length:
+ *    the actual length value to encode
+ * @returns:
+ *    the number of bytes used on success
+ *    0 on error
+ * 
+ * @note: The result indicates by how many bytes @p opt must be advanced to 
+ *    encode the option value.
  */
-size_t coap_opt_setheader(coap_opt_t *opt,
-                          size_t maxlen,
-                          uint16_t delta,
-                          size_t length);
+size_t coap_opt_setheader(
+    coap_opt_t *opt,
+    size_t maxlen,
+    uint16_t delta,
+    size_t length
+);
 
 /**
- * Compute storage bytes needed for an option with given @p delta and
- * @p length
+ * @brief: Compute storage bytes needed for an option with given @p delta and
+ *    @p length.
  *
- * @param delta  The option delta.
- * @param length The option length.
- *
- * @return       The number of bytes required to encode this option.
+ * @param delta:
+ *    the option delta
+ * @param length:
+ *    the option length
+ * @returns:
+ *    the number of bytes required to encode this option
  */
 size_t coap_opt_encode_size(uint16_t delta, size_t length);
 
 /**
- * Encodes option with given @p delta into @p opt. This function returns the
- * number of bytes written to @p opt or @c 0 on error. This happens especially
- * when @p opt does not provide sufficient space to store the option value,
- * delta, and option jumps when required.
+ * @brief: Encodes option with given @p delta into @p opt. 
  *
- * @param opt    The option buffer space where @p val is written.
- * @param n      Maximum length of @p opt.
- * @param delta  The option delta.
- * @param val    The option value to copy into @p opt.
- * @param length The actual length of @p val.
- *
- * @return       The number of bytes that have been written to @p opt or @c 0 on
- *               error. The return value will always be less than @p n.
+ * @param opt [out]:
+ *    the option buffer space where @p val is written
+ * @param n:
+ *    maximum length of @p opt
+ * @param delta:
+ *    the option delta
+ * @param val:
+ *    the option value to copy into @p opt
+ * @param length:
+ *    actual length of @p val
+ * @returns:
+ *    the number of bytes that have been written to @p opt on success
+ *    0 on error. 
+ * 
+ *    The return value will always be less than @p n.
+ * 
+ * @note: Error happens especially often when @p opt does not provide sufficient 
+ *    space to store the option value, delta, and option jumps when required.
  */
-size_t coap_opt_encode(coap_opt_t *opt,
-                       size_t n,
-                       uint16_t delta,
-                       const uint8_t *val,
-                       size_t length);
+size_t coap_opt_encode(
+    coap_opt_t *opt,
+    size_t n,
+    uint16_t delta,
+    const uint8_t *val,
+    size_t length
+);
 
 /**
- * Decodes the delta value of the next option. This function returns the number
- * of bytes read or @c 0 on error. The caller of this function must ensure that
- * it does not read over the boundaries of @p opt (e.g. by calling
- * coap_opt_check_delta().
+ * @brief: Decodes the delta value of the next option. The caller of this function must ensure
+ *    that it does not read over the boundaries of @p opt (e.g. by calling coap_opt_check_delta()).
  *
- * @param opt The option to examine.
- *
- * @return    The number of bytes read or @c 0 on error.
+ * @param opt:
+ *    the option to examine
+ * @returns:
+ *    the number of bytes read or @c 0 on error.
  */
 uint16_t coap_opt_delta(const coap_opt_t *opt);
 
 /**
- * Returns the length of the given option. @p opt must point to an option jump
- * or the beginning of the option. This function returns @c 0 when @p opt is not
- * an option or the actual length of @p opt (which can be @c 0 as well).
+ * @param opt:
+ *    the option whose length should be returned
+ * @returns:
+ *    the option's length on success
+ *    0 when @p opt is not an option
  *
- * @note {The rationale for using @c 0 in case of an error is that in most
- * contexts, the result of this function is used to skip the next
- * coap_opt_length() bytes.}
- *
- * @param opt  The option whose length should be returned.
- *
- * @return     The option's length or @c 0 when undefined.
+ * @note: The rationale for using 0 in case of an error is that in most contexts, the result of this
+ *    function is used to skip the next coap_opt_length() bytes.
+ * @note: @p opt must point to an option jump or the beginning of the option.
  */
 uint16_t coap_opt_length(const coap_opt_t *opt);
 
 /**
- * Returns a pointer to the value of the given option. @p opt must point to an
- * option jump or the beginning of the option. This function returns @c NULL if
- * @p opt is not a valid option.
- *
- * @param opt The option whose value should be returned.
- *
- * @return    A pointer to the option value or @c NULL on error.
+ * @param opt:
+ *    the option whose value should be returned
+ * @returns:
+ *    pointer to the option value on success
+ *    NULL if @p opt is not a valid option
+ * 
+ * @note: @p opt must point to an option jump or the beginning of the option.
  */
 const uint8_t *coap_opt_value(const coap_opt_t *opt);
 
-/** @} */
-
 /**
- * Representation of chained list of CoAP options to install.
+ * @brief: Create a new optlist entry.
  *
- * @code
- * coap_optlist_t *optlist_chain = NULL;
- * coap_pdu_t *pdu = coap_new_pdu(session);
- *
- * ... other set up code ...
- * coap_insert_optlist(&optlist_chain, coap_new_optlist(COAP_OPTION_OBSERVE,
- *                    COAP_OBSERVE_ESTABLISH, NULL));
- *
- * coap_add_optlist_pdu(pdu, &optlist_chain);
- * ... other code ...
- * coap_delete_optlist(optlist_chain);
- * @endcode
+ * @param number:
+ *    the option number (COAP_OPTION_*)
+ * @param length:
+ *    the option length
+ * @param data:
+ *    the option value data
+ * @returns:
+ *    a pointer to the new optlist entry on success
+ *    NULL on error
  */
-typedef struct coap_optlist_t {
-  struct coap_optlist_t *next;  /**< next entry in the optlist chain */
-  uint16_t number;              /**< the option number (no delta coding) */
-  size_t length;                /**< the option value length */
-  uint8_t *data;                /**< the option data */
-} coap_optlist_t;
+coap_optlist_t *coap_new_optlist(
+    uint16_t number,
+    size_t length,
+    const uint8_t *data
+);
 
 /**
- * Create a new optlist entry.
+ * @brief: Sorts the current optlist of @p optlist_chain (as per RFC7272 ordering requirements)
+ *    and then adds it to the @p pdu.
  *
- * @param number    The option number (COAP_OPTION_*)
- * @param length    The option length
- * @param data      The option value data
- *
- * @return          A pointer to the new optlist entry, or @c NULL if error
+ * @param pdu:
+ *    the pdu to add the options to from the chain list
+ * @param optlist_chain:
+ *    the chained list of optlist to add to the pdu
+ * @returns:
+ *    1 if succesful
+ *    0 if failure
  */
-coap_optlist_t *coap_new_optlist(uint16_t number,
-                                 size_t length,
-                                 const uint8_t *data);
+int coap_add_optlist_pdu(
+    coap_pdu_t *pdu,
+    coap_optlist_t** optlist_chain
+);
 
 /**
- * The current optlist of @p optlist_chain is first sorted (as per RFC7272
- * ordering requirements) and then added to the @p pdu.
+ * @brief: Adds @p optlist to the given @p optlist_chain. The @p optlist_chain variable is
+ *    set to NULL before the initial call to coap_insert_optlist(). 
  *
- * @param pdu  The pdu to add the options to from the chain list
- * @param optlist_chain The chained list of optlist to add to the pdu
- *
- * @return     @c 1 if succesful or @c 0 if failure;
+ * @param optlist_chain:
+ *    the chain to add optlist to
+ * @param optlist:
+ *    the optlist to add to the queue
+ * @returns:
+ *    1 on success
+ *    0 on failure
+ * 
+ * @note: The @p optlist_chain will need to be deleted using coap_delete_optlist() when no 
+ *    longer required.
  */
-int coap_add_optlist_pdu(coap_pdu_t *pdu, coap_optlist_t** optlist_chain);
+int coap_insert_optlist(
+    coap_optlist_t **optlist_chain,
+    coap_optlist_t *optlist
+);
 
 /**
- * Adds @p optlist to the given @p optlist_chain. The optlist_chain variable
- * be set to NULL before the initial call to coap_insert_optlist().
- * The optlist_chain will need to be deleted using coap_delete_optlist()
- * when no longer required.
+ * @brief: Removes all entries from the @p optlist_chain, freeing off their memory usage.
  *
- * @param optlist_chain The chain to add optlist to
- * @param optlist  The optlist to add to the queue
- *
- * @return         @c 1 if successful, @c 0 otherwise.
- */
-int coap_insert_optlist(coap_optlist_t **optlist_chain,
-                        coap_optlist_t *optlist);
-
-/**
- * Removes all entries from the @p optlist_chain, freeing off their
- * memory usage.
- *
- * @param optlist_chain The optlist chain to remove all the entries from
+ * @param optlist_chain:
+ *     the optlist chain to remove all the entries from
  */
 void coap_delete_optlist(coap_optlist_t *optlist_chain);
+
+
+/* ---------------------------------------- [Static-inline functions] ----------------------------------------- */
+
+/**
+ * @brief: Clears @p filter.
+ *
+ * @param f:
+ *    the filter to clear
+ */
+COAP_STATIC_INLINE void
+coap_option_filter_clear(coap_opt_filter_t filter){
+  memset(filter, 0, sizeof(coap_opt_filter_t));
+}
 
 #endif /* COAP_OPTION_H_ */

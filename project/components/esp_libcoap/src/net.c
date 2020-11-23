@@ -53,6 +53,7 @@
 #include "block.h"
 #include "net.h"
 #include "utlist.h"
+#include "pdu.h"
 
 #ifndef min
 #define min(a,b) ((a) < (b) ? (a) : (b))
@@ -570,7 +571,7 @@ coap_option_check_critical(coap_context_t *ctx,
   while (coap_option_next(&opt_iter)) {
 
     /* The following condition makes use of the fact that
-     * coap_option_getb() returns -1 if type exceeds the bit-vector
+     * coap_option_filter_get() returns -1 if type exceeds the bit-vector
      * filter. As the vector is supposed to be large enough to hold
      * the largest known option, we know that everything beyond is
      * bad.
@@ -845,25 +846,6 @@ coap_wait_ack(coap_context_t *context, coap_session_t *session,
   }
 
   coap_insert_node(&context->sendqueue, node);
-
-#ifdef WITH_LWIP
-  if (node == context->sendqueue) /* don't bother with timer stuff if there are earlier retransmits */
-    coap_retransmittimer_restart(context);
-#endif
-
-#ifdef WITH_CONTIKI
-  {                            /* (re-)initialize retransmission timer */
-    coap_queue_t *nextpdu;
-
-    nextpdu = coap_peek_next(context);
-    assert(nextpdu);                /* we have just inserted a node */
-
-                                /* must set timer within the context of the retransmit process */
-    PROCESS_CONTEXT_BEGIN(&coap_retransmit_process);
-    etimer_set(&context->retransmit_timer, nextpdu->t);
-    PROCESS_CONTEXT_END(&coap_retransmit_process);
-  }
-#endif /* WITH_CONTIKI */
 
   coap_log(LOG_DEBUG, "** %s: tid=%d added to retransmit queue (%ums)\n",
     coap_session_str(node->session), node->id,
@@ -1557,7 +1539,7 @@ coap_new_error_response(coap_pdu_t *request, unsigned char code,
   /* Estimate how much space we need for options to copy from
    * request. We always need the Token, for 4.02 the unknown critical
    * options must be included as well. */
-  coap_option_clrb(opts, COAP_OPTION_CONTENT_TYPE); /* we do not want this */
+  coap_option_filter_unset(opts, COAP_OPTION_CONTENT_TYPE); /* we do not want this */
 
   coap_option_iterator_init(request, &opt_iter, opts);
 

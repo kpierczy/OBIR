@@ -3,8 +3,11 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-20 16:51:54
+ *  Modified time: 2020-11-22 23:46:52
  *  Description:
+ * 
+ *      Library-specific RNG API.
+ * 
  *  Credits: 
  *
  *      This file is a modification of the original libcoap source file. Aim of the modification was to 
@@ -38,6 +41,7 @@
 #define COAP_PRNG_H_
 
 #include <stdlib.h>
+#include "libcoap.h"
 
 
 /* ------------------------------------------- [Macrodefinitions] --------------------------------------------- */
@@ -51,7 +55,7 @@
  *    number of random bytes to generate
  */
 #ifndef prng
-#define prng(Buf,Length) coap_prng_impl((Buf), (Length))
+#define prng(buf,length) coap_prng_impl((buf), (length))
 #endif
 
 /**
@@ -62,7 +66,7 @@
  *    value used to generate a seed
  */
 #ifndef prng_init
-#define prng_init(Value) srand((unsigned long)(Value))
+#define prng_init(value) srand((unsigned long)(value))
 #endif
 
 
