@@ -8,29 +8,13 @@
 
 #include "coap_config.h"
 
-#if defined(HAVE_STRNLEN) && defined(__GNUC__) && !defined(_GNU_SOURCE)
-#define _GNU_SOURCE 1
-#endif
-
-#if defined(HAVE_ASSERT_H) && !defined(assert)
 # include <assert.h>
-#endif
-
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-
-#ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
-#endif
-#ifdef HAVE_WS2TCPIP_H
-#include <ws2tcpip.h>
-#endif
-
-#ifdef HAVE_TIME_H
 #include <time.h>
-#endif
 
 #include "libcoap.h"
 #include "block.h"
@@ -38,97 +22,62 @@
 #include "encode.h"
 #include "net.h"
 
-#ifdef WITH_LWIP
-# define fprintf(fd, ...) LWIP_PLATFORM_DIAG((__VA_ARGS__))
-# define fflush(...)
-#endif
+/* -------------------------------------------- [Static symbols] ---------------------------------------------- */
 
-#ifdef WITH_CONTIKI
-# ifndef DEBUG
-#  define DEBUG DEBUG_PRINT
-# endif /* DEBUG */
-#include "net/ip/uip-debug.h"
-#endif
+// Current maximum log level
+static coap_log_t maxlog = LOG_WARNING;
 
-static coap_log_t maxlog = LOG_WARNING;        /* default maximum log level */
+ // Controls printing PDUs with fprintf
+static int use_fprintf_for_show_pdu = 1;
 
-static int use_fprintf_for_show_pdu = 1; /* non zero to output with fprintf */
-
-const char *coap_package_name(void) {
-  return PACKAGE_NAME;
-}
-
-const char *coap_package_version(void) {
-  return PACKAGE_STRING;
-}
-
-void
-coap_set_show_pdu_output(int use_fprintf) {
-  use_fprintf_for_show_pdu = use_fprintf;
-}
-
-coap_log_t
-coap_get_log_level(void) {
-  return maxlog;
-}
-
-void
-coap_set_log_level(coap_log_t level) {
-  maxlog = level;
-}
-
-/* this array has the same order as the type log_t */
+// String names of the @t coap_log_t levels
 static const char *loglevels[] = {
   "EMRG", "ALRT", "CRIT", "ERR ", "WARN", "NOTE", "INFO", "DEBG"
 };
 
-#ifdef HAVE_TIME_H
+/* ----------------------------------------------- [Functions] ------------------------------------------------ */
+
+const char *coap_package_name(void){
+  return PACKAGE_NAME;
+}
+
+
+const char *coap_package_version(void){
+  return PACKAGE_STRING;
+}
+
+
+void coap_set_show_pdu_output(int use_fprintf){
+  use_fprintf_for_show_pdu = use_fprintf;
+}
+
+
+coap_log_t coap_get_log_level(void){
+  return maxlog;
+}
+
+
+void coap_set_log_level(coap_log_t level){
+  maxlog = level;
+}
+
 
 COAP_STATIC_INLINE size_t
-print_timestamp(char *s, size_t len, coap_tick_t t) {
+print_timestamp(char *s, size_t len, coap_tick_t t){
   struct tm *tmp;
   time_t now = coap_ticks_to_rt(t);
   tmp = localtime(&now);
   return strftime(s, len, "%b %d %H:%M:%S", tmp);
 }
 
-#else /* alternative implementation: just print the timestamp */
 
-COAP_STATIC_INLINE size_t
-print_timestamp(char *s, size_t len, coap_tick_t t) {
-#ifdef HAVE_SNPRINTF
-  return snprintf(s, len, "%u.%03u",
-                  (unsigned int)coap_ticks_to_rt(t),
-                  (unsigned int)(t % COAP_TICKS_PER_SECOND));
-#else /* HAVE_SNPRINTF */
-  /* @todo do manual conversion of timestamp */
-  return 0;
-#endif /* HAVE_SNPRINTF */
-}
-
-#endif /* HAVE_TIME_H */
-
-#ifndef HAVE_STRNLEN
-/**
- * A length-safe strlen() fake.
- *
- * @param s      The string to count characters != 0.
- * @param maxlen The maximum length of @p s.
- *
- * @return The length of @p s.
- */
-static inline size_t
-strnlen(const char *s, size_t maxlen) {
-  size_t n = 0;
-  while(*s++ && n < maxlen)
-    ++n;
-  return n;
-}
-#endif /* HAVE_STRNLEN */
-
-static size_t
-print_readable( const uint8_t *data, size_t len,
-                unsigned char *result, size_t buflen, int encode_always ) {
+static size_t print_readable(
+    const uint8_t *data,
+    size_t len,
+    unsigned char *result,
+    size_t buflen,
+    int encode_always
+){
   const uint8_t hex[] = "0123456789ABCDEF";
   size_t cnt = 0;
   assert(data || len == 0);
@@ -169,7 +118,7 @@ print_readable( const uint8_t *data, size_t len,
 
 size_t
 coap_print_addr(const struct coap_address_t *addr, unsigned char *buf, size_t len) {
-#if defined( HAVE_ARPA_INET_H ) || defined( HAVE_WS2TCPIP_H )
+
   const void *addrptr = NULL;
   in_port_t port;
   unsigned char *p = buf;
@@ -212,74 +161,16 @@ coap_print_addr(const struct coap_address_t *addr, unsigned char *buf, size_t le
   p += snprintf((char *)p, buf + len - p + 1, ":%d", port);
 
   return buf + len - p;
-#else /* HAVE_ARPA_INET_H */
-# if WITH_CONTIKI
-  unsigned char *p = buf;
-  uint8_t i;
-#  if NETSTACK_CONF_WITH_IPV6
-  const uint8_t hex[] = "0123456789ABCDEF";
-
-  if (len < 41)
-    return 0;
-
-  *p++ = '[';
-
-  for (i=0; i < 16; i += 2) {
-    if (i) {
-      *p++ = ':';
-    }
-    *p++ = hex[(addr->addr.u8[i] & 0xf0) >> 4];
-    *p++ = hex[(addr->addr.u8[i] & 0x0f)];
-    *p++ = hex[(addr->addr.u8[i+1] & 0xf0) >> 4];
-    *p++ = hex[(addr->addr.u8[i+1] & 0x0f)];
-  }
-  *p++ = ']';
-#  else /* WITH_UIP6 */
-#   warning "IPv4 network addresses will not be included in debug output"
-
-  if (len < 21)
-    return 0;
-#  endif /* WITH_UIP6 */
-  if (buf + len - p < 6)
-    return 0;
-
-#ifdef HAVE_SNPRINTF
-  p += snprintf((char *)p, buf + len - p + 1, ":%d", uip_htons(addr->port));
-#else /* HAVE_SNPRINTF */
-  /* @todo manual conversion of port number */
-#endif /* HAVE_SNPRINTF */
-
-  return p - buf;
-# else /* WITH_CONTIKI */
-  /* TODO: output addresses manually */
-#   warning "inet_ntop() not available, network addresses will not be included in debug output"
-# endif /* WITH_CONTIKI */
-  return 0;
-#endif
 }
 
-#ifdef WITH_CONTIKI
-# define fprintf(fd, ...) PRINTF(__VA_ARGS__)
-# define fflush(...)
-
-# ifdef HAVE_VPRINTF
-#  define vfprintf(fd, ...) vprintf(__VA_ARGS__)
-# else /* HAVE_VPRINTF */
-#  define vfprintf(fd, ...) PRINTF(__VA_ARGS__)
-# endif /* HAVE_VPRINTF */
-#endif /* WITH_CONTIKI */
-
 /** Returns a textual description of the message type @p t. */
-static const char *
-msg_type_string(uint16_t t) {
+static const char *msg_type_string(uint16_t t){
   static const char *types[] = { "CON", "NON", "ACK", "RST", "???" };
-
   return types[min(t, sizeof(types)/sizeof(char *) - 1)];
 }
 
 /** Returns a textual description of the method or response code. */
-static const char *
-msg_code_string(uint16_t c) {
+static const char *msg_code_string(uint16_t c){
   static const char *methods[] = { "0.00", "GET", "POST", "PUT", "DELETE",
                                    "FETCH", "PATCH", "iPATCH" };
   static const char *signals[] = { "7.00", "CSM", "Ping", "Pong", "Release",

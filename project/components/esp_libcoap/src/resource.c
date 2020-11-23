@@ -295,36 +295,42 @@ coap_print_wellknown(coap_context_t *context, unsigned char *buf, size_t *buflen
 }
 
 static coap_str_const_t *null_path = coap_make_str_const("");
+coap_resource_t *coap_resource_init(coap_str_const_t *uri_path, int flags){
 
-coap_resource_t *
-coap_resource_init(coap_str_const_t *uri_path, int flags) {
-  coap_resource_t *r;
+    // Allocate memory for the resource
+    coap_resource_t *r =
+        (coap_resource_t *) coap_malloc_type(COAP_RESOURCE, sizeof(coap_resource_t));
 
-  r = (coap_resource_t *)coap_malloc_type(COAP_RESOURCE, sizeof(coap_resource_t));
-  if (r) {
-    memset(r, 0, sizeof(coap_resource_t));
+    // If allocation succeeded
+    if (r) {
 
-    if (!(flags & COAP_RESOURCE_FLAGS_RELEASE_URI)) {
-      /* Need to take a copy if caller is not providing a release request */
-      if (uri_path)
-        uri_path = coap_new_str_const(uri_path->s, uri_path->length);
-      else
+        // Clear resource's memory
+        memset(r, 0, sizeof(coap_resource_t));
+
+        // Check for RELEASE_URI flag
+        if ( !(flags & COAP_RESOURCE_FLAGS_RELEASE_URI) ) {
+            /* Need to take a copy if caller is not providing a release request */
+            if (uri_path)
+                uri_path = coap_new_str_const(uri_path->s, uri_path->length);
+            else
+                uri_path = coap_new_str_const(null_path->s, null_path->length);
+        }
+        else if (!uri_path) {
+        /* Do not expecte this, but ... */
         uri_path = coap_new_str_const(null_path->s, null_path->length);
+        }
+
+        if (uri_path)
+        r->uri_path = uri_path;
+
+        r->flags = flags;
+    } 
+    // If allocation failed
+    else {
+        coap_log(LOG_DEBUG, "coap_resource_init: no memory left\n");
     }
-    else if (!uri_path) {
-      /* Do not expecte this, but ... */
-      uri_path = coap_new_str_const(null_path->s, null_path->length);
-    }
 
-    if (uri_path)
-      r->uri_path = uri_path;
-
-    r->flags = flags;
-  } else {
-    coap_log(LOG_DEBUG, "coap_resource_init: no memory left\n");
-  }
-
-  return r;
+    return r;
 }
 
 static const uint8_t coap_unknown_resource_uri[] =

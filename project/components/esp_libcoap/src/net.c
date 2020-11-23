@@ -1,3 +1,22 @@
+/* ============================================================================================================
+ *  File: net.c
+ *  Author: Olaf Bergmann
+ *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  Modified by: Krzysztof Pierczyk
+ *  Modified time: 2020-11-23 01:40:48
+ *  Description:
+ *  Credits: 
+ *
+ *      This file is a modification of the original libcoap source file. Aim of the modification was to 
+ *      provide cleaner, richer documented and ESP8266-optimised version of the library. Core API of the 
+ *      project was not changed or expanded, although some elemenets (e.g. DTLS support) have been removed 
+ *      due to lack of needings from the modifications' authors. 
+ * 
+ * ============================================================================================================ */
+
+
+/* -------------------------------------------- [Original header] --------------------------------------------- */
+
 /* net.c -- CoAP network interface
  *
  * Copyright (C) 2010--2016 Olaf Bergmann <bergmann@tzi.org>
@@ -5,6 +24,9 @@
  * This file is part of the CoAP library libcoap. Please see
  * README for terms of use.
  */
+
+/* ------------------------------------------------------------------------------------------------------------ */
+
 
 #include "coap_config.h"
 
@@ -35,11 +57,6 @@
 #include <ws2tcpip.h>
 #endif
 
-#ifdef WITH_LWIP
-#include <lwip/pbuf.h>
-#include <lwip/udp.h>
-#include <lwip/timeouts.h>
-#endif
 
 #include "libcoap.h"
 #include "utlist.h"
@@ -86,8 +103,6 @@
 /** creates a Qx.FRAC_BITS from session's 'ack_timeout' */
 #define ACK_TIMEOUT Q(FRAC_BITS, session->ack_timeout)
 
-#if !defined(WITH_LWIP) && !defined(WITH_CONTIKI)
-
 COAP_STATIC_INLINE coap_queue_t *
 coap_malloc_node(void) {
   return (coap_queue_t *)coap_malloc_type(COAP_NODE, sizeof(coap_queue_t));
@@ -97,56 +112,8 @@ COAP_STATIC_INLINE void
 coap_free_node(coap_queue_t *node) {
   coap_free_type(COAP_NODE, node);
 }
-#endif /* !defined(WITH_LWIP) && !defined(WITH_CONTIKI) */
 
 void coap_free_endpoint(coap_endpoint_t *ep);
-
-#ifdef WITH_LWIP
-
-#include <lwip/memp.h>
-
-static void coap_retransmittimer_execute(void *arg);
-static void coap_retransmittimer_restart(coap_context_t *ctx);
-
-COAP_STATIC_INLINE coap_queue_t *
-coap_malloc_node() {
-  return (coap_queue_t *)memp_malloc(MEMP_COAP_NODE);
-}
-
-COAP_STATIC_INLINE void
-coap_free_node(coap_queue_t *node) {
-  memp_free(MEMP_COAP_NODE, node);
-}
-
-#endif /* WITH_LWIP */
-#ifdef WITH_CONTIKI
-# ifndef DEBUG
-#  define DEBUG DEBUG_PRINT
-# endif /* DEBUG */
-
-#include "mem.h"
-#include "net/ip/uip-debug.h"
-
-#define UIP_IP_BUF   ((struct uip_ip_hdr *)&uip_buf[UIP_LLH_LEN])
-#define UIP_UDP_BUF  ((struct uip_udp_hdr *)&uip_buf[UIP_LLIPH_LEN])
-
-void coap_resources_init();
-
-unsigned char initialized = 0;
-coap_context_t the_coap_context;
-
-PROCESS(coap_retransmit_process, "message retransmit process");
-
-COAP_STATIC_INLINE coap_queue_t *
-coap_malloc_node() {
-  return (coap_queue_t *)coap_malloc_type(COAP_NODE, 0);
-}
-
-COAP_STATIC_INLINE void
-coap_free_node(coap_queue_t *node) {
-  coap_free_type(COAP_NODE, node);
-}
-#endif /* WITH_CONTIKI */
 
 unsigned int
 coap_adjust_basetime(coap_context_t *ctx, coap_tick_t now) {
@@ -291,62 +258,6 @@ coap_pop_next(coap_context_t *context) {
   return next;
 }
 
-static size_t
-coap_get_session_client_psk(
-  const coap_session_t *session,
-  const uint8_t *hint, size_t hint_len,
-  uint8_t *identity, size_t *identity_len, size_t max_identity_len,
-  uint8_t *psk, size_t max_psk_len
-) {
-  (void)hint;
-  (void)hint_len;
-  if (session->psk_identity && session->psk_identity_len > 0 && session->psk_key && session->psk_key_len > 0) {
-    if (session->psk_identity_len <= max_identity_len && session->psk_key_len <= max_psk_len) {
-      memcpy(identity, session->psk_identity, session->psk_identity_len);
-      memcpy(psk, session->psk_key, session->psk_key_len);
-      *identity_len = session->psk_identity_len;
-      return session->psk_key_len;
-    }
-  } else if (session->context && session->context->psk_key && session->context->psk_key_len > 0) {
-    if (session->context->psk_key_len <= max_psk_len) {
-      *identity_len = 0;
-      memcpy(psk, session->context->psk_key, session->context->psk_key_len);
-      return session->context->psk_key_len;
-    }
-  }
-  *identity_len = 0;
-  return 0;
-}
-
-static size_t
-coap_get_context_server_psk(
-  const coap_session_t *session,
-  const uint8_t *identity, size_t identity_len,
-  uint8_t *psk, size_t max_psk_len
-) {
-  (void)identity;
-  (void)identity_len;
-  const coap_context_t *ctx = session->context;
-  if (ctx && ctx->psk_key && ctx->psk_key_len > 0 && ctx->psk_key_len <= max_psk_len) {
-    memcpy(psk, ctx->psk_key, ctx->psk_key_len);
-    return ctx->psk_key_len;
-  }
-  return 0;
-}
-
-static size_t
-coap_get_context_server_hint(
-  const coap_session_t *session,
-  uint8_t *hint, size_t max_hint_len
-) {
-  const coap_context_t *ctx = session->context;
-  if (ctx && ctx->psk_hint && ctx->psk_hint_len > 0 && ctx->psk_hint_len <= max_hint_len) {
-    memcpy(hint, ctx->psk_hint, ctx->psk_hint_len);
-    return ctx->psk_hint_len;
-  }
-  return 0;
-}
-
 int coap_context_set_psk(coap_context_t *ctx,
   const char *hint,
   const uint8_t *key, size_t key_len
@@ -419,89 +330,52 @@ void coap_context_set_keepalive(coap_context_t *context, unsigned int seconds) {
   context->ping_timeout = seconds;
 }
 
-coap_context_t *
-coap_new_context(
-  const coap_address_t *listen_addr) {
-  coap_context_t *c;
 
-#ifdef WITH_CONTIKI
-  if (initialized)
-    return NULL;
-#endif /* WITH_CONTIKI */
+coap_context_t *coap_new_context(const coap_address_t *listen_addr){
 
-  coap_startup();
+    // Make sure library has been initialized
+    coap_startup();
 
-#ifndef WITH_CONTIKI
-  c = coap_malloc_type(COAP_CONTEXT, sizeof(coap_context_t));
-#endif /* not WITH_CONTIKI */
+    // Allocate memory for the context
+    coap_context_t *c = coap_malloc_type(COAP_CONTEXT, sizeof(coap_context_t));
 
-#ifndef WITH_CONTIKI
-  if (!c) {
-#ifndef NDEBUG
-    coap_log(LOG_EMERG, "coap_init: malloc:\n");
-#endif
-    return NULL;
-  }
-#endif /* not WITH_CONTIKI */
-#ifdef WITH_CONTIKI
-  coap_resources_init();
-  coap_memory_init();
-
-  c = &the_coap_context;
-  initialized = 1;
-#endif /* WITH_CONTIKI */
-
-  memset(c, 0, sizeof(coap_context_t));
-
-  if (coap_dtls_is_supported()) {
-    c->dtls_context = coap_dtls_new_context(c);
-    if (!c->dtls_context) {
-      coap_log(LOG_EMERG, "coap_init: no DTLS context available\n");
-      coap_free_context(c);
-      return NULL;
+    // Check if allocation succeded
+    if (!c) {
+        #ifndef NDEBUG
+        coap_log(LOG_EMERG, "coap_init: malloc:\n");
+        #endif
+        return NULL;
     }
-  }
 
-  /* set default CSM timeout */
-  c->csm_timeout = 30;
+    // Clear the memory inside context
+    memset(c, 0, sizeof(coap_context_t));
 
-  /* initialize message id */
-  prng((unsigned char *)&c->message_id, sizeof(uint16_t));
+    // Set default CSM timeout
+    c->csm_timeout = 30;
 
-  if (listen_addr) {
-    coap_endpoint_t *endpoint = coap_new_endpoint(c, listen_addr, COAP_PROTO_UDP);
-    if (endpoint == NULL) {
-      goto onerror;
+    // Initialize message id
+    prng((unsigned char *) &c->message_id, sizeof(uint16_t));
+
+    // If @p listen_addr has been given, create an initial endpoint to listen on
+    if (listen_addr) {
+        coap_endpoint_t *endpoint = coap_new_endpoint(c, listen_addr, COAP_PROTO_UDP);
+        if (endpoint == NULL) {
+        goto onerror;
+        }
     }
-  }
 
-#if !defined(WITH_LWIP)
-  c->network_send = coap_network_send;
-  c->network_read = coap_network_read;
-#endif
+    // Initialize read & send methods to default
+    c->network_send = coap_network_send;
+    c->network_read = coap_network_read;
 
-  c->get_client_psk = coap_get_session_client_psk;
-  c->get_server_psk = coap_get_context_server_psk;
-  c->get_server_hint = coap_get_context_server_hint;
+    return c;
 
-#ifdef WITH_CONTIKI
-  process_start(&coap_retransmit_process, (char *)c);
-
-  PROCESS_CONTEXT_BEGIN(&coap_retransmit_process);
-#ifndef WITHOUT_OBSERVE
-  etimer_set(&c->notify_timer, COAP_RESOURCE_CHECK_TIME * COAP_TICKS_PER_SECOND);
-#endif /* WITHOUT_OBSERVE */
-  /* the retransmit timer must be initialized to some large value */
-  etimer_set(&the_coap_context.retransmit_timer, 0xFFFF);
-  PROCESS_CONTEXT_END(&coap_retransmit_process);
-#endif /* WITH_CONTIKI */
-
-  return c;
-
+    // On error, free allocated context and return NULL
 onerror:
-  coap_free_type(COAP_CONTEXT, c);
-  return NULL;
+    coap_free_type(COAP_CONTEXT, c);
+    return NULL;
 }
+
 
 void
 coap_set_app_data(coap_context_t *ctx, void *app_data) {
@@ -525,11 +399,6 @@ coap_free_context(coap_context_t *context) {
 
   coap_delete_all(context->sendqueue);
 
-#ifdef WITH_LWIP
-  context->sendqueue = NULL;
-  coap_retransmittimer_restart(context);
-#endif
-
   coap_delete_all_resources(context);
 
   LL_FOREACH_SAFE(context->endpoint, ep, tmp) {
@@ -549,13 +418,7 @@ coap_free_context(coap_context_t *context) {
   if (context->psk_key)
     coap_free(context->psk_key);
 
-#ifndef WITH_CONTIKI
   coap_free_type(COAP_CONTEXT, context);
-#endif/* not WITH_CONTIKI */
-#ifdef WITH_CONTIKI
-  memset(&the_coap_context, 0, sizeof(coap_context_t));
-  initialized = 0;
-#endif /* WITH_CONTIKI */
 }
 
 int
@@ -656,24 +519,6 @@ static ssize_t
 coap_send_pdu(coap_session_t *session, coap_pdu_t *pdu, coap_queue_t *node) {
   ssize_t bytes_written;
 
-#ifdef WITH_LWIP
-
-  coap_socket_t *sock = &session->sock;
-  if (sock->flags == COAP_SOCKET_EMPTY) {
-    assert(session->endpoint != NULL);
-    sock = &session->endpoint->sock;
-  }
-  if (pdu->type == COAP_MESSAGE_CON && COAP_PROTO_NOT_RELIABLE(session->proto))
-    session->con_active++;
-
-  bytes_written = coap_socket_send_pdu(sock, session, pdu);
-  if (LOG_DEBUG <= coap_get_log_level()) {
-    coap_show_pdu(LOG_DEBUG, pdu);
-  }
-  coap_ticks(&session->last_rx_tx);
-
-#else
-
   /* Do not send error responses for requests that were received via
   * IP multicast.
   * FIXME: If No-Response option indicates interest, these responses
@@ -745,8 +590,6 @@ coap_send_pdu(coap_session_t *session, coap_pdu_t *pdu, coap_queue_t *node) {
     session->con_active++;
 
   bytes_written = coap_session_send_pdu(session, pdu);
-
-#endif /* WITH_LWIP */
 
   return bytes_written;
 }
@@ -929,10 +772,6 @@ coap_retransmit(coap_context_t *context, coap_queue_t *node) {
       node->t = (now - context->sendqueue_basetime) + (node->timeout << node->retransmit_cnt);
     }
     coap_insert_node(&context->sendqueue, node);
-#ifdef WITH_LWIP
-    if (node == context->sendqueue) /* don't bother with timer stuff if there are earlier retransmits */
-      coap_retransmittimer_restart(context);
-#endif
 
     coap_log(LOG_DEBUG, "** %s: tid=%d: retransmission #%d\n",
              coap_session_str(node->session), node->id, node->retransmit_cnt);
@@ -993,14 +832,6 @@ coap_retransmit(coap_context_t *context, coap_queue_t *node) {
   coap_delete_node(node);
   return COAP_INVALID_TID;
 }
-
-#ifdef WITH_LWIP
-/* WITH_LWIP, this is handled by coap_recv in a different way */
-void
-coap_read(coap_context_t *ctx, coap_tick_t now) {
-  return;
-}
-#else /* WITH_LWIP */
 
 static int
 coap_handle_dgram_for_proto(coap_context_t *ctx, coap_session_t *session, coap_packet_t *packet) {
@@ -1092,28 +923,11 @@ coap_write_session(coap_context_t *ctx, coap_session_t *session, coap_tick_t now
   }
 }
 
-#ifdef WITH_CONTIKI
-COAP_STATIC_INLINE coap_packet_t *
-coap_malloc_packet(void) {
-  return (coap_packet_t *)coap_malloc_type(COAP_PACKET, 0);
-}
-
-void
-coap_free_packet(coap_packet_t *packet) {
-  coap_free_type(COAP_PACKET, packet);
-}
-#endif /* WITH_CONTIKI */
-
 static void
 coap_read_session(coap_context_t *ctx, coap_session_t *session, coap_tick_t now) {
-#ifdef WITH_CONTIKI
-  coap_packet_t *packet = coap_malloc_packet();
-  if ( !packet )
-    return;
-#else /* WITH_CONTIKI */
+
   coap_packet_t s_packet;
   coap_packet_t *packet = &s_packet;
-#endif /* WITH_CONTIKI */
 
   assert(session->sock.flags & (COAP_SOCKET_CONNECTED | COAP_SOCKET_MULTICAST));
 
@@ -1228,22 +1042,16 @@ coap_read_session(coap_context_t *ctx, coap_session_t *session, coap_tick_t now)
       coap_session_disconnected(session, COAP_NACK_NOT_DELIVERABLE);
   }
 
-#ifdef WITH_CONTIKI
-  if ( packet )
-    coap_free_packet( packet );
-#endif
 }
 
 static int
 coap_read_endpoint(coap_context_t *ctx, coap_endpoint_t *endpoint, coap_tick_t now) {
   ssize_t bytes_read = -1;
   int result = -1;                /* the value to be returned */
-#ifdef WITH_CONTIKI
-  coap_packet_t *packet = coap_malloc_packet();
-#else /* WITH_CONTIKI */
+
   coap_packet_t s_packet;
   coap_packet_t *packet = &s_packet;
-#endif /* WITH_CONTIKI */
+
 
   assert(COAP_PROTO_NOT_RELIABLE(endpoint->proto));
   assert(endpoint->sock.flags & COAP_SOCKET_BOUND);
@@ -1271,11 +1079,6 @@ coap_read_endpoint(coap_context_t *ctx, coap_endpoint_t *endpoint, coap_tick_t n
         coap_endpoint_new_dtls_session(endpoint, packet, now);
     }
   }
-
-#ifdef WITH_CONTIKI
-  if (packet)
-    coap_free_packet(packet);
-#endif
 
   return result;
 }
@@ -1373,7 +1176,6 @@ error:
   coap_delete_pdu(pdu);
   return -1;
 }
-#endif /* not WITH_LWIP */
 
 int
 coap_remove_from_queue(coap_queue_t **queue, coap_session_t *session, coap_tid_t id, coap_queue_t **node) {
@@ -2320,153 +2122,23 @@ coap_can_exit(coap_context_t *context) {
   return 1;
 }
 
-static int coap_started = 0;
 
 void coap_startup(void) {
-  if (coap_started)
-    return;
-  coap_started = 1;
-#if defined(HAVE_WINSOCK2_H)
-  WORD wVersionRequested = MAKEWORD(2, 2);
-  WSADATA wsaData;
-  WSAStartup(wVersionRequested, &wsaData);
-#endif
-  coap_clock_init();
-#if defined(WITH_LWIP)
-  prng_init(LWIP_RAND());
-#elif defined(WITH_CONTIKI)
-  prng_init(0);
-#elif !defined(_WIN32)
-  prng_init(0);
-#endif
-  coap_dtls_startup();
+
+    static int coap_started = 0;
+
+    // Check if libcoap has been initialized yet
+    if (coap_started)
+      return;
+
+    // Denote library's initialization
+    coap_started = 1;
+
+    // Initialize the library-internal clock
+    coap_clock_init();
+
+    // Initialize RNG
+    prng_init(0);
 }
 
-void coap_cleanup(void) {
-#if defined(HAVE_WINSOCK2_H)
-  WSACleanup();
-#endif
-}
-
-#ifdef WITH_CONTIKI
-
-/*---------------------------------------------------------------------------*/
-/* CoAP message retransmission */
-/*---------------------------------------------------------------------------*/
-PROCESS_THREAD(coap_retransmit_process, ev, data) {
-  coap_tick_t now;
-  coap_queue_t *nextpdu;
-
-  PROCESS_BEGIN();
-
-  coap_log(LOG_DEBUG, "Started retransmit process\n");
-
-  while (1) {
-    PROCESS_YIELD();
-    if (ev == PROCESS_EVENT_TIMER) {
-      if (etimer_expired(&the_coap_context.retransmit_timer)) {
-
-        nextpdu = coap_peek_next(&the_coap_context);
-
-        coap_ticks(&now);
-        while (nextpdu && nextpdu->t <= now) {
-          coap_retransmit(&the_coap_context, coap_pop_next(&the_coap_context));
-          nextpdu = coap_peek_next(&the_coap_context);
-        }
-
-        /* need to set timer to some value even if no nextpdu is available */
-        etimer_set(&the_coap_context.retransmit_timer,
-          nextpdu ? nextpdu->t - now : 0xFFFF);
-      }
-#ifndef WITHOUT_OBSERVE
-      if (etimer_expired(&the_coap_context.notify_timer)) {
-        coap_check_notify(&the_coap_context);
-        etimer_reset(&the_coap_context.notify_timer);
-      }
-#endif /* WITHOUT_OBSERVE */
-    }
-  }
-
-  PROCESS_END();
-}
-/*---------------------------------------------------------------------------*/
-
-#endif /* WITH_CONTIKI */
-
-#ifdef WITH_LWIP
-/* FIXME: retransmits that are not required any more due to incoming packages
- * do *not* get cleared at the moment, the wakeup when the transmission is due
- * is silently accepted. this is mainly due to the fact that the required
- * checks are similar in two places in the code (when receiving ACK and RST)
- * and that they cause more than one patch chunk, as it must be first checked
- * whether the sendqueue item to be dropped is the next one pending, and later
- * the restart function has to be called. nothing insurmountable, but it can
- * also be implemented when things have stabilized, and the performance
- * penality is minimal
- *
- * also, this completely ignores COAP_RESOURCE_CHECK_TIME.
- * */
-
-static void coap_retransmittimer_execute(void *arg) {
-  coap_context_t *ctx = (coap_context_t*)arg;
-  coap_tick_t now;
-  coap_tick_t elapsed;
-  coap_queue_t *nextinqueue;
-
-  ctx->timer_configured = 0;
-
-  coap_ticks(&now);
-
-  elapsed = now - ctx->sendqueue_basetime; /* that's positive for sure, and unless we haven't been called for a complete wrapping cycle, did not wrap */
-
-  nextinqueue = coap_peek_next(ctx);
-  while (nextinqueue != NULL) {
-    if (nextinqueue->t > elapsed) {
-      nextinqueue->t -= elapsed;
-      break;
-    } else {
-      elapsed -= nextinqueue->t;
-      coap_retransmit(ctx, coap_pop_next(ctx));
-      nextinqueue = coap_peek_next(ctx);
-    }
-  }
-
-  ctx->sendqueue_basetime = now;
-
-  coap_retransmittimer_restart(ctx);
-}
-
-static void coap_retransmittimer_restart(coap_context_t *ctx) {
-  coap_tick_t now, elapsed, delay;
-
-  if (ctx->timer_configured) {
-    printf("clearing\n");
-    sys_untimeout(coap_retransmittimer_execute, (void*)ctx);
-    ctx->timer_configured = 0;
-  }
-  if (ctx->sendqueue != NULL) {
-    coap_ticks(&now);
-    elapsed = now - ctx->sendqueue_basetime;
-    if (ctx->sendqueue->t >= elapsed) {
-      delay = ctx->sendqueue->t - elapsed;
-    } else {
-      /* a strange situation, but not completely impossible.
-       *
-       * this happens, for example, right after
-       * coap_retransmittimer_execute, when a retransmission
-       * was *just not yet* due, and the clock ticked before
-       * our coap_ticks was called.
-       *
-       * not trying to retransmit anything now, as it might
-       * cause uncontrollable recursion; let's just try again
-       * with the next main loop run.
-       * */
-      delay = 0;
-    }
-
-    printf("scheduling for %d ticks\n", delay);
-    sys_timeout(delay, coap_retransmittimer_execute, (void*)ctx);
-    ctx->timer_configured = 1;
-  }
-}
-#endif
+void coap_cleanup(void) {}

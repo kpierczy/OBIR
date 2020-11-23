@@ -805,93 +805,83 @@ error:
   return NULL;
 }
 
-#ifndef WITH_LWIP
-coap_endpoint_t *
-coap_new_endpoint(coap_context_t *context, const coap_address_t *listen_addr, coap_proto_t proto) {
-  struct coap_endpoint_t *ep = NULL;
 
-  assert(context);
-  assert(listen_addr);
-  assert(proto != COAP_PROTO_NONE);
+coap_endpoint_t *coap_new_endpoint(
+  coap_context_t *context,
+  const coap_address_t *listen_addr,
+  coap_proto_t proto
+){  
 
-  if (proto == COAP_PROTO_DTLS && !coap_dtls_is_supported()) {
-    coap_log(LOG_CRIT, "coap_new_endpoint: DTLS not supported\n");
-    goto error;
-  }
+    // Check all arguments
+    assert(context);
+    assert(listen_addr);
+    assert(proto != COAP_PROTO_NONE);
 
-  if (proto == COAP_PROTO_TLS && !coap_tls_is_supported()) {
-    coap_log(LOG_CRIT, "coap_new_endpoint: TLS not supported\n");
-    goto error;
-  }
-
-  if (proto == COAP_PROTO_DTLS || proto == COAP_PROTO_TLS) {
-    if (!coap_dtls_context_check_keys_enabled(context)) {
-      coap_log(LOG_INFO,
-               "coap_new_endpoint: one of coap_context_set_psk() or "
-               "coap_context_set_pki() not called\n");
-      goto error;
+    // Allocate memory for the new endpoint
+    struct coap_endpoint_t *ep = NULL;
+    ep = coap_malloc_endpoint();
+    if (!ep) {
+        coap_log(LOG_WARNING, "coap_new_endpoint: malloc");
+        goto error;
     }
-  }
 
-  ep = coap_malloc_endpoint();
-  if (!ep) {
-    coap_log(LOG_WARNING, "coap_new_endpoint: malloc");
-    goto error;
-  }
+    // Cleanup memory of the endpoint
+    memset(ep, 0, sizeof(struct coap_endpoint_t));
 
-  memset(ep, 0, sizeof(struct coap_endpoint_t));
-  ep->context = context;
-  ep->proto = proto;
+    // Set basic fields of the endpoint
+    ep->context = context;
+    ep->proto = proto;
 
-  if (proto==COAP_PROTO_TCP || proto==COAP_PROTO_TLS) {
-    if (!coap_socket_bind_tcp(&ep->sock, listen_addr, &ep->bind_addr))
-      goto error;
-    ep->sock.flags |= COAP_SOCKET_WANT_ACCEPT;
-  } else if (proto==COAP_PROTO_UDP || proto==COAP_PROTO_DTLS) {
-    if (!coap_socket_bind_udp(&ep->sock, listen_addr, &ep->bind_addr))
-      goto error;
-    ep->sock.flags |= COAP_SOCKET_WANT_READ;
-  } else {
-    coap_log(LOG_CRIT, "coap_new_endpoint: protocol not supported\n");
-    goto error;
-  }
-
-#ifndef NDEBUG
-  if (LOG_DEBUG <= coap_get_log_level()) {
-#ifndef INET6_ADDRSTRLEN
-#define INET6_ADDRSTRLEN 40
-#endif
-    unsigned char addr_str[INET6_ADDRSTRLEN + 8];
-
-    if (coap_print_addr(&ep->bind_addr, addr_str, INET6_ADDRSTRLEN + 8)) {
-      coap_log(LOG_DEBUG, "created %s endpoint %s\n",
-          ep->proto == COAP_PROTO_TLS ? "TLS "
-        : ep->proto == COAP_PROTO_TCP ? "TCP "
-        : ep->proto == COAP_PROTO_DTLS ? "DTLS" : "UDP ",
-        addr_str);
+    // TCP-based protocol
+    if (proto==COAP_PROTO_TCP || proto==COAP_PROTO_TLS) {
+        if (!coap_socket_bind_tcp(&ep->sock, listen_addr, &ep->bind_addr))
+            goto error;
+        ep->sock.flags |= COAP_SOCKET_WANT_ACCEPT;
+    } 
+    // UDP-based protocol
+    else if (proto==COAP_PROTO_UDP || proto==COAP_PROTO_DTLS) {
+        if (!coap_socket_bind_udp(&ep->sock, listen_addr, &ep->bind_addr))
+            goto error;
+        ep->sock.flags |= COAP_SOCKET_WANT_READ;
+    } 
+    // Unknown protocol
+    else {
+        coap_log(LOG_CRIT, "coap_new_endpoint: protocol not supported\n");
+        goto error;
     }
-  }
-#endif /* NDEBUG */
 
-  ep->sock.flags |= COAP_SOCKET_NOT_EMPTY | COAP_SOCKET_BOUND;
+    // If NDEBUG defined, conditionally log some info 
+    #ifndef NDEBUG
+    if (LOG_DEBUG <= coap_get_log_level()) {
 
-  if (proto == COAP_PROTO_DTLS) {
-    ep->hello.proto = proto;
-    ep->hello.type = COAP_SESSION_TYPE_HELLO;
-    ep->hello.mtu = ep->default_mtu;
-    ep->hello.context = context;
-    ep->hello.endpoint = ep;
-  }
+        #ifndef INET6_ADDRSTRLEN
+        #define INET6_ADDRSTRLEN 40
+        #endif
 
-  ep->default_mtu = COAP_DEFAULT_MTU;
+        unsigned char addr_str[INET6_ADDRSTRLEN + 8];
+        if (coap_print_addr(&ep->bind_addr, addr_str, INET6_ADDRSTRLEN + 8)) {
+            coap_log(LOG_DEBUG, "created %s endpoint %s\n",
+                (ep->proto == COAP_PROTO_TCP) ? "TCP "
+                    : (ep->proto == COAP_PROTO_DTLS ? "DTLS" : "UDP "),
+            addr_str);
+        }
+    }
+    #endif /* NDEBUG */
 
-  LL_PREPEND(context->endpoint, ep);
-  return ep;
+    // Set endpoint's socket's library-specific flags & MTU
+    ep->sock.flags |= COAP_SOCKET_NOT_EMPTY | COAP_SOCKET_BOUND;
+    ep->default_mtu = COAP_DEFAULT_MTU;
+
+    // Add the endpoint to the @p context
+    LL_PREPEND(context->endpoint, ep);
+
+    return ep;
 
 error:
-  coap_free_endpoint(ep);
-  return NULL;
+    coap_free_endpoint(ep);
+    return NULL;
 }
+
 
 void coap_endpoint_set_default_mtu(coap_endpoint_t *ep, unsigned mtu) {
   ep->default_mtu = (uint16_t)mtu;
@@ -917,7 +907,7 @@ coap_free_endpoint(coap_endpoint_t *ep) {
     coap_mfree_endpoint(ep);
   }
 }
-#endif /* WITH_LWIP */
+
 
 coap_session_t *
 coap_session_get_by_peer(coap_context_t *ctx,
