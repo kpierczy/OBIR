@@ -74,23 +74,8 @@ coap_split_uri(const uint8_t *str_var, size_t len, coap_uri_t *uri) {
   }
 
   /* There might be an additional 's', indicating the secure version: */
-  if (len && (*p == 's')) {
-    ++p; --len;
-    uri->scheme = COAP_URI_SCHEME_COAPS;
-    uri->port = COAPS_DEFAULT_PORT;
-  } else {
-    uri->scheme = COAP_URI_SCHEME_COAP;
-  }
-
-  /* There might be and addition "+tcp", indicating reliable transport: */
-  if (len>=4 && p[0] == '+' && p[1] == 't' && p[2] == 'c' && p[3] == 'p' ) {
-    p += 4;
-    len -= 4;
-    if (uri->scheme == COAP_URI_SCHEME_COAPS)
-      uri->scheme = COAP_URI_SCHEME_COAPS_TCP;
-    else
-      uri->scheme = COAP_URI_SCHEME_COAP_TCP;
-  }
+  uri->scheme = COAP_URI_SCHEME_COAP;
+  
   q = (const uint8_t *)"://";
   while (len && *q && *p == *q) {
     ++p; ++q; --len;

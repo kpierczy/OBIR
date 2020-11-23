@@ -55,7 +55,7 @@ coap_pdu_init(uint8_t type, uint8_t code, uint16_t tid, size_t size) {
 
   pdu = (coap_pdu_t *) coap_malloc(sizeof(coap_pdu_t));
   if (!pdu) return NULL;
-  pdu->max_hdr_size = COAP_PDU_MAX_TCP_HEADER_SIZE;
+  pdu->max_hdr_size = COAP_PDU_MAX_UDP_HEADER_SIZE;
 
   uint8_t *buf;
   pdu->alloc_size = min(size, 256);
@@ -358,84 +358,18 @@ next_option_safe(coap_opt_t **optp, size_t *length) {
   return optsize;
 }
 
-size_t
-coap_pdu_parse_header_size(coap_proto_t proto,
-                           const uint8_t *data) {
-  assert(data);
-  size_t header_size = 0;
-
-  if (proto == COAP_PROTO_TCP) {
-    uint8_t len = *data >> 4;
-    if (len < 13)
-      header_size = 2;
-    else if (len==13)
-      header_size = 3;
-    else if (len==14)
-      header_size = 4;
-    else
-      header_size = 6;
-  } else if (proto == COAP_PROTO_UDP) {
-    header_size = 4;
-  }
-
-  return header_size;
-}
-
-size_t
-coap_pdu_parse_size(coap_proto_t proto,
-                    const uint8_t *data,
-                    size_t length) {
-  assert(data);
-  assert(proto == COAP_PROTO_TCP);
-  assert(coap_pdu_parse_header_size(proto, data) <= length );
-
-  size_t size = 0;
-
-  if ((proto == COAP_PROTO_TCP) && length >= 1) {
-    uint8_t len = *data >> 4;
-    if (len < 13) {
-      size = len;
-    } else if (length >= 2) {
-      if (len==13) {
-        size = (size_t)data[1] + COAP_MESSAGE_SIZE_OFFSET_TCP8;
-      } else if (length >= 3) {
-        if (len==14) {
-          size = ((size_t)data[1] << 8) + data[2] + COAP_MESSAGE_SIZE_OFFSET_TCP16;
-        } else if (length >= 5) {
-          size = ((size_t)data[1] << 24) + ((size_t)data[2] << 16)
-               + ((size_t)data[3] << 8) + data[4] + COAP_MESSAGE_SIZE_OFFSET_TCP32;
-        }
-      }
-    }
-    size += data[0] & 0x0f;
-  }
-
-  return size;
-}
-
 int
 coap_pdu_parse_header(coap_pdu_t *pdu, coap_proto_t proto) {
   uint8_t *hdr = pdu->token - pdu->hdr_size;
-  if (proto == COAP_PROTO_UDP) {
-    assert(pdu->hdr_size == 4);
-    if ((hdr[0] >> 6) != COAP_DEFAULT_VERSION) {
-      coap_log(LOG_DEBUG, "coap_pdu_parse: UDP version not supported\n");
-      return 0;
-    }
-    pdu->type = (hdr[0] >> 4) & 0x03;
-    pdu->token_length = hdr[0] & 0x0f;
-    pdu->code = hdr[1];
-    pdu->tid = (uint16_t)hdr[2] << 8 | hdr[3];
-  } else if (proto == COAP_PROTO_TCP) {
-    assert(pdu->hdr_size >= 2 && pdu->hdr_size <= 6);
-    pdu->type = COAP_MESSAGE_CON;
-    pdu->token_length = hdr[0] & 0x0f;
-    pdu->code = hdr[pdu->hdr_size-1];
-    pdu->tid = 0;
-  } else {
-    coap_log(LOG_DEBUG, "coap_pdu_parse: unsupported protocol\n");
+  assert(pdu->hdr_size == 4);
+  if ((hdr[0] >> 6) != COAP_DEFAULT_VERSION) {
+    coap_log(LOG_DEBUG, "coap_pdu_parse: UDP version not supported\n");
     return 0;
   }
+  pdu->type = (hdr[0] >> 4) & 0x03;
+  pdu->token_length = hdr[0] & 0x0f;
+  pdu->code = hdr[1];
+  pdu->tid = (uint16_t)hdr[2] << 8 | hdr[3];
   if (pdu->token_length > pdu->alloc_size) {
     /* Invalid PDU provided - not wise to assert here though */
     coap_log(LOG_DEBUG, "coap_pdu_parse: PDU header token size broken\n");
@@ -502,11 +436,10 @@ coap_pdu_parse(coap_proto_t proto,
                size_t length,
                coap_pdu_t *pdu)
 {
-  size_t hdr_size;
+  size_t hdr_size = 4;
 
   if (length == 0)
     return 0;
-  hdr_size = coap_pdu_parse_header_size(proto, data);
   if (!hdr_size || hdr_size > length)
     return 0;
   if (hdr_size > pdu->max_hdr_size)
@@ -521,7 +454,6 @@ coap_pdu_parse(coap_proto_t proto,
 
 size_t
 coap_pdu_encode_header(coap_pdu_t *pdu, coap_proto_t proto) {
-  if (proto == COAP_PROTO_UDP ) {
     assert(pdu->max_hdr_size >= 4);
     if (pdu->max_hdr_size < 4) {
       coap_log(LOG_WARNING,
@@ -535,65 +467,5 @@ coap_pdu_encode_header(coap_pdu_t *pdu, coap_proto_t proto) {
     pdu->token[-2] = (uint8_t)(pdu->tid >> 8);
     pdu->token[-1] = (uint8_t)(pdu->tid);
     pdu->hdr_size = 4;
-  } else if (proto == COAP_PROTO_TCP) {
-    size_t len;
-    assert(pdu->used_size >= pdu->token_length);
-    if (pdu->used_size < pdu->token_length) {
-      coap_log(LOG_WARNING, "coap_pdu_encode_header: corrupted PDU\n");
-      return 0;
-    }
-    len = pdu->used_size - pdu->token_length;
-    if (len <= COAP_MAX_MESSAGE_SIZE_TCP0) {
-      assert(pdu->max_hdr_size >= 2);
-      if (pdu->max_hdr_size < 2) {
-        coap_log(LOG_WARNING,
-              "coap_pdu_encode_header: not enough space for TCP0 header\n");
-        return 0;
-      }
-      pdu->token[-2] = (uint8_t)len << 4
-                     | pdu->token_length;
-      pdu->token[-1] = pdu->code;
-      pdu->hdr_size = 2;
-    } else if (len <= COAP_MAX_MESSAGE_SIZE_TCP8) {
-      assert(pdu->max_hdr_size >= 3);
-      if (pdu->max_hdr_size < 3) {
-        coap_log(LOG_WARNING,
-              "coap_pdu_encode_header: not enough space for TCP8 header\n");
-        return 0;
-      }
-      pdu->token[-3] = 13 << 4 | pdu->token_length;
-      pdu->token[-2] = (uint8_t)(len - COAP_MESSAGE_SIZE_OFFSET_TCP8);
-      pdu->token[-1] = pdu->code;
-      pdu->hdr_size = 3;
-    } else if (len <= COAP_MAX_MESSAGE_SIZE_TCP16) {
-      assert(pdu->max_hdr_size >= 4);
-      if (pdu->max_hdr_size < 4) {
-        coap_log(LOG_WARNING,
-              "coap_pdu_encode_header: not enough space for TCP16 header\n");
-        return 0;
-      }
-      pdu->token[-4] = 14 << 4 | pdu->token_length;
-      pdu->token[-3] = (uint8_t)((len - COAP_MESSAGE_SIZE_OFFSET_TCP16) >> 8);
-      pdu->token[-2] = (uint8_t)(len - COAP_MESSAGE_SIZE_OFFSET_TCP16);
-      pdu->token[-1] = pdu->code;
-      pdu->hdr_size = 4;
-    } else {
-      assert(pdu->max_hdr_size >= 6);
-      if (pdu->max_hdr_size < 6) {
-        coap_log(LOG_WARNING,
-              "coap_pdu_encode_header: not enough space for TCP32 header\n");
-        return 0;
-      }
-      pdu->token[-6] = 15 << 4 | pdu->token_length;
-      pdu->token[-5] = (uint8_t)((len - COAP_MESSAGE_SIZE_OFFSET_TCP32) >> 24);
-      pdu->token[-4] = (uint8_t)((len - COAP_MESSAGE_SIZE_OFFSET_TCP32) >> 16);
-      pdu->token[-3] = (uint8_t)((len - COAP_MESSAGE_SIZE_OFFSET_TCP32) >> 8);
-      pdu->token[-2] = (uint8_t)(len - COAP_MESSAGE_SIZE_OFFSET_TCP32);
-      pdu->token[-1] = pdu->code;
-      pdu->hdr_size = 6;
-    }
-  } else {
-    coap_log(LOG_WARNING, "coap_pdu_encode_header: unsupported protocol\n");
-  }
   return pdu->hdr_size;
 }

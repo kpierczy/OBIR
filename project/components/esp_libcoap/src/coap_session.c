@@ -175,19 +175,7 @@ size_t coap_session_max_pdu_size(const coap_session_t *session) {
 
   size_t mtu = (size_t)(session->mtu);
 
-  if (COAP_PROTO_NOT_RELIABLE(session->proto))
-    return mtu > 4 ? mtu - 4 : 0;
-  /* we must assume there is no token to be on the safe side */
-  if (mtu <= 2)
-    return 0;
-  else if (mtu <= COAP_MAX_MESSAGE_SIZE_TCP0 + 2)
-    return mtu - 2;
-  else if (mtu <= COAP_MAX_MESSAGE_SIZE_TCP8 + 3)
-    return mtu - 3;
-  else if (mtu <= COAP_MAX_MESSAGE_SIZE_TCP16 + 4)
-    return mtu - 4;
-  else
-    return mtu - 6;
+  return mtu > 4 ? mtu - 4 : 0;
 }
 
 void coap_session_set_mtu(coap_session_t *session, unsigned mtu) {
@@ -254,7 +242,7 @@ coap_session_delay_pdu(coap_session_t *session, coap_pdu_t *pdu,
       return COAP_INVALID_TID;
     node->id = pdu->tid;
     node->pdu = pdu;
-    if (pdu->type == COAP_MESSAGE_CON && COAP_PROTO_NOT_RELIABLE(session->proto)) {
+    if (pdu->type == COAP_MESSAGE_CON) {
       uint8_t r;
       prng(&r, sizeof(r));
       /* add timeout in range [ACK_TIMEOUT...ACK_TIMEOUT * ACK_RANDOM_FACTOR] */
@@ -265,32 +253,6 @@ coap_session_delay_pdu(coap_session_t *session, coap_pdu_t *pdu,
   coap_log(LOG_DEBUG, "** %s: tid=%d: delayed\n",
            coap_session_str(session), node->id);
   return COAP_PDU_DELAYED;
-}
-
-void coap_session_send_csm(coap_session_t *session) {
-  coap_pdu_t *pdu;
-  uint8_t buf[4];
-  assert(COAP_PROTO_RELIABLE(session->proto));
-  coap_log(LOG_DEBUG, "***%s: sending CSM\n", coap_session_str(session));
-  session->state = COAP_SESSION_STATE_CSM;
-  session->partial_write = 0;
-  if (session->mtu == 0)
-    session->mtu = COAP_DEFAULT_MTU;  /* base value */
-  pdu = coap_pdu_init(COAP_MESSAGE_CON, COAP_SIGNALING_CSM, 0, 16);
-  if ( pdu == NULL
-    || coap_add_option(pdu, COAP_SIGNALING_OPTION_MAX_MESSAGE_SIZE,
-         coap_encode_var_safe(buf, sizeof(buf),
-                                COAP_DEFAULT_MAX_PDU_RX_SIZE), buf) == 0
-    || coap_pdu_encode_header(pdu, session->proto) == 0
-  ) {
-    coap_session_disconnected(session, COAP_NACK_NOT_DELIVERABLE);
-  } else {
-    ssize_t bytes_written = coap_session_send_pdu(session, pdu);
-    if (bytes_written != (ssize_t)pdu->used_size + pdu->hdr_size)
-      coap_session_disconnected(session, COAP_NACK_NOT_DELIVERABLE);
-  }
-  if (pdu)
-    coap_delete_pdu(pdu);
 }
 
 coap_tid_t coap_session_send_ping(coap_session_t *session) {
@@ -304,11 +266,10 @@ coap_tid_t coap_session_send_ping(coap_session_t *session) {
 }
 
 void coap_session_connected(coap_session_t *session) {
+
   if (session->state != COAP_SESSION_STATE_ESTABLISHED) {
     coap_log(LOG_DEBUG, "***%s: session connected\n",
              coap_session_str(session));
-    if (session->state == COAP_SESSION_STATE_CSM)
-      coap_handle_event(session->context, COAP_EVENT_SESSION_CONNECTED, session);
   }
 
   session->state = COAP_SESSION_STATE_ESTABLISHED;
@@ -317,7 +278,7 @@ void coap_session_connected(coap_session_t *session) {
   while (session->delayqueue && session->state == COAP_SESSION_STATE_ESTABLISHED) {
     ssize_t bytes_written;
     coap_queue_t *q = session->delayqueue;
-    if (q->pdu->type == COAP_MESSAGE_CON && COAP_PROTO_NOT_RELIABLE(session->proto)) {
+    if (q->pdu->type == COAP_MESSAGE_CON){
       if (session->con_active >= COAP_DEFAULT_NSTART)
         break;
       session->con_active++;
@@ -329,32 +290,19 @@ void coap_session_connected(coap_session_t *session) {
     coap_log(LOG_DEBUG, "** %s: tid=%d: transmitted after delay\n",
              coap_session_str(session), (int)q->pdu->tid);
     bytes_written = coap_session_send_pdu(session, q->pdu);
-    if (q->pdu->type == COAP_MESSAGE_CON && COAP_PROTO_NOT_RELIABLE(session->proto)) {
+    if (q->pdu->type == COAP_MESSAGE_CON){
       if (coap_wait_ack(session->context, session, q) >= 0)
         q = NULL;
     }
-    if (COAP_PROTO_NOT_RELIABLE(session->proto)) {
-      if (q)
-        coap_delete_node(q);
-      if (bytes_written < 0)
-        break;
-    } else {
-      if (bytes_written <= 0 || (size_t)bytes_written < q->pdu->used_size + q->pdu->hdr_size) {
-        q->next = session->delayqueue;
-        session->delayqueue = q;
-        if (bytes_written > 0)
-          session->partial_write = (size_t)bytes_written;
-        break;
-      } else {
-        coap_delete_node(q);
-      }
-    }
+    if (q)
+      coap_delete_node(q);
+    if (bytes_written < 0)
+      break;
   }
 }
 
 void coap_session_disconnected(coap_session_t *session, coap_nack_reason_t reason) {
   (void)reason;
-  coap_session_state_t state = session->state;
 
   coap_log(LOG_DEBUG, "***%s: session disconnected (reason %d)\n",
            coap_session_str(session), reason);
@@ -375,7 +323,6 @@ void coap_session_disconnected(coap_session_t *session, coap_nack_reason_t reaso
     coap_log(LOG_DEBUG, "** %s: tid=%d: not transmitted after delay\n",
              coap_session_str(session), q->id);
     if (q->pdu->type==COAP_MESSAGE_CON
-      && COAP_PROTO_NOT_RELIABLE(session->proto)
       && reason != COAP_NACK_RST)
     {
       if (coap_wait_ack(session->context, session, q) >= 0)
@@ -389,19 +336,6 @@ void coap_session_disconnected(coap_session_t *session, coap_nack_reason_t reaso
     }
     if (q)
       coap_delete_node(q);
-  }
-  if ( COAP_PROTO_RELIABLE(session->proto) ) {
-    if (session->sock.flags != COAP_SOCKET_EMPTY) {
-      coap_socket_close(&session->sock);
-      coap_handle_event(session->context,
-        state == COAP_SESSION_STATE_CONNECTING ?
-        COAP_EVENT_TCP_FAILED : COAP_EVENT_TCP_CLOSED, session);
-    }
-    if (state != COAP_SESSION_STATE_NONE) {
-      coap_handle_event(session->context,
-        state == COAP_SESSION_STATE_ESTABLISHED ?
-        COAP_EVENT_SESSION_CLOSED : COAP_EVENT_SESSION_FAILED, session);
-    }
   }
 }
 
@@ -496,18 +430,10 @@ coap_session_create_client(
 
   coap_session_reference(session);
 
-  if (proto == COAP_PROTO_UDP) {
-    if (!coap_socket_connect_udp(&session->sock, &session->local_if, server,
-      COAP_DEFAULT_PORT,
-      &session->local_addr, &session->remote_addr)) {
-      goto error;
-    }
-  } else if (proto == COAP_PROTO_TCP) {
-    if (!coap_socket_connect_tcp1(&session->sock, &session->local_if, server,
-      COAP_DEFAULT_PORT,
-      &session->local_addr, &session->remote_addr)) {
-      goto error;
-    }
+  if (!coap_socket_connect(&session->sock, &session->local_if, server,
+    COAP_DEFAULT_PORT,
+    &session->local_addr, &session->remote_addr)) {
+    goto error;
   }
 
   session->sock.flags |= COAP_SOCKET_NOT_EMPTY | COAP_SOCKET_WANT_READ;
@@ -523,26 +449,8 @@ error:
 
 static coap_session_t *
 coap_session_connect(coap_session_t *session) {
-  if (session->proto == COAP_PROTO_UDP) {
-    session->state = COAP_SESSION_STATE_ESTABLISHED;
-  } else if (session->proto == COAP_PROTO_TCP) {
-    if (session->sock.flags & COAP_SOCKET_WANT_CONNECT) {
-      session->state = COAP_SESSION_STATE_CONNECTING;
-    } else {
-      coap_session_send_csm(session);
-    }
-  }
+  session->state = COAP_SESSION_STATE_ESTABLISHED;
   coap_ticks(&session->last_rx_tx);
-  return session;
-}
-
-static coap_session_t *
-coap_session_accept(coap_session_t *session) {
-  if (session->proto == COAP_PROTO_TCP)
-    coap_handle_event(session->context, COAP_EVENT_TCP_CONNECTED, session);
-  if (session->proto == COAP_PROTO_TCP) {
-    coap_session_send_csm(session);
-  }
   return session;
 }
 
@@ -560,35 +468,6 @@ coap_session_t *coap_new_client_session(
   }
   return session;
 }
-
-coap_session_t *coap_new_server_session(
-  struct coap_context_t *ctx,
-  coap_endpoint_t *ep
-) {
-  coap_session_t *session;
-  session = coap_make_session( ep->proto, COAP_SESSION_TYPE_SERVER,
-                               &ep->bind_addr, NULL, NULL, 0, ctx, ep );
-  if (!session)
-    goto error;
-
-  if (!coap_socket_accept_tcp(&ep->sock, &session->sock,
-                              &session->local_addr, &session->remote_addr))
-    goto error;
-  session->sock.flags |= COAP_SOCKET_NOT_EMPTY | COAP_SOCKET_CONNECTED
-                       | COAP_SOCKET_WANT_READ;
-  LL_PREPEND(ep->sessions, session);
-  if (session) {
-    coap_log(LOG_DEBUG, "***%s: new incoming session\n",
-             coap_session_str(session));
-    session = coap_session_accept(session);
-  }
-  return session;
-
-error:
-  coap_session_free(session);
-  return NULL;
-}
-
 
 coap_endpoint_t *coap_new_endpoint(
   coap_context_t *context,
@@ -616,23 +495,9 @@ coap_endpoint_t *coap_new_endpoint(
     ep->context = context;
     ep->proto = proto;
 
-    // TCP-based protocol
-    if (proto==COAP_PROTO_TCP) {
-        if (!coap_socket_bind_tcp(&ep->sock, listen_addr, &ep->bind_addr))
-            goto error;
-        ep->sock.flags |= COAP_SOCKET_WANT_ACCEPT;
-    } 
-    // UDP-based protocol
-    else if (proto==COAP_PROTO_UDP) {
-        if (!coap_socket_bind_udp(&ep->sock, listen_addr, &ep->bind_addr))
-            goto error;
-        ep->sock.flags |= COAP_SOCKET_WANT_READ;
-    } 
-    // Unknown protocol
-    else {
-        coap_log(LOG_CRIT, "coap_new_endpoint: protocol not supported\n");
+    if (!coap_socket_bind_udp(&ep->sock, listen_addr, &ep->bind_addr))
         goto error;
-    }
+    ep->sock.flags |= COAP_SOCKET_WANT_READ;
 
     // If NDEBUG defined, conditionally log some info 
     #ifndef NDEBUG
@@ -644,9 +509,7 @@ coap_endpoint_t *coap_new_endpoint(
 
         unsigned char addr_str[INET6_ADDRSTRLEN + 8];
         if (coap_print_addr(&ep->bind_addr, addr_str, INET6_ADDRSTRLEN + 8)) {
-            coap_log(LOG_DEBUG, "created %s endpoint %s\n",
-                (ep->proto == COAP_PROTO_TCP) ? "TCP " : "UDP ",
-            addr_str);
+            coap_log(LOG_DEBUG, "created an endpoint %s\n", addr_str);
         }
     }
     #endif /* NDEBUG */
@@ -727,16 +590,8 @@ const char *coap_session_str(const coap_session_t *session) {
   if (session->ifindex > 0 && p + 1 < end)
     p += snprintf(p, end - p, " (if%d)", session->ifindex);
   if (p + 6 < end) {
-    if (session->proto == COAP_PROTO_UDP) {
       strcpy(p, " UDP ");
       p += 4;
-    } else if (session->proto == COAP_PROTO_TCP) {
-      strcpy(p, " TCP ");
-      p += 4;
-    } else {
-      strcpy(p, " NONE");
-      p += 5;
-    }
   }
 
   return szSession;

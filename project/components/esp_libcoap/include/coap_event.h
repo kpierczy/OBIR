@@ -40,23 +40,6 @@ struct coap_context_t;
 struct coap_session_t;
 
 
-/* ------------------------------------------- [Macrodefinitions] --------------------------------------------- */
-
-/**
- * @brief: TCP events for COAP_PROTO_TCP
- */
-#define COAP_EVENT_TCP_CONNECTED      0x1001
-#define COAP_EVENT_TCP_CLOSED         0x1002
-#define COAP_EVENT_TCP_FAILED         0x1003
-
-/**
- * @brief: CSM exchange events for reliable protocols only
- */
-#define COAP_EVENT_SESSION_CONNECTED  0x2001
-#define COAP_EVENT_SESSION_CLOSED     0x2002
-#define COAP_EVENT_SESSION_FAILED     0x2003
-
-
 /* -------------------------------------------- [Data structures] --------------------------------------------- */
 
 /**

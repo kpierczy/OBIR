@@ -335,9 +335,7 @@ coap_context_t *coap_new_context(const coap_address_t *listen_addr);
 /**
  * @brief: Set the context keepalive timer for sessions. A keepalive message will be
  *    sent after if a session has been inactive, i.e. no packet sent or received, for
- *    the given number of seconds. For reliable protocols, a PING message will be sent.
- *    If a PONG has not been received before the next PING is due to be sent, the 
- *    session will considered as disconnected.
+ *    the given number of seconds. 
  *
  * @param context:
  *    The coap_context_t object
@@ -502,12 +500,8 @@ coap_tid_t coap_retransmit(coap_context_t *context, coap_queue_t *node);
  *    then coap_write() again when any condition below is true:
  * 
  *      - data is available on any of the sockets with the COAP_SOCKET_WANT_READ
- *      - an incoming connection is pending in the listen queue and the 
- *        COAP_SOCKET_WANT_ACCEPT flag is set
  *      - at least some data can be written without blocking on any of the sockets
  *        with the COAP_SOCKET_WANT_WRITE flag set
- *      - a connection event occured (success or failure) and the COAP_SOCKET_WANT_CONNECT
- *        flag is set
  *      - the timeout has expired
  * 
  *    Before calling coap_read() or coap_write again(), the application should position COAP_SOCKET_CAN_READ 

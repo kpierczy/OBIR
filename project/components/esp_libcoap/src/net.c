@@ -381,8 +381,7 @@ coap_send_ack(coap_session_t *session, coap_pdu_t *request) {
   coap_pdu_t *response;
   coap_tid_t result = COAP_INVALID_TID;
 
-  if (request && request->type == COAP_MESSAGE_CON &&
-    COAP_PROTO_NOT_RELIABLE(session->proto)) {
+  if (request && request->type == COAP_MESSAGE_CON) {
     response = coap_pdu_init(COAP_MESSAGE_ACK, 0, request->tid, 0);
     if (response)
       result = coap_send(session, response);
@@ -394,18 +393,8 @@ ssize_t
 coap_session_send_pdu(coap_session_t *session, coap_pdu_t *pdu) {
   ssize_t bytes_written = -1;
   assert(pdu->hdr_size > 0);
-  switch(session->proto) {
-    case COAP_PROTO_UDP:
-      bytes_written = coap_session_send(session, pdu->token - pdu->hdr_size,
-                                        pdu->used_size + pdu->hdr_size);
-      break;
-    case COAP_PROTO_TCP:
-      bytes_written = coap_session_write(session, pdu->token - pdu->hdr_size,
-                                         pdu->used_size + pdu->hdr_size);
-      break;
-    default:
-      break;
-  }
+  bytes_written = coap_session_send(session, pdu->token - pdu->hdr_size,
+                                    pdu->used_size + pdu->hdr_size);
   coap_show_pdu(LOG_DEBUG, pdu);
   return bytes_written;
 }
@@ -424,28 +413,7 @@ coap_send_pdu(coap_session_t *session, coap_pdu_t *pdu, coap_queue_t *node) {
   }
 
   if (session->state == COAP_SESSION_STATE_NONE) {
-    if(COAP_PROTO_RELIABLE(session->proto)) {
-      if (!coap_socket_connect_tcp1(
-        &session->sock, &session->local_if, &session->remote_addr,
-        COAP_DEFAULT_PORT,
-        &session->local_addr, &session->remote_addr
-      )) {
-        coap_handle_event(session->context, COAP_EVENT_TCP_FAILED, session);
-        return -1;
-      }
-      session->last_ping = 0;
-      session->last_pong = 0;
-      session->csm_tx = 0;
-      coap_ticks( &session->last_rx_tx );
-      if ((session->sock.flags & COAP_SOCKET_WANT_CONNECT) != 0) {
-        session->state = COAP_SESSION_STATE_CONNECTING;
-        return coap_session_delay_pdu(session, pdu, node);
-      }
-      coap_handle_event(session->context, COAP_EVENT_TCP_CONNECTED, session);
-      coap_session_send_csm(session);
-    } else {
-      return -1;
-    }
+    return -1;
   }
 
   if (session->state != COAP_SESSION_STATE_ESTABLISHED ||
@@ -457,7 +425,7 @@ coap_send_pdu(coap_session_t *session, coap_pdu_t *pdu, coap_queue_t *node) {
     (session->sock.flags & COAP_SOCKET_WANT_WRITE))
     return coap_session_delay_pdu(session, pdu, node);
 
-  if (pdu->type == COAP_MESSAGE_CON && COAP_PROTO_NOT_RELIABLE(session->proto))
+  if (pdu->type == COAP_MESSAGE_CON)
     session->con_active++;
 
   bytes_written = coap_session_send_pdu(session, pdu);
@@ -589,18 +557,7 @@ coap_send(coap_session_t *session, coap_pdu_t *pdu) {
     return (coap_tid_t)bytes_written;
   }
 
-  if (COAP_PROTO_RELIABLE(session->proto) &&
-    (size_t)bytes_written < pdu->used_size + pdu->hdr_size) {
-    if (coap_session_delay_pdu(session, pdu, NULL) == COAP_PDU_DELAYED) {
-      session->partial_write = (size_t)bytes_written;
-      /* do not free pdu as it is stored with session for later use */
-      return pdu->tid;
-    } else {
-      goto error;
-    }
-  }
-
-  if (pdu->type != COAP_MESSAGE_CON || COAP_PROTO_RELIABLE(session->proto)) {
+  if (pdu->type != COAP_MESSAGE_CON) {
     coap_tid_t id = pdu->tid;
     coap_delete_pdu(pdu);
     return id;
@@ -715,21 +672,6 @@ coap_handle_dgram_for_proto(coap_context_t *ctx, coap_session_t *session, coap_p
 }
 
 static void
-coap_connect_session(coap_context_t *ctx, coap_session_t *session, coap_tick_t now) {
-  (void)ctx;
-  if (coap_socket_connect_tcp2(&session->sock, &session->local_addr, &session->remote_addr)) {
-    session->last_rx_tx = now;
-    coap_handle_event(session->context, COAP_EVENT_TCP_CONNECTED, session);
-    if (session->proto == COAP_PROTO_TCP) {
-      coap_session_send_csm(session);
-    }
-  } else {
-    coap_handle_event(session->context, COAP_EVENT_TCP_FAILED, session);
-    coap_session_disconnected(session, COAP_NACK_NOT_DELIVERABLE);
-  }
-}
-
-static void
 coap_write_session(coap_context_t *ctx, coap_session_t *session, coap_tick_t now) {
   (void)ctx;
   assert(session->sock.flags & COAP_SOCKET_CONNECTED);
@@ -740,18 +682,7 @@ coap_write_session(coap_context_t *ctx, coap_session_t *session, coap_tick_t now
     coap_log(LOG_DEBUG, "** %s: tid=%d: transmitted after delay\n",
              coap_session_str(session), (int)q->pdu->tid);
     assert(session->partial_write < q->pdu->used_size + q->pdu->hdr_size);
-    switch (session->proto) {
-      case COAP_PROTO_TCP:
-        bytes_written = coap_session_write(
-          session,
-          q->pdu->token - q->pdu->hdr_size - session->partial_write,
-          q->pdu->used_size + q->pdu->hdr_size - session->partial_write
-        );
-        break;
-      default:
-        bytes_written = -1;
-        break;
-    }
+    bytes_written = -1;
     if (bytes_written > 0)
       session->last_rx_tx = now;
     if (bytes_written <= 0 || (size_t)bytes_written < q->pdu->used_size + q->pdu->hdr_size - session->partial_write) {
@@ -773,7 +704,6 @@ coap_read_session(coap_context_t *ctx, coap_session_t *session, coap_tick_t now)
 
   assert(session->sock.flags & (COAP_SOCKET_CONNECTED | COAP_SOCKET_MULTICAST));
 
-  if (COAP_PROTO_NOT_RELIABLE(session->proto)) {
     ssize_t bytes_read;
     coap_address_copy(&packet->src, &session->remote_addr);
     coap_address_copy(&packet->dst, &session->local_addr);
@@ -792,95 +722,6 @@ coap_read_session(coap_context_t *ctx, coap_session_t *session, coap_tick_t now)
       coap_packet_set_addr(packet, &session->remote_addr, &session->local_addr);
       coap_handle_dgram_for_proto(ctx, session, packet);
     }
-  } else {
-    ssize_t bytes_read = 0;
-    const uint8_t *p;
-    int retry;
-    /* adjust for LWIP */
-    uint8_t *buf = packet->payload;
-    size_t buf_len = sizeof(packet->payload);
-
-    do {
-      if (session->proto == COAP_PROTO_TCP)
-        bytes_read = coap_socket_read(&session->sock, buf, buf_len);
-      if (bytes_read > 0) {
-        coap_log(LOG_DEBUG, "*  %s: received %zd bytes\n",
-                 coap_session_str(session), bytes_read);
-        session->last_rx_tx = now;
-      }
-      p = buf;
-      retry = bytes_read == (ssize_t)buf_len;
-      while (bytes_read > 0) {
-        if (session->partial_pdu) {
-          size_t len = session->partial_pdu->used_size
-                     + session->partial_pdu->hdr_size
-                     - session->partial_read;
-          size_t n = min(len, (size_t)bytes_read);
-          memcpy(session->partial_pdu->token - session->partial_pdu->hdr_size
-                 + session->partial_read, p, n);
-          p += n;
-          bytes_read -= n;
-          if (n == len) {
-            if (coap_pdu_parse_header(session->partial_pdu, session->proto)
-              && coap_pdu_parse_opt(session->partial_pdu)) {
-              coap_dispatch(ctx, session, session->partial_pdu);
-            }
-            coap_delete_pdu(session->partial_pdu);
-            session->partial_pdu = NULL;
-            session->partial_read = 0;
-          } else {
-            session->partial_read += n;
-          }
-        } else if (session->partial_read > 0) {
-          size_t hdr_size = coap_pdu_parse_header_size(session->proto,
-            session->read_header);
-          size_t len = hdr_size - session->partial_read;
-          size_t n = min(len, (size_t)bytes_read);
-          memcpy(session->read_header + session->partial_read, p, n);
-          p += n;
-          bytes_read -= n;
-          if (n == len) {
-            size_t size = coap_pdu_parse_size(session->proto, session->read_header,
-              hdr_size);
-            session->partial_pdu = coap_pdu_init(0, 0, 0, size);
-            if (session->partial_pdu == NULL) {
-              bytes_read = -1;
-              break;
-            }
-            if (session->partial_pdu->alloc_size < size && !coap_pdu_resize(session->partial_pdu, size)) {
-              bytes_read = -1;
-              break;
-            }
-            session->partial_pdu->hdr_size = (uint8_t)hdr_size;
-            session->partial_pdu->used_size = size;
-            memcpy(session->partial_pdu->token - hdr_size, session->read_header, hdr_size);
-            session->partial_read = hdr_size;
-            if (size == 0) {
-              if (coap_pdu_parse_header(session->partial_pdu, session->proto)) {
-                coap_dispatch(ctx, session, session->partial_pdu);
-              }
-              coap_delete_pdu(session->partial_pdu);
-              session->partial_pdu = NULL;
-              session->partial_read = 0;
-            }
-          } else {
-            session->partial_read += bytes_read;
-          }
-        } else {
-          session->read_header[0] = *p++;
-          bytes_read -= 1;
-          if (!coap_pdu_parse_header_size(session->proto,
-            session->read_header)) {
-            bytes_read = -1;
-            break;
-          }
-          session->partial_read = 1;
-        }
-      }
-    } while (bytes_read == 0 && retry);
-    if (bytes_read < 0)
-      coap_session_disconnected(session, COAP_NACK_NOT_DELIVERABLE);
-  }
 
 }
 
@@ -892,8 +733,6 @@ coap_read_endpoint(coap_context_t *ctx, coap_endpoint_t *endpoint, coap_tick_t n
   coap_packet_t s_packet;
   coap_packet_t *packet = &s_packet;
 
-
-  assert(COAP_PROTO_NOT_RELIABLE(endpoint->proto));
   assert(endpoint->sock.flags & COAP_SOCKET_BOUND);
 
   if (packet) {
@@ -929,15 +768,6 @@ coap_write_endpoint(coap_context_t *ctx, coap_endpoint_t *endpoint, coap_tick_t 
   return 0;
 }
 
-static int
-coap_accept_endpoint(coap_context_t *ctx, coap_endpoint_t *endpoint,
-  coap_tick_t now) {
-  coap_session_t *session = coap_new_server_session(ctx, endpoint);
-  if (session)
-    session->last_rx_tx = now;
-  return session != NULL;
-}
-
 void
 coap_read(coap_context_t *ctx, coap_tick_t now) {
   coap_endpoint_t *ep, *tmp;
@@ -948,8 +778,6 @@ coap_read(coap_context_t *ctx, coap_tick_t now) {
       coap_read_endpoint(ctx, ep, now);
     if ((ep->sock.flags & COAP_SOCKET_CAN_WRITE) != 0)
       coap_write_endpoint(ctx, ep, now);
-    if ((ep->sock.flags & COAP_SOCKET_CAN_ACCEPT) != 0)
-      coap_accept_endpoint(ctx, ep, now);
     LL_FOREACH_SAFE(ep->sessions, s, tmp_s) {
       if ((s->sock.flags & COAP_SOCKET_CAN_READ) != 0) {
         /* Make sure the session object is not deleted in one of the callbacks  */
@@ -967,12 +795,6 @@ coap_read(coap_context_t *ctx, coap_tick_t now) {
   }
 
   LL_FOREACH_SAFE(ctx->sessions, s, tmp_s) {
-    if ((s->sock.flags & COAP_SOCKET_CAN_CONNECT) != 0) {
-      /* Make sure the session object is not deleted in one of the callbacks  */
-      coap_session_reference(s);
-      coap_connect_session(ctx, s, now);
-      coap_session_release( s );
-    }
     if ((s->sock.flags & COAP_SOCKET_CAN_READ) != 0) {
       /* Make sure the session object is not deleted in one of the callbacks  */
       coap_session_reference(s);
@@ -993,8 +815,6 @@ coap_handle_dgram(coap_context_t *ctx, coap_session_t *session,
   uint8_t *msg, size_t msg_len) {
 
   coap_pdu_t *pdu = NULL;
-
-  assert(COAP_PROTO_NOT_RELIABLE(session->proto));
 
   pdu = coap_pdu_init(0, 0, 0, msg_len - 4);
   if (!pdu)
@@ -1762,8 +1582,6 @@ handle_signaling(coap_context_t *context, coap_session_t *session,
         /* ... */
       }
     }
-    if (session->state == COAP_SESSION_STATE_CSM)
-      coap_session_connected(session);
   } else if (pdu->code == COAP_SIGNALING_PING) {
     coap_pdu_t *pong = coap_pdu_init(COAP_MESSAGE_CON, COAP_SIGNALING_PONG, 0, 1);
     if (context->ping_handler) {
@@ -1906,14 +1724,12 @@ coap_dispatch(coap_context_t *context, coap_session_t *session,
 
     if (!coap_is_mcast(&session->local_addr)) {
       if (COAP_PDU_IS_EMPTY(pdu)) {
-        if (session->proto != COAP_PROTO_TCP) {
           coap_tick_t now;
           coap_ticks(&now);
           if (session->last_tx_rst + COAP_TICKS_PER_SECOND/4 < now) {
             coap_send_message_type(session, pdu, COAP_MESSAGE_RST);
             session->last_tx_rst = now;
           }
-        }
       }
       else {
         coap_send_message_type(session, pdu, COAP_MESSAGE_RST);

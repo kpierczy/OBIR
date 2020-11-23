@@ -56,13 +56,6 @@ typedef struct coap_fixed_point_t coap_fixed_point_t;
 #define COAP_DEFAULT_MAX_HANDSHAKE_SESSIONS 100
 
 /**
- * @brief: Macro used to differentiate protocol type between TCP- and UDP-based
- */
-#define COAP_PROTO_NOT_RELIABLE(p) ((p)==COAP_PROTO_UDP)
-#define COAP_PROTO_RELIABLE(p) ((p)==COAP_PROTO_TCP)
-
-
-/**
  * @brief: possible values of @t coap_session_type_t type
  */
 #define COAP_SESSION_TYPE_CLIENT 1  // Client-side session
@@ -75,7 +68,6 @@ typedef struct coap_fixed_point_t coap_fixed_point_t;
 #define COAP_SESSION_STATE_NONE        0
 #define COAP_SESSION_STATE_CONNECTING  1
 #define COAP_SESSION_STATE_HANDSHAKE   2
-#define COAP_SESSION_STATE_CSM         3
 #define COAP_SESSION_STATE_ESTABLISHED 4
 
 /**
@@ -301,15 +293,6 @@ void *coap_session_get_app_data(const coap_session_t *session);
 void coap_session_disconnected(coap_session_t *session, coap_nack_reason_t reason);
 
 /**
- * @brief: Notify session transport has just connected and CSM (Capabilities and Settings Message)
- *    exchange can now start.
- *
- * @param session:
- *    the CoAP session.
- */
-void coap_session_send_csm(coap_session_t *session);
-
-/**
  * @brief: Notifies session that it has just connected or reconnected.
  *
  * @param session:
@@ -360,21 +343,6 @@ coap_session_t *coap_new_client_session(
   const coap_address_t *local_if,
   const coap_address_t *server,
   coap_proto_t proto
-);
-
-/**
- * @brief: Creates a new server session for the specified endpoint.
- * 
- * @param ctx:
- *    the CoAP context.
- * @param ep:
- *    an endpoint where an incoming connection request is pending.
- * @returns:
- *    a new CoAP session or NULL if failed. Call coap_session_release to free.
- */
-coap_session_t *coap_new_server_session(
-  struct coap_context_t *ctx,
-  struct coap_endpoint_t *ep
 );
 
 /**
@@ -479,7 +447,6 @@ coap_session_delay_pdu(
  * @param proto:
  *    one from:
  *       @c COAP_PROTO_UDP
- *       @c COAP_PROTO_TCP
  * @returns:
  *    created endpoint on success
  *    NULL on failure

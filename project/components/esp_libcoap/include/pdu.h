@@ -48,10 +48,8 @@ struct coap_session_t;
 
 /* ------------------------------------------- [Macrodefinitions] --------------------------------------------- */
 
-// CoAP default UDP/TCP port
+// CoAP default UDP port
 #define COAP_DEFAULT_PORT  5683 
-// CoAP default UDP/TCP port for secure transmission
-#define COAPS_DEFAULT_PORT 5684 
 
 // Version of CoAP supported
 #define COAP_DEFAULT_VERSION 1
@@ -64,7 +62,7 @@ struct coap_session_t;
 // Default Max-Age (in seconds)
 #define COAP_DEFAULT_MAX_AGE     60
 
-// Default MTU (Maximum Transport Unit) (Excluding IP and UDP/TCP overhead)
+// Default MTU (Maximum Transport Unit) (Excluding IP and UDP overhead)
 #ifndef COAP_DEFAULT_MTU
 #define COAP_DEFAULT_MTU 1152
 #endif
@@ -78,21 +76,6 @@ struct coap_session_t;
 #ifndef COAP_DEBUG_BUF_SIZE
 #define COAP_DEBUG_BUF_SIZE (8 + 1024 * 2)
 #endif
-
-// TCP Message format constants
-#define COAP_MESSAGE_SIZE_OFFSET_TCP8  13
-#define COAP_MESSAGE_SIZE_OFFSET_TCP16 269   /* 13 + 256    */
-#define COAP_MESSAGE_SIZE_OFFSET_TCP32 65805 /* 269 + 65536 */
-
-// Derived message size limits
-#define COAP_MAX_MESSAGE_SIZE_TCP0  \
-    (COAP_MESSAGE_SIZE_OFFSET_TCP8  - 1) /* 13 - 1          */
-#define COAP_MAX_MESSAGE_SIZE_TCP8  \
-    (COAP_MESSAGE_SIZE_OFFSET_TCP16 - 1) /* 13 + 256 - 1    */
-#define COAP_MAX_MESSAGE_SIZE_TCP16 \
-    (COAP_MESSAGE_SIZE_OFFSET_TCP32 - 1) /* 269 + 65536 - 1 */
-#define COAP_MAX_MESSAGE_SIZE_TCP32 \
-    (COAP_MESSAGE_SIZE_OFFSET_TCP32 + 0xFFFFFFFF)
 
 // CoAP message types
 #define COAP_MESSAGE_CON 0 /* confirmable message (requires ACK/RST) */
@@ -262,14 +245,12 @@ struct coap_session_t;
 #define COAP_PDU_IS_RESPONSE(pdu)  ((pdu)->code >= 64 && (pdu)->code < 224)
 #define COAP_PDU_IS_SIGNALING(pdu) ((pdu)->code >= 224)
 
-// Header sizes for UDP & TCP protocols
+// Header sizes for UDP protocols
 #define COAP_PDU_MAX_UDP_HEADER_SIZE 4
-#define COAP_PDU_MAX_TCP_HEADER_SIZE 6
 
 // Protocols idntifiers for PDUs
 #define COAP_PROTO_NONE 0
 #define COAP_PROTO_UDP  1
-#define COAP_PROTO_TCP  3
 
 
 /* -------------------------------------------- [Data structures] --------------------------------------------- */
@@ -417,42 +398,6 @@ coap_pdu_t *coap_new_pdu(const struct coap_session_t *session);
  *    PDU to free
  */
 void coap_delete_pdu(coap_pdu_t *pdu);
-
-/**
- * @brief: Interprets @p data to determine the number of bytes in the header.
- *
- * @param proto:
- *    session's protocol
- * @param data:
- *    the first byte of raw data to parse as CoAP PDU
- * @returns:
- *    a value greater than zero on success
- *    0 on error
- */
-size_t coap_pdu_parse_header_size(
-    coap_proto_t proto,
-    const uint8_t *data
-);
-
-/**
- * @brief: Parses @p data to extract the message size. @p length must be at least
- *    coap_pdu_parse_header_size(proto, data).
- *
- * @param proto:
- *    session's protocol
- * @param data:
- *    the raw data to parse as CoAP PDU
- * @param length:
- *    the actual size of @p data
- * @returns:
- *    a value greater than zero on success 
- *    0 on error
- */
-size_t coap_pdu_parse_size(
-    coap_proto_t proto,
-    const uint8_t *data,
-    size_t length
-);
 
 /**
  * @brief: Decode the protocol specific header for the specified PDU.

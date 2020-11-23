@@ -71,12 +71,10 @@ void coap_mfree_endpoint( struct coap_endpoint_t *ep );
 #define COAP_SOCKET_CONNECTED    0x0004  /**< the socket is connected */
 #define COAP_SOCKET_WANT_READ    0x0010  /**< non blocking socket is waiting for reading */
 #define COAP_SOCKET_WANT_WRITE   0x0020  /**< non blocking socket is waiting for writing */
-#define COAP_SOCKET_WANT_ACCEPT  0x0040  /**< non blocking server socket is waiting for accept */
-#define COAP_SOCKET_WANT_CONNECT 0x0080  /**< non blocking client socket is waiting for connect */
+
 #define COAP_SOCKET_CAN_READ     0x0100  /**< non blocking socket can now read without blocking */
 #define COAP_SOCKET_CAN_WRITE    0x0200  /**< non blocking socket can now write without blocking */
-#define COAP_SOCKET_CAN_ACCEPT   0x0400  /**< non blocking server socket can now accept without blocking */
-#define COAP_SOCKET_CAN_CONNECT  0x0800  /**< non blocking client socket can now connect without blocking */
+
 #define COAP_SOCKET_MULTICAST    0x1000  /**< socket is used for multicast communication */
 
 /**
@@ -167,12 +165,14 @@ typedef enum {
  *    0 if procedure fails, 1 otherwise
  */
 int
-coap_socket_connect_udp(coap_socket_t *sock,
-                        const coap_address_t *local_if,
-                        const coap_address_t *server,
-                        int default_port,
-                        coap_address_t *local_addr,
-                        coap_address_t *remote_addr);
+coap_socket_connect(
+    coap_socket_t *sock,
+    const coap_address_t *local_if,
+    const coap_address_t *server,
+    int default_port,
+    coap_address_t *local_addr,
+    coap_address_t *remote_addr
+);
 
 /**
  * @brief: Creates and configures system UDP socket and associates it with @p sock structure.
@@ -189,102 +189,11 @@ coap_socket_connect_udp(coap_socket_t *sock,
  *    0 if procedure fails, 1 otherwise
  */
 int
-coap_socket_bind_udp(coap_socket_t *sock,
-                     const coap_address_t *listen_addr,
-                     coap_address_t *bound_addr );
-
-/**
- * @brief: Creates and configures system TCP socket and associates it with @p sock structure.
- *    Connects created socket with @p server net address. If @p local_if address is given,
- *    socket is ALSO bound with this address for later listening.
- * 
- *    @p local_addr and @p remote_addr are actual addresses of the local socket assigned
- *    by the system and of remote server application conneted to.
- * 
- * @param sock:
- *    CoAP-specific to be configured
- * @param local_if:
- *    address to bind() with the @p sock
- * @param server:
- *    address of the server that socket will be connected with
- * @param default_port:
- *    default destination port set for the server's address if @p server's current
- *    port is set to 0
- * @param local_addr [out]:
- *    actual socket (address + port) assigned to the @p sock
- * @param remote_addr [out]:
- *    actual destination socket (address + port) that the @p socket has been connected with
- * @returns:
- *    0 if procedure fails, 1 otherwise
- */
-int
-coap_socket_connect_tcp1(coap_socket_t *sock,
-                         const coap_address_t *local_if,
-                         const coap_address_t *server,
-                         int default_port,
-                         coap_address_t *local_addr,
-                         coap_address_t *remote_addr);
-
-
-/**
- * @brief: Checks whether SO_ERROR flag of the system socket associated with @p sock is cleared.
- *    If so, function returns local address that socket is bound to and remote address the socket
- *    is connected with. Otherwise, closes the socket.  
- * @param sock:
- *    CoAP-specific to be configured
- * @param local_addr [out]:
- *    actual socket (address + port) assigned to the @p sock
- * @param remote_addr [out]:
- *    actual destination socket (address + port) that the @p socket has been connected with
- * @returns:
- *    0 if socket has been close, 1 otherwise
- */
-int
-coap_socket_connect_tcp2(coap_socket_t *sock,
-                         coap_address_t *local_addr,
-                         coap_address_t *remote_addr);
-
-/**
- * @brief: Creates and configures system TCP socket and associates it with @p sock structure.
- *    Binds the socket with @p listen_addr. Actual address assigned by the system is copied
- *    to the @p bound_addr.
- * 
- * @param sock:
- *     CoAP-specific to be configured
- * @param listen_addr:
- *     address that socket will be connected with
- * @param bound_addr [out]:
- *     actual address assigned to the socket by the system
- * @returns:
- *    0 if procedure fails, 1 otherwise
- */
-int
-coap_socket_bind_tcp(coap_socket_t *sock,
-                     const coap_address_t *listen_addr,
-                     coap_address_t *bound_addr);
-
-/**
- * @brief: Accepts connection incoming to the TCP socket associated with @p server. If acceptance
- *    succed, system socket dedicated for the new client is created and associated with @p new_client.
- *    Address of the newly opened socket is stored in the @p local_addr and the address of the new
- *    client is stored in the @p remote_addr.
- * 
- * @param server:
- *    socket desired to perform accept
- * @param new_client [out]:
- *    socket structure that will be associated with client-dedicated socket
- * @param local_addr [out]:
- *    address of the newly created socket
- * @param remote_addr [out]:
- *    address of the new client
- * @returns:
- *    0 if acceptance fails, 1 otherwise
- */
-int
-coap_socket_accept_tcp(coap_socket_t *server,
-                       coap_socket_t *new_client,
-                       coap_address_t *local_addr,
-                       coap_address_t *remote_addr);
+coap_socket_bind_udp(
+    coap_socket_t *sock,
+    const coap_address_t *listen_addr,
+    coap_address_t *bound_addr 
+);
 
 /**
  * @brief: Closes system socket associated with @p sock. Does nothing if @p sock is not associated
@@ -313,9 +222,12 @@ void coap_socket_close(coap_socket_t *sock);
  * @return ssize_t:
  *    number of bytes that have been sent, value lesser than 0 on error
  */
-ssize_t
-coap_socket_send( coap_socket_t *sock, struct coap_session_t *session,
-                  const uint8_t *data, size_t data_len );
+ssize_t coap_socket_send(
+    coap_socket_t *sock,
+    struct coap_session_t *session,
+    const uint8_t *data,
+    size_t data_len 
+);
 
 /**
  * @brief: Sends packet to the system socket associated with @p sock. The system socket,
@@ -330,8 +242,11 @@ coap_socket_send( coap_socket_t *sock, struct coap_session_t *session,
  * @return ssize_t:
  *    number of bytes sent, value lesser than 0 on error
  */
-ssize_t
-coap_socket_write(coap_socket_t *sock, const uint8_t *data, size_t data_len);
+ssize_t coap_socket_write(
+    coap_socket_t *sock,
+    const uint8_t *data,
+    size_t data_len
+);
 
 
 /**
@@ -348,7 +263,11 @@ coap_socket_write(coap_socket_t *sock, const uint8_t *data, size_t data_len);
  *    number of received bytes to the buffer, value lesser than 0 on error
  */
 ssize_t
-coap_socket_read(coap_socket_t *sock, uint8_t *data, size_t data_len);
+coap_socket_read(
+    coap_socket_t *sock,
+    uint8_t *data,
+    size_t data_len
+);
 
 /**
  * @brief: Main interface for data transmission. Sends data to the remote address associated 
@@ -365,7 +284,12 @@ coap_socket_read(coap_socket_t *sock, uint8_t *data, size_t data_len);
  * @return ssize_t:
  *    number of bytes that have been sent, value lesser than 0 on error
  */
-ssize_t coap_network_send( coap_socket_t *sock, const struct coap_session_t *session, const uint8_t *data, size_t datalen );
+ssize_t coap_network_send(
+    coap_socket_t *sock,
+    const struct coap_session_t *session,
+    const uint8_t *data,
+    size_t datalen
+);
 
 /**
  * @rief: Main interface reading data. Reads data from the system socket associated with @p sock
@@ -379,7 +303,10 @@ ssize_t coap_network_send( coap_socket_t *sock, const struct coap_session_t *ses
  * @returns:
  *    the number of bytes received on success, value less than zero on error.
  */
-ssize_t coap_network_read( coap_socket_t *sock, struct coap_packet_t *packet );
+ssize_t coap_network_read(
+    coap_socket_t *sock,
+    struct coap_packet_t *packet
+);
 
 /**
  * @returns: current @v errno value in the humman-readable form
@@ -397,9 +324,11 @@ const char *coap_socket_strerror( void );
  * @param length [out]:
  *    pointer to the packet's length
  */
-void coap_packet_get_memmapped(struct coap_packet_t *packet,
-                               unsigned char **address,
-                               size_t *length);
+void coap_packet_get_memmapped(
+    struct coap_packet_t *packet,
+    unsigned char **address,
+    size_t *length
+);
 
 /**
  * @brief: Sets packet's src and dst addresses to values given with @p src and @p dst.
@@ -411,7 +340,10 @@ void coap_packet_get_memmapped(struct coap_packet_t *packet,
  * @param dst:
  *    desired destination address of the packet
  */
-void coap_packet_set_addr( struct coap_packet_t *packet, const coap_address_t *src,
-                           const coap_address_t *dst );
+void coap_packet_set_addr(
+    struct coap_packet_t *packet,
+    const coap_address_t *src,
+    const coap_address_t *dst
+);
 
 #endif /* COAP_IO_H_ */
