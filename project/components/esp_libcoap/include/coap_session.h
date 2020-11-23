@@ -42,7 +42,6 @@
 struct coap_endpoint_t;
 struct coap_context_t;
 struct coap_queue_t;
-struct coap_dtls_pki_t;
 
 typedef struct coap_fixed_point_t coap_fixed_point_t;
 
@@ -59,8 +58,8 @@ typedef struct coap_fixed_point_t coap_fixed_point_t;
 /**
  * @brief: Macro used to differentiate protocol type between TCP- and UDP-based
  */
-#define COAP_PROTO_NOT_RELIABLE(p) ((p)==COAP_PROTO_UDP || (p)==COAP_PROTO_DTLS)
-#define COAP_PROTO_RELIABLE(p) ((p)==COAP_PROTO_TCP || (p)==COAP_PROTO_TLS)
+#define COAP_PROTO_NOT_RELIABLE(p) ((p)==COAP_PROTO_UDP)
+#define COAP_PROTO_RELIABLE(p) ((p)==COAP_PROTO_TCP)
 
 
 /**
@@ -68,7 +67,6 @@ typedef struct coap_fixed_point_t coap_fixed_point_t;
  */
 #define COAP_SESSION_TYPE_CLIENT 1  // Client-side session
 #define COAP_SESSION_TYPE_SERVER 2  // Server-side session
-#define COAP_SESSION_TYPE_HELLO  3  // Server-side ephemeral session for responding to a client's hello
 
 
 /**
@@ -207,22 +205,6 @@ typedef struct coap_session_t {
     coap_tick_t last_pong;
     coap_tick_t csm_tx;
     
-    uint8_t *psk_identity;
-    size_t psk_identity_len;
-    uint8_t *psk_key;
-    size_t psk_key_len;
-
-    /* ---------------------------- (D)TLS info ---------------------------------- */
-
-    // Overhead of TLS layer [?]
-    unsigned tls_overhead;
-    // Security parameters [?]
-    void *tls;
-    // (D)TLS events tracked on this sesison
-    int dtls_event;
-    // DTLS setup retry counter
-    unsigned int dtls_timeout_count;
-    
 } coap_session_t;
 
 /**
@@ -261,8 +243,6 @@ typedef struct coap_endpoint_t {
 
     // list of active sessions
     coap_session_t *sessions;
-    // Distinguished session of DTLS hello messages
-    coap_session_t hello;
 
 } coap_endpoint_t;
 
@@ -383,66 +363,6 @@ coap_session_t *coap_new_client_session(
 );
 
 /**
- * @brief: Creates a new client session to the designated server with PSK credentials
- * 
- * @param ctx:
- *    the CoAP context.
- * @param local_if:
- *    address of local interface. It is recommended to use NULL to let the operating
- *    system choose a suitable local  interface. If an address is specified, the port
- *    number should be zero, which means that a free port is automatically selected.
- * @param server:
- *    the server's address. If the port number is zero, the default port for the protocol 
- *    will be used.
- * @param proto:
- *    Protocol.
- * @param identity:
- *    PSK client identity
- * @param key:
- *    PSK shared key
- * @param key_len:
- *    PSK shared key length
- *
- * @return A new CoAP session or NULL if failed. Call coap_session_release to free.
- */
-coap_session_t *coap_new_client_session_psk(
-  struct coap_context_t *ctx,
-  const coap_address_t *local_if,
-  const coap_address_t *server,
-  coap_proto_t proto,
-  const char *identity,
-  const uint8_t *key,
-  unsigned key_len
-);
-
-/**
- * @brief: Creates a new client session to the designated server with PKI credentials
- *
- * @param ctx:
- *    the CoAP context.
- * @param local_if:
- *    atddress of local interface. It is recommended to use NULL to let the operating system
- *    choose a suitable local interface. If an address is specified, the port number should 
- *    be zero, which means that a free port is automatically selected.
- * @param server:
- *    the server's address. If the port number is zero, the default port for the protocol 
- *    will be used.
- * @param proto:
- *    CoAP Protocol.
- * @param setup_data:
- *    PKI parameters.
- * @returns:
- *    a new CoAP session or NULL if failed. Call coap_session_release() to free.
- */
-coap_session_t *coap_new_client_session_pki(
-  struct coap_context_t *ctx,
-  const coap_address_t *local_if,
-  const coap_address_t *server,
-  coap_proto_t proto,
-  struct coap_dtls_pki_t *setup_data
-);
-
-/**
  * @brief: Creates a new server session for the specified endpoint.
  * 
  * @param ctx:
@@ -559,9 +479,7 @@ coap_session_delay_pdu(
  * @param proto:
  *    one from:
  *       @c COAP_PROTO_UDP
- *       @c COAP_PROTO_DTLS
  *       @c COAP_PROTO_TCP
- *       @c COAP_PROTO_TLS
  * @returns:
  *    created endpoint on success
  *    NULL on failure
@@ -623,22 +541,6 @@ coap_session_t *coap_endpoint_get_session(
     const struct coap_packet_t *packet,
     coap_tick_t now
 );
-
-/**
- * @brief: Create a new DTLS session for the @p endpoint.
- *
- * @param endpoint:
- *    endpoint to add DTLS session to
- * @param packet:
- *    received packet information to base session on.
- * @param now:
- *    the current time in ticks.
- *
- * @returns:
- *    created CoAP session or @c NULL if error.
- */
-coap_session_t *coap_endpoint_new_dtls_session(coap_endpoint_t *endpoint,
-  const struct coap_packet_t *packet, coap_tick_t now);
 
 /**
  * @brief: Finds session object in the @p ctx->sessions basing on a given peer's

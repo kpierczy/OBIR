@@ -188,28 +188,6 @@ void coap_set_show_pdu_output(int use_fprintf);
 void coap_show_pdu(coap_log_t level, const coap_pdu_t *pdu);
 
 /**
- * @brief: Display the current (D)TLS library linked with and built for version.
- *
- * @param level:
- *    The required minimum logging level.
- */
-void coap_show_tls_version(coap_log_t level);
-
-/**
- * @brief: Build a string containing the current (D)TLS library linked with and
- *    built for version.
- *
- * @param buffer:
- *    The buffer to put the string into.
- * @param bufsize:
- *    The size of the buffer to put the string into.
- *
- * @returns:
- *    A pointer to the provided buffer.
- */
-char *coap_string_tls_version(char *buffer, size_t bufsize);
-
-/**
  * @brief: Print the address into the defined buffer.
  *
  *   Internal Function.

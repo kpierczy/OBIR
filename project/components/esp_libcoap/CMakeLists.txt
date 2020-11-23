@@ -21,7 +21,6 @@ set(srcs
     "src/str.c"
     "src/subscribe.c"
     "src/uri.c"
-    "src/coap_notls.c"
 )
 
 # Register component in the IDF

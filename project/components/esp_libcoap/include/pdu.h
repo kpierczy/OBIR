@@ -269,9 +269,7 @@ struct coap_session_t;
 // Protocols idntifiers for PDUs
 #define COAP_PROTO_NONE 0
 #define COAP_PROTO_UDP  1
-#define COAP_PROTO_DTLS 2
 #define COAP_PROTO_TCP  3
-#define COAP_PROTO_TLS  4
 
 
 /* -------------------------------------------- [Data structures] --------------------------------------------- */

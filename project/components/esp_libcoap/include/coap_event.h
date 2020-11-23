@@ -43,15 +43,7 @@ struct coap_session_t;
 /* ------------------------------------------- [Macrodefinitions] --------------------------------------------- */
 
 /**
- * @brief: (D)TLS events for COAP_PROTO_DTLS and COAP_PROTO_TLS
- */
-#define COAP_EVENT_DTLS_CLOSED        0x0000
-#define COAP_EVENT_DTLS_CONNECTED     0x01DE
-#define COAP_EVENT_DTLS_RENEGOTIATE   0x01DF
-#define COAP_EVENT_DTLS_ERROR         0x0200
-
-/**
- * @brief: TCP events for COAP_PROTO_TCP and COAP_PROTO_TLS
+ * @brief: TCP events for COAP_PROTO_TCP
  */
 #define COAP_EVENT_TCP_CONNECTED      0x1001
 #define COAP_EVENT_TCP_CLOSED         0x1002
@@ -68,8 +60,7 @@ struct coap_session_t;
 /* -------------------------------------------- [Data structures] --------------------------------------------- */
 
 /**
- * @brief: Scalar type to representing different events, e.g. DTLS events or
- *    retransmission timeouts.
+ * @brief: Scalar type to representing different events, e.g. retransmission timeouts.
  */
  typedef unsigned int coap_event_t;
 

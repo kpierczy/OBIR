@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-22 22:06:01
+ *  Modified time: 2020-11-23 11:30:06
  *  Description:
  * 
  *      File contains base API related with the CoAP context stack manipulation.
@@ -42,7 +42,6 @@
 #include <time.h>
 
 #include "coap_io.h"
-#include "coap_dtls.h"
 #include "coap_event.h"
 #include "coap_time.h"
 #include "option.h"
@@ -251,21 +250,6 @@ typedef struct coap_context_t {
     // Timeout for waiting for a CSM from the remote side (0 means disabled)
     unsigned int csm_timeout;            
   
-
-    /* ----------------------------- (D)TLS informations ----------------------------- */
-
-    // Set of (D)TLS-related network IO routines
-    size_t(*get_client_psk)(const coap_session_t *session, const uint8_t *hint, size_t hint_len, uint8_t *identity, size_t *identity_len,     size_t max_identity_len, uint8_t *psk, size_t max_psk_len);
-    size_t(*get_server_psk)(const coap_session_t *session, const uint8_t *identity, size_t identity_len, uint8_t *psk, size_t max_psk_len);
-    size_t(*get_server_hint)(const coap_session_t *session, uint8_t *hint, size_t max_hint_len);
-    
-    // (D)TLS-related data
-    void *dtls_context;
-    uint8_t *psk_hint;
-    size_t psk_hint_len;
-    uint8_t *psk_key;
-    size_t psk_key_len;
-
 } coap_context_t;
 
 
@@ -347,50 +331,6 @@ coap_queue_t *coap_pop_next( coap_context_t *ctx );
  *    NULL on failure
  */
 coap_context_t *coap_new_context(const coap_address_t *listen_addr);
-
-/**
- * @brief: Set the context's default PSK hint and/or key for a server.
- *
- * @param context The current coap_context_t object.
- * @param hint    The default PSK server hint sent to a client. If @p NULL, PSK
- *                authentication is disabled. Empty string is a valid hint.
- * @param key     The default PSK key. If @p NULL, PSK authentication will fail.
- * @param key_len The default PSK key's length. If @p 0, PSK authentication will
- *                fail.
- *
- * @return @c 1 if successful, else @c 0.
- */
-int coap_context_set_psk( coap_context_t *context, const char *hint,
-                           const uint8_t *key, size_t key_len );
-
-/**
- * @brief: Set the context's default PKI information for a server.
- *
- * @param context        The current coap_context_t object.
- * @param setup_data     If @p NULL, PKI authentication will fail. Certificate
- *                       information required.
- *
- * @return @c 1 if successful, else @c 0.
- */
-int
-coap_context_set_pki(coap_context_t *context,
-                     coap_dtls_pki_t *setup_data);
-
-/**
- * @brief: Set the context's default Root CA information for a client or server.
- *
- * @param context        The current coap_context_t object.
- * @param ca_file        If not @p NULL, is the full path name of a PEM encoded
- *                       file containing all the Root CAs to be used.
- * @param ca_dir         If not @p NULL, points to a directory containing PEM
- *                       encoded files containing all the Root CAs to be used.
- *
- * @return @c 1 if successful, else @c 0.
- */
-int
-coap_context_set_pki_root_cas(coap_context_t *context,
-                              const char *ca_file,
-                              const char *ca_dir);
 
 /**
  * @brief: Set the context keepalive timer for sessions. A keepalive message will be
@@ -895,8 +835,8 @@ coap_register_response_handler(coap_context_t *context, coap_response_handler_t 
 /**
  * @brief: Registers a new message handler that is called whenever a confirmable
  *    message (request or response) is dropped after all retries have been
- *    exhausted, or a rst message was received, or a network or TLS level
- *    event was received that indicates delivering the message is not possible.
+ *    exhausted, or a rst message was received, or a network level event was received
+ *    that indicates delivering the message is not possible.
  *
  * @param context:
  *    The context to register the handler for
