@@ -17,7 +17,7 @@
 
 coap_string_t *coap_new_string(size_t size) {
   coap_string_t *s =
-            (coap_string_t *)coap_malloc_type(COAP_STRING, sizeof(coap_string_t) + size + 1);
+            (coap_string_t *)coap_malloc(sizeof(coap_string_t) + size + 1);
   if ( !s ) {
 #ifndef NDEBUG
     coap_log(LOG_CRIT, "coap_new_string: malloc\n");
@@ -32,7 +32,7 @@ coap_string_t *coap_new_string(size_t size) {
 }
 
 void coap_delete_string(coap_string_t *s) {
-  coap_free_type(COAP_STRING, s);
+  coap_free(s);
 }
 
 coap_str_const_t *coap_new_str_const(const uint8_t *data, size_t size) {
@@ -45,6 +45,6 @@ coap_str_const_t *coap_new_str_const(const uint8_t *data, size_t size) {
 }
 
 void coap_delete_str_const(coap_str_const_t *s) {
-  coap_free_type(COAP_STRING, s);
+  coap_free(s);
 }
 

@@ -84,12 +84,12 @@
 
 COAP_STATIC_INLINE coap_queue_t *
 coap_malloc_node(void) {
-  return (coap_queue_t *)coap_malloc_type(COAP_NODE, sizeof(coap_queue_t));
+  return (coap_queue_t *)coap_malloc(sizeof(coap_queue_t));
 }
 
 COAP_STATIC_INLINE void
 coap_free_node(coap_queue_t *node) {
-  coap_free_type(COAP_NODE, node);
+  coap_free(node);
 }
 
 void coap_free_endpoint(coap_endpoint_t *ep);
@@ -248,7 +248,8 @@ coap_context_t *coap_new_context(const coap_address_t *listen_addr){
     coap_startup();
 
     // Allocate memory for the context
-    coap_context_t *c = coap_malloc_type(COAP_CONTEXT, sizeof(coap_context_t));
+    coap_context_t *c = 
+        (coap_context_t *) coap_malloc(sizeof(coap_context_t));
 
     // Check if allocation succeded
     if (!c) {
@@ -283,7 +284,7 @@ coap_context_t *coap_new_context(const coap_address_t *listen_addr){
 
     // On error, free allocated context and return NULL
 onerror:
-    coap_free_type(COAP_CONTEXT, c);
+    coap_free(c);
     return NULL;
 }
 
@@ -320,7 +321,7 @@ coap_free_context(coap_context_t *context) {
     coap_session_release(sp);
   }
   
-  coap_free_type(COAP_CONTEXT, context);
+  coap_free(context);
 }
 
 int

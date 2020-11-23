@@ -101,7 +101,7 @@ coap_make_session(coap_proto_t proto, coap_session_type_t type,
   const coap_address_t *local_if, const coap_address_t *local_addr,
   const coap_address_t *remote_addr, int ifindex, coap_context_t *context,
   coap_endpoint_t *endpoint) {
-  coap_session_t *session = (coap_session_t*)coap_malloc_type(COAP_SESSION, sizeof(coap_session_t));
+  coap_session_t *session = (coap_session_t*)coap_malloc(sizeof(coap_session_t));
   if (!session)
     return NULL;
   memset(session, 0, sizeof(*session));
@@ -168,7 +168,7 @@ void coap_session_free(coap_session_t *session) {
   coap_session_mfree(session);
   coap_log(LOG_DEBUG, "***%s: session closed\n", coap_session_str(session));
 
-  coap_free_type(COAP_SESSION, session);
+  coap_free(session);
 }
 
 size_t coap_session_max_pdu_size(const coap_session_t *session) {

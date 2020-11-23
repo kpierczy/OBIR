@@ -29,11 +29,11 @@ static const char *coap_socket_format_errno( int error );
 
 
 struct coap_endpoint_t *coap_malloc_endpoint(void){
-    return (struct coap_endpoint_t *)coap_malloc_type(COAP_ENDPOINT, sizeof(struct coap_endpoint_t));
+    return (struct coap_endpoint_t *)coap_malloc(sizeof(struct coap_endpoint_t));
 }
 
 void coap_mfree_endpoint(struct coap_endpoint_t *ep){
-  coap_free_type(COAP_ENDPOINT, ep);
+  coap_free(ep);
 }
 
 int coap_socket_bind_udp(

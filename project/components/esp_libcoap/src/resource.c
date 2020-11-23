@@ -16,10 +16,6 @@
 #include "subscribe.h"
 #include "utlist.h"
 
-#define COAP_MALLOC_TYPE(Type) \
-  ((coap_##Type##_t *)coap_malloc(sizeof(coap_##Type##_t)))
-#define COAP_FREE_TYPE(Type, Object) coap_free(Object)
-
 #define COAP_PRINT_STATUS_MAX (~COAP_PRINT_STATUS_MASK)
 
 #ifndef min
@@ -251,7 +247,7 @@ coap_resource_t *coap_resource_init(coap_str_const_t *uri_path, int flags){
 
     // Allocate memory for the resource
     coap_resource_t *r =
-        (coap_resource_t *) coap_malloc_type(COAP_RESOURCE, sizeof(coap_resource_t));
+        (coap_resource_t *) coap_malloc(sizeof(coap_resource_t));
 
     // If allocation succeeded
     if (r) {
@@ -292,7 +288,7 @@ coap_resource_t *
 coap_resource_unknown_init(coap_method_handler_t put_handler) {
   coap_resource_t *r;
 
-  r = (coap_resource_t *)coap_malloc_type(COAP_RESOURCE, sizeof(coap_resource_t));
+  r = (coap_resource_t *)coap_malloc(sizeof(coap_resource_t));
   if (r) {
     memset(r, 0, sizeof(coap_resource_t));
     r->is_unknown = 1;
@@ -316,7 +312,7 @@ coap_add_attr(coap_resource_t *resource,
   if (!resource || !name)
     return NULL;
 
-  attr = (coap_attr_t *)coap_malloc_type(COAP_RESOURCEATTR, sizeof(coap_attr_t));
+  attr = (coap_attr_t *)coap_malloc(sizeof(coap_attr_t));
 
   if (attr) {
     if (!(flags & COAP_ATTR_FLAGS_RELEASE_NAME)) {
@@ -369,7 +365,7 @@ coap_delete_attr(coap_attr_t *attr) {
     coap_delete_str_const(attr->value);
   }
 
-  coap_free_type(COAP_RESOURCEATTR, attr);
+  coap_free(attr);
 }
 
 static void
@@ -390,10 +386,10 @@ coap_free_resource(coap_resource_t *resource) {
     coap_session_release( obs->session );
     if (obs->query)
       coap_delete_string(obs->query);
-    COAP_FREE_TYPE( subscription, obs );
+    coap_free(obs);
   }
 
-  coap_free_type(COAP_RESOURCE, resource);
+  coap_free(resource);
 }
 
 void
@@ -604,7 +600,7 @@ coap_add_observer(coap_resource_t *resource,
 
   /* s points to a different subscription, so we have to create
    * another one. */
-  s = COAP_MALLOC_TYPE(subscription);
+  s = (coap_subscription_t*) coap_malloc(sizeof(coap_subscription_t));
 
   if (!s) {
     if (query)
@@ -666,7 +662,7 @@ coap_delete_observer(coap_resource_t *resource, coap_session_t *session,
     coap_session_release( session );
     if (s->query)
       coap_delete_string(s->query);
-    COAP_FREE_TYPE(subscription,s);
+    coap_free(s);
   }
 
   return s != NULL;
@@ -682,7 +678,7 @@ coap_delete_observers(coap_context_t *context, coap_session_t *session) {
         coap_session_release(session);
         if (s->query)
           coap_delete_string(s->query);
-        COAP_FREE_TYPE(subscription, s);
+        coap_free(s);
       }
     }
   }
@@ -861,7 +857,7 @@ coap_remove_failed_observers(coap_context_t *context,
         coap_session_release( obs->session );
         if (obs->query)
           coap_delete_string(obs->query);
-        COAP_FREE_TYPE(subscription, obs);
+        coap_free(obs);
       }
       break;                        /* break loop if observer was found */
     }

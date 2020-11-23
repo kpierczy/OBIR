@@ -53,15 +53,15 @@ coap_pdu_t *
 coap_pdu_init(uint8_t type, uint8_t code, uint16_t tid, size_t size) {
   coap_pdu_t *pdu;
 
-  pdu = coap_malloc_type(COAP_PDU, sizeof(coap_pdu_t));
+  pdu = (coap_pdu_t *) coap_malloc(sizeof(coap_pdu_t));
   if (!pdu) return NULL;
   pdu->max_hdr_size = COAP_PDU_MAX_TCP_HEADER_SIZE;
 
   uint8_t *buf;
   pdu->alloc_size = min(size, 256);
-  buf = coap_malloc_type(COAP_PDU_BUF, pdu->alloc_size + pdu->max_hdr_size);
+  buf = (uint8_t*) coap_malloc(pdu->alloc_size + pdu->max_hdr_size);
   if (buf == NULL) {
-    coap_free_type(COAP_PDU, pdu);
+    coap_free(pdu);
     return NULL;
   }
   pdu->token = buf + pdu->max_hdr_size;
@@ -88,8 +88,8 @@ coap_delete_pdu(coap_pdu_t *pdu) {
   if (pdu != NULL) {
 
     if (pdu->token != NULL)
-      coap_free_type(COAP_PDU_BUF, pdu->token - pdu->max_hdr_size);
-    coap_free_type(COAP_PDU, pdu);
+      coap_free(pdu->token - pdu->max_hdr_size);
+    coap_free(pdu);
   }
 }
 

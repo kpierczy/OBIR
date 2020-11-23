@@ -551,7 +551,7 @@ coap_new_optlist(uint16_t number,
 ) {
   coap_optlist_t *node;
 
-  node = coap_malloc_type(COAP_OPTLIST, sizeof(coap_optlist_t) + length);
+  node = (coap_optlist_t*) coap_malloc(sizeof(coap_optlist_t) + length);
 
   if (node) {
     memset(node, 0, (sizeof(coap_optlist_t) + length));
@@ -609,7 +609,7 @@ coap_insert_optlist(coap_optlist_t **head, coap_optlist_t *node) {
 static int
 coap_internal_delete(coap_optlist_t *node) {
   if (node) {
-    coap_free_type(COAP_OPTLIST, node);
+    coap_free(node);
   }
   return 1;
 }
