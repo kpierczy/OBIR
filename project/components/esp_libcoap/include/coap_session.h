@@ -66,8 +66,6 @@ typedef struct coap_fixed_point_t coap_fixed_point_t;
  * @brief: possible values of @t coap_session_state_t type
  */
 #define COAP_SESSION_STATE_NONE        0
-#define COAP_SESSION_STATE_CONNECTING  1
-#define COAP_SESSION_STATE_HANDSHAKE   2
 #define COAP_SESSION_STATE_ESTABLISHED 4
 
 /**

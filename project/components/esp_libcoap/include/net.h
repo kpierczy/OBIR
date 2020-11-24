@@ -73,7 +73,7 @@ typedef struct coap_queue_t {
     // The CoAP session associated with the packet
     coap_session_t *session;      
 
-    // CoAP transaction ID (no message ID of the packet itself)
+    // CoAP transaction ID (no message ID of the PDU itself)
     coap_tid_t id;
     
     // the CoAP PDU to send */
@@ -194,7 +194,7 @@ typedef struct coap_context_t {
     // List of asynchronous transactions/
     struct coap_async_state_t *async_state;
 
-    // Queue of of sent packets
+    // Queue of of sent packets (waiting for ACK)
     coap_queue_t *sendqueue;
     // Base time for time stamps of packets in a sendqueue
     coap_tick_t sendqueue_basetime;
