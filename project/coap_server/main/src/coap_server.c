@@ -10,7 +10,7 @@
 #define PORT 5683
 
 // Set this to 9 to get verbose logging from within libcoap
-#define COAP_LOGGING_LEVEL LOG_DEBUG
+#define COAP_LOGGING_LEVEL LOG_ERR
 
 /* --------------------------- Global & static definitions --------------------------- */
 
@@ -115,7 +115,7 @@ void coap_example_thread(void *pvParameters){
             pdu, strlen("datatatata"), (uint8_t*) strftime_buf
         );
 
-        coap_show_pdu(LOG_DEBUG, pdu);
+        coap_show_pdu(COAP_LOGGING_LEVEL, pdu);
 
         /*-----------------------------------------------------------------------------*/
 

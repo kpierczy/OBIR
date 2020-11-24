@@ -49,7 +49,7 @@ struct coap_session_t;
 
 /**
  * @brief: Type for event handler functions that can be registered with a CoAP context
- *    using the @f coap_set_event_handler() function. The handler will be called by
+ *    using the @f coap_register_event_handler() function. The handler will be called by
  *    the library at after event's occuring.
  * 
  * @param context:
@@ -79,32 +79,5 @@ typedef int (*coap_event_handler_t)(struct coap_context_t *context,
  */
 void coap_register_event_handler(struct coap_context_t *context,
                             coap_event_handler_t hnd);
-
-/**
- * @brief: Registers the function @p hnd as callback for events from the given
- *    CoAP context @p context. Any event handler that has previously been
- *    registered with @p context will be overwritten by this operation.
- *
- * @deprecated: Use coap_register_event_handler() instead.
- *
- * @param context:
- *    The CoAP context to register the event handler with.
- * @param hnd:
- *    The event handler to be registered.
- */
-COAP_DEPRECATED
-void coap_set_event_handler(struct coap_context_t *context,
-                            coap_event_handler_t hnd);
-
-/**
- * @brief: Clears the event handler registered with @p context.
- *
- * @deprecated: Use coap_register_event_handler() instead with NULL for hnd.
- *
- * @param context:
- *    The CoAP context whose event handler is to be removed.
- */
-COAP_DEPRECATED
-void coap_clear_event_handler(struct coap_context_t *context);
 
 #endif /* COAP_EVENT_H */

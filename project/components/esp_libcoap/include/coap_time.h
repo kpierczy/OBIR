@@ -53,7 +53,7 @@
 /* -------------------------------------------- [Data structures] --------------------------------------------- */
 
 /**
- * @brief: Fata type representing internal timer ticks with (1 / COAP_TICKS_PER_SECOND)
+ * @brief: Type representing internal timer ticks with (1 / COAP_TICKS_PER_SECOND)
  *    resolution.
  */
 typedef uint64_t coap_tick_t;

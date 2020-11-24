@@ -240,7 +240,9 @@ ssize_t coap_socket_send(
  * @param data_len:
  *    size of the buffer
  * @return ssize_t:
- *    number of bytes sent, value lesser than 0 on error
+ *    number of bytes sent
+ *    0 when the next attempt to send is required
+ *    value lesser than 0 on error
  */
 ssize_t coap_socket_write(
     coap_socket_t *sock,
@@ -260,7 +262,10 @@ ssize_t coap_socket_write(
  * @param data_len:
  *    size of the buffer
  * @return ssize_t:
- *    number of received bytes to the buffer, value lesser than 0 on error
+ *    number of received bytes to the buffer
+ *    0 when any data was not received by the socket (non-blocking mode), timeout has expired
+ *    (blocking-mode) or interrupt signal was sent before receiving started
+ *    < 0  on error
  */
 ssize_t
 coap_socket_read(
@@ -301,7 +306,9 @@ ssize_t coap_network_send(
  * @param packet:
  *    Received packet metadata and payload. src and dst should be preset.
  * @returns:
- *    the number of bytes received on success, value less than zero on error.
+ *    the number of bytes received on success
+ *    -2 when previously connected address to read from is unreachable
+ *    -1 on other error (also when address is unreachable, but it was not connected previously)
  */
 ssize_t coap_network_read(
     coap_socket_t *sock,

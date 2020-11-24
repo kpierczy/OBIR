@@ -307,9 +307,10 @@ unsigned int coap_adjust_basetime(coap_context_t *ctx, coap_tick_t now);
 
 /**
  * @param ctx:
- *    context to adjust basetime for 
+ *    context to be checked
  * @returns:
- *    the next pdu to send without removing from sendqeue.
+ *    the next pdu from the sedqueue if the queue is not empty
+ *    NULL if @p ctx is null or sendqueue is empty
  */
 coap_queue_t *coap_peek_next( coap_context_t *ctx );
 
@@ -513,13 +514,13 @@ coap_tid_t coap_retransmit(coap_context_t *context, coap_queue_t *node);
  *    the array of socket descriptors (filled on output)
  * @param max_sockets:
  *    the size of socket array
- * @param num_sockets:
+ * @param num_sockets [out]:
  *    the pointer to the number of valid entries in the socket arrays on output
  * @param now:
  *    the Current time
  * @returns:
  *    timeout as maxmimum number of milliseconds that the application should wait for network events on success
- *    0 if the application should wait forever.
+ *    0 if the application should wait forever
  */
 unsigned int coap_write(
     coap_context_t *ctx,

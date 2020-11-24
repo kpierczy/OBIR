@@ -62,9 +62,12 @@ typedef unsigned char coap_key_t[4];
  * the result into @p h. Depending on the exact implementation, this function
  * cannot be used as one-way function to check message integrity or simlar.
  *
- * @param s   The string used for hash calculation.
- * @param len The length of @p s.
- * @param h   The result buffer to store the calculated hash key.
+ * @param s:
+ *    the string used for hash calculation
+ * @param len:
+ *    the length of @p s
+ * @param h:
+ *    the result buffer to store the calculated hash key
  */
 void coap_hash_impl(const unsigned char *s, unsigned int len, coap_key_t h);
 
