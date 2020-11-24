@@ -45,6 +45,7 @@
 // Rounds val up and right shifts by frac positions
 #define SHR_FP(val,frac) (((val) + (1 << ((frac) - 1))) >> (frac))
 
+
 /* -------------------------------------------- [Static symbols] ---------------------------------------------- */
 
 // Number of second retrived from thr COAP_CLOCK at the library's startup

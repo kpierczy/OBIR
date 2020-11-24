@@ -81,7 +81,8 @@ unsigned int coap_decode_var_bytes(const uint8_t *buf, unsigned int length);
  *    the value to encode into the buffer
  *
  * @returns:
- *    The number of bytes used to encode @p value or 0 on error.
+ *    the number of bytes used to encode @p value on success
+ *    0 on error
  */
 unsigned int coap_encode_var_safe(
     uint8_t *buf,
