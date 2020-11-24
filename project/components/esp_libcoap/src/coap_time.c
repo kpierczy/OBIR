@@ -33,6 +33,8 @@
 #include "libcoap.h"
 #include "coap_time.h"
 
+/* ------------------------------------------- [Macrodefinitions] --------------------------------------------- */
+
 // Use real-time clock for correct timestamps in coap_log()
 #define COAP_CLOCK CLOCK_REALTIME
 

@@ -592,15 +592,15 @@ error:
 
 
 coap_session_t *coap_new_client_session(
-  struct coap_context_t *ctx,
-  const coap_address_t *local_if,
-  const coap_address_t *server
+    struct coap_context_t *ctx,
+    const coap_address_t *local_if,
+    const coap_address_t *server
 ){
     // Create a new session, connect it to the @p server and bound with the @p local_if
     coap_session_t *session = coap_session_create_client(ctx, local_if, server);
     if (session)
         coap_log(LOG_DEBUG, "***%s: new outgoing session\n", coap_session_str(session));
-
+    
     return session;
 }
 
