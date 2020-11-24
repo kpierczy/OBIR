@@ -287,13 +287,6 @@ struct coap_session_t;
 #define COAP_PDU_IS_RESPONSE(pdu)  ((pdu)->code >= 64 && (pdu)->code < 224)
 #define COAP_PDU_IS_SIGNALING(pdu) ((pdu)->code >= 224)
 
-// Header sizes for UDP protocols
-#define COAP_PDU_MAX_UDP_HEADER_SIZE 4
-
-// Protocols idntifiers for PDUs
-#define COAP_PROTO_NONE 0
-#define COAP_PROTO_UDP  1
-
 
 /* -------------------------------------------- [Data structures] --------------------------------------------- */
 
@@ -342,12 +335,6 @@ typedef struct coap_pdu_t {
     uint8_t *data;
 
 } coap_pdu_t;
-
-/**
- * @brief: Type representing transport layer protocl
- * 
- */
-typedef uint8_t coap_proto_t;
 
 
 /* ----------------------------------------------- [Functions] ------------------------------------------------ */
@@ -438,19 +425,16 @@ coap_pdu_t *coap_new_pdu(const struct coap_session_t *session);
 void coap_delete_pdu(coap_pdu_t *pdu);
 
 /**
- * @brief: Decode the protocol specific header for the specified PDU.
+ * @brief: Decode header for the specified PDU.
  * 
  * @param pdu:
  *    a newly received PDU
- * @param proto:
- *    the target wire protocol
  * @returns:
  *    1 for success 
  *    0 on error
  */
 int coap_pdu_parse_header(
-    coap_pdu_t *pdu,
-    coap_proto_t proto
+    coap_pdu_t *pdu
 );
 
 /**
@@ -469,8 +453,6 @@ int coap_pdu_parse_opt(coap_pdu_t *pdu);
  * @brief: Parses @p data into the CoAP PDU structure given in @p result. The target pdu
  *    must be large enough to hold parsed data.
  *
- * @param proto:
- *    session's protocol
  * @param data:
  *    the raw data to parse as CoAP PDU
  * @param length:
@@ -485,7 +467,6 @@ int coap_pdu_parse_opt(coap_pdu_t *pdu);
  *    the message.
  */
 int coap_pdu_parse(
-    coap_proto_t proto,
     const uint8_t *data,
     size_t length,
     coap_pdu_t *pdu
@@ -618,16 +599,13 @@ int coap_get_data(
 );
 
 /**
- * @brief: Compose the protocol specific header for the specified PDU.
+ * @brief: Compose the header for the specified PDU.
  * 
  * @param pdu:
  *    a newly composed PDU
- * @param proto:
- *    the target wire protocol
  */
 void coap_pdu_encode_header(
-    coap_pdu_t *pdu,
-    coap_proto_t proto
+    coap_pdu_t *pdu
 );
 
 #endif /* COAP_PDU_H_ */

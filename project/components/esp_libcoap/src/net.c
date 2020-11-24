@@ -270,7 +270,7 @@ coap_context_t *coap_new_context(const coap_address_t *listen_addr){
 
     // If @p listen_addr has been given, create an initial endpoint to listen on
     if (listen_addr) {
-        coap_endpoint_t *endpoint = coap_new_endpoint(c, listen_addr, COAP_PROTO_UDP);
+        coap_endpoint_t *endpoint = coap_new_endpoint(c, listen_addr);
         if (endpoint == NULL) {
         goto onerror;
         }
@@ -540,7 +540,7 @@ coap_send(coap_session_t *session, coap_pdu_t *pdu) {
   uint8_t r;
   ssize_t bytes_written;
 
-  coap_pdu_encode_header(pdu, session->proto);
+  coap_pdu_encode_header(pdu);
 
   bytes_written = coap_send_pdu( session, pdu, NULL );
 
@@ -662,9 +662,7 @@ coap_handle_dgram_for_proto(coap_context_t *ctx, coap_session_t *session, coap_p
   int result = -1;
 
   coap_packet_get_memmapped(packet, &data, &data_len);
-  if (session->proto == COAP_PROTO_UDP) {
-    result = coap_handle_dgram(ctx, session, data, data_len);
-  }
+  result = coap_handle_dgram(ctx, session, data, data_len);
   return result;
 }
 
@@ -817,7 +815,7 @@ coap_handle_dgram(coap_context_t *ctx, coap_session_t *session,
   if (!pdu)
     goto error;
 
-  if (!coap_pdu_parse(session->proto, msg, msg_len, pdu)) {
+  if (!coap_pdu_parse(msg, msg_len, pdu)) {
     coap_log(LOG_WARNING, "discard malformed PDU\n");
     goto error;
   }

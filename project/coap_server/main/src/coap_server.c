@@ -74,7 +74,7 @@ void coap_example_thread(void *pvParameters){
 
         // Create UDP endpoint
         ESP_LOGI(TAG, "Creating the endpoint");
-        coap_endpoint_t *ep = coap_new_endpoint(ctx, &serv_addr, COAP_PROTO_UDP);
+        coap_endpoint_t *ep = coap_new_endpoint(ctx, &serv_addr);
         if (!ep) {
            break;
         }

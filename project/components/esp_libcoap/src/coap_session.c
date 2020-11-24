@@ -1,3 +1,22 @@
+/* ============================================================================================================
+ *  File:
+ *  Author: Jean-Claue Michelou
+ *  Source: https://github.com/obgm/libcoap
+ *  Modified by: Krzysztof Pierczyk
+ *  Modified time: 2020-11-24 15:55:08
+ *  Description:
+ *  Credits: 
+ *
+ *      This file is a modification of the original libcoap source file. Aim of the modification was to 
+ *      provide cleaner, richer documented and ESP8266-optimised version of the library. Core API of the 
+ *      project was not changed or expanded, although some elemenets (e.g. DTLS support) have been removed 
+ *      due to lack of needings from the modifications' authors. 
+ * 
+ * ============================================================================================================ */
+
+
+/* -------------------------------------------- [Original header] --------------------------------------------- */
+
 /* session.c -- Session management for libcoap
 *
 * Copyright (C) 2017 Jean-Claue Michelou <jcm@spinetix.com>
@@ -5,6 +24,8 @@
 * This file is part of the CoAP library libcoap. Please see
 * README for terms of use.
 */
+
+/* ------------------------------------------------------------------------------------------------------------ */
 
 #include "coap_config.h"
 #include "coap_io.h"
@@ -18,90 +39,106 @@
 #include <stdio.h>
 
 
-void
-coap_session_set_max_retransmit (coap_session_t *session, unsigned int value) {
-  if (value > 0)
-    session->max_retransmit = value;
-  coap_log(LOG_DEBUG, "***%s: session max_retransmit set to %d\n",
-           coap_session_str(session), session->max_retransmit);
-  return;
+/* ----------------------------------------------- [Functions] ------------------------------------------------ */
+
+void coap_session_set_max_retransmit(coap_session_t *session, unsigned int value){
+
+    // Set value (if valid given)
+    if(value > 0)
+        session->max_retransmit = value;
+
+    // Log in debug case
+    coap_log(LOG_DEBUG, "***%s: session max_retransmit set to %d\n",
+        coap_session_str(session), session->max_retransmit);
+
+    return;
 }
 
-void
-coap_session_set_ack_timeout (coap_session_t *session, coap_fixed_point_t value) {
-  if (value.integer_part > 0 && value.fractional_part < 1000)
-    session->ack_timeout = value;
-  coap_log(LOG_DEBUG, "***%s: session ack_timeout set to %d.%03d\n",
-           coap_session_str(session), session->ack_timeout.integer_part,
-           session->ack_timeout.fractional_part);
-  return;
+
+void coap_session_set_ack_timeout (coap_session_t *session, coap_fixed_point_t value){
+
+    // Set the value (if valid given)
+    if(value.integer_part > 0 && value.fractional_part < 1000)
+        session->ack_timeout = value;
+
+    // Log in debug case
+    coap_log(LOG_DEBUG, "***%s: session ack_timeout set to %d.%03d\n",
+        coap_session_str(session), session->ack_timeout.integer_part,
+            session->ack_timeout.fractional_part);
+
+    return;
 }
 
-void
-coap_session_set_ack_random_factor (coap_session_t *session,
-                                    coap_fixed_point_t value) {
-  if (value.integer_part > 0 && value.fractional_part < 1000)
-    session->ack_random_factor = value;
-  coap_log(LOG_DEBUG, "***%s: session ack_random_factor set to %d.%03d\n",
-           coap_session_str(session), session->ack_random_factor.integer_part,
-           session->ack_random_factor.fractional_part);
-  return;
+void coap_session_set_ack_random_factor(
+    coap_session_t *session,
+    coap_fixed_point_t value
+){
+    // Set the value (if valid given)
+    if(value.integer_part > 0 && value.fractional_part < 1000)
+        session->ack_random_factor = value;
+
+    // Log in debug case
+    coap_log(LOG_DEBUG, "***%s: session ack_random_factor set to %d.%03d\n",
+        coap_session_str(session), session->ack_random_factor.integer_part,
+            session->ack_random_factor.fractional_part);
+
+    return;
 }
 
-unsigned int
-coap_session_get_max_transmit (coap_session_t *session) {
-  return session->max_retransmit;
+
+unsigned int coap_session_get_max_transmit (coap_session_t *session) {
+    return session->max_retransmit;
 }
 
-coap_fixed_point_t
-coap_session_get_ack_timeout (coap_session_t *session) {
-  return session->ack_timeout;
+
+coap_fixed_point_t coap_session_get_ack_timeout (coap_session_t *session) {
+    return session->ack_timeout;
 }
 
-coap_fixed_point_t
-coap_session_get_ack_random_factor (coap_session_t *session) {
-  return session->ack_random_factor;
+
+coap_fixed_point_t coap_session_get_ack_random_factor (coap_session_t *session) {
+    return session->ack_random_factor;
 }
 
-coap_session_t *
-coap_session_reference(coap_session_t *session) {
-  ++session->ref;
-  return session;
+coap_session_t *coap_session_reference(coap_session_t *session) {
+    ++(session->ref);
+    return session;
 }
 
-void
-coap_session_release(coap_session_t *session) {
-  if (session) {
-    assert(session->ref > 0);
-    if (session->ref > 0)
-      --session->ref;
-    if (session->ref == 0 && session->type == COAP_SESSION_TYPE_CLIENT)
-      coap_session_free(session);
-  }
+void coap_session_release(coap_session_t *session){
+
+    if(session) {
+        assert(session->ref > 0);
+        if(session->ref > 0)
+            --session->ref;
+        if(session->ref == 0 && session->type == COAP_SESSION_TYPE_CLIENT)
+            coap_session_free(session);
+    }
 }
 
-void
-coap_session_set_app_data(coap_session_t *session, void *app_data) {
-  assert(session);
-  session->app = app_data;
+void coap_session_set_app_data(coap_session_t *session, void *app_data) {
+    assert(session);
+    session->app = app_data;
 }
 
-void *
-coap_session_get_app_data(const coap_session_t *session) {
-  assert(session);
-  return session->app;
+void *coap_session_get_app_data(const coap_session_t *session){
+    assert(session);
+    return session->app;
 }
 
-static coap_session_t *
-coap_make_session(coap_proto_t proto, coap_session_type_t type,
-  const coap_address_t *local_if, const coap_address_t *local_addr,
-  const coap_address_t *remote_addr, int ifindex, coap_context_t *context,
-  coap_endpoint_t *endpoint) {
+static coap_session_t *coap_make_session(
+    coap_session_type_t type,
+    const coap_address_t *local_if, 
+    const coap_address_t *local_addr,
+    const coap_address_t *remote_addr, 
+    int ifindex, 
+    coap_context_t *context,
+    coap_endpoint_t *endpoint
+){
   coap_session_t *session = (coap_session_t*)coap_malloc(sizeof(coap_session_t));
   if (!session)
     return NULL;
   memset(session, 0, sizeof(*session));
-  session->proto = proto;
   session->type = type;
   if (local_if)
     coap_address_copy(&session->local_if, local_if);
@@ -391,13 +428,12 @@ coap_endpoint_get_session(coap_endpoint_t *endpoint,
     return NULL;
   }
 
-  session = coap_make_session(endpoint->proto, COAP_SESSION_TYPE_SERVER,
+  session = coap_make_session(COAP_SESSION_TYPE_SERVER,
     NULL, &packet->dst, &packet->src, packet->ifindex, endpoint->context,
     endpoint);
   if (session) {
     session->last_rx_tx = now;
-    if (endpoint->proto == COAP_PROTO_UDP)
-      session->state = COAP_SESSION_STATE_ESTABLISHED;
+    session->state = COAP_SESSION_STATE_ESTABLISHED;
     LL_PREPEND(endpoint->sessions, session);
     coap_log(LOG_DEBUG, "***%s: new incoming session\n",
               coap_session_str(session));
@@ -411,15 +447,13 @@ static coap_session_t *
 coap_session_create_client(
   coap_context_t *ctx,
   const coap_address_t *local_if,
-  const coap_address_t *server,
-  coap_proto_t proto
+  const coap_address_t *server
 ) {
   coap_session_t *session = NULL;
 
   assert(server);
-  assert(proto != COAP_PROTO_NONE);
 
-  session = coap_make_session(proto, COAP_SESSION_TYPE_CLIENT, local_if,
+  session = coap_make_session(COAP_SESSION_TYPE_CLIENT, local_if,
     local_if, server, 0, ctx, NULL);
   if (!session)
     goto error;
@@ -453,10 +487,9 @@ coap_session_connect(coap_session_t *session) {
 coap_session_t *coap_new_client_session(
   struct coap_context_t *ctx,
   const coap_address_t *local_if,
-  const coap_address_t *server,
-  coap_proto_t proto
+  const coap_address_t *server
 ) {
-  coap_session_t *session = coap_session_create_client(ctx, local_if, server, proto);
+  coap_session_t *session = coap_session_create_client(ctx, local_if, server);
   if (session) {
     coap_log(LOG_DEBUG, "***%s: new outgoing session\n",
              coap_session_str(session));
@@ -467,14 +500,12 @@ coap_session_t *coap_new_client_session(
 
 coap_endpoint_t *coap_new_endpoint(
   coap_context_t *context,
-  const coap_address_t *listen_addr,
-  coap_proto_t proto
+  const coap_address_t *listen_addr
 ){  
 
     // Check all arguments
     assert(context);
     assert(listen_addr);
-    assert(proto != COAP_PROTO_NONE);
 
     // Allocate memory for the new endpoint
     struct coap_endpoint_t *ep = NULL;
@@ -489,7 +520,6 @@ coap_endpoint_t *coap_new_endpoint(
 
     // Set basic fields of the endpoint
     ep->context = context;
-    ep->proto = proto;
 
     if (!coap_socket_bind_udp(&ep->sock, listen_addr, &ep->bind_addr))
         goto error;
@@ -599,13 +629,8 @@ const char *coap_endpoint_str(const coap_endpoint_t *endpoint) {
   if (coap_print_addr(&endpoint->bind_addr, (unsigned char*)p, end - p) > 0)
     p += strlen(p);
   if (p + 6 < end) {
-    if (endpoint->proto == COAP_PROTO_UDP) {
-      strcpy(p, " UDP");
-      p += 4;
-    } else {
-      strcpy(p, " NONE");
-      p += 5;
-    }
+    strcpy(p, " UDP");
+    p += 4;
   }
 
   return szEndpoint;

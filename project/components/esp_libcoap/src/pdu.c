@@ -358,7 +358,7 @@ next_option_safe(coap_opt_t **optp, size_t *length) {
 }
 
 int
-coap_pdu_parse_header(coap_pdu_t *pdu, coap_proto_t proto) {
+coap_pdu_parse_header(coap_pdu_t *pdu) {
   uint8_t *hdr = pdu->token - COAP_HEADER_SIZE;
   
   if ((hdr[0] >> 6) != COAP_DEFAULT_VERSION) {
@@ -430,7 +430,8 @@ coap_pdu_parse_opt(coap_pdu_t *pdu) {
 }
 
 int
-coap_pdu_parse(coap_proto_t proto,
+coap_pdu_parse(
+
                const uint8_t *data,
                size_t length,
                coap_pdu_t *pdu)
@@ -444,11 +445,11 @@ coap_pdu_parse(coap_proto_t proto,
     return 0;
   memcpy(pdu->token - COAP_HEADER_SIZE, data, length);
   pdu->used_size = length - COAP_HEADER_SIZE;
-  return coap_pdu_parse_header(pdu, proto) && coap_pdu_parse_opt(pdu);
+  return coap_pdu_parse_header(pdu) && coap_pdu_parse_opt(pdu);
 }
 
 void
-coap_pdu_encode_header(coap_pdu_t *pdu, coap_proto_t proto) {
+coap_pdu_encode_header(coap_pdu_t *pdu) {
     
     uint8_t* header = pdu->token - COAP_HEADER_SIZE;
 

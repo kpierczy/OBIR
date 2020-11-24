@@ -137,8 +137,6 @@ typedef struct coap_session_t {
 
     /* ------------------------ Basic session info ------------------------------- */
 
-    // Protocol used
-    coap_proto_t proto;
     // Session's type ( @see @t coap_session_type_t)
     coap_session_type_t type;
     // Session's state (@see coap_session_state_t)
@@ -221,9 +219,6 @@ typedef struct coap_endpoint_t {
 
     // Endpoint's context
     struct coap_context_t *context; 
-
-    // Protocol used on this interface
-    coap_proto_t proto;
 
     // Default mtu for this interface
     uint16_t default_mtu;
@@ -331,18 +326,14 @@ size_t coap_session_max_pdu_size(const coap_session_t *session);
  *    system choose a suitable local interface. If an address is specified, the port
  *    number should be zero, which means that a free port is automatically selected.
  * @param server:
- *    the server's address. If the port number is zero, the default port for the
- *    protocol will be used.
- * @param proto:
- *    protocol type
+ *    the server's address. If the port number is zero, the default port will be used.
  * @returns:
  *    a new CoAP session or NULL if failed. Call coap_session_release to free.
  */
 coap_session_t *coap_new_client_session(
   struct coap_context_t *ctx,
   const coap_address_t *local_if,
-  const coap_address_t *server,
-  coap_proto_t proto
+  const coap_address_t *server
 );
 
 /**
@@ -385,16 +376,15 @@ ssize_t coap_session_write(
 );
 
 /**
- * @brief: Send a pdu according to the session's protocol. This function returns the number of
- *    bytes that have been transmitted, or a value less than zero on error.
+ * @brief: Send a pdu
  * 
  * @param session:
  *    session to send pdu on.
  * @param pdu:
  *    the pdu to send.
- *
  * @returns:
- *    the number of bytes written on success, or a value less than zero on error.
+ *    the number of bytes written on success
+ *    value less than zero on error.
  */
 ssize_t coap_session_send_pdu(
     coap_session_t *session,
@@ -444,17 +434,13 @@ coap_session_delay_pdu(
  *    address the endpoint will listen for incoming requests on or originate outgoing
  *    requests from. Use NULL to specify that no incoming request will be accepted and 
  *    use a random endpoint.
- * @param proto:
- *    one from:
- *       @c COAP_PROTO_UDP
  * @returns:
  *    created endpoint on success
  *    NULL on failure
  */
 coap_endpoint_t *coap_new_endpoint(
     struct coap_context_t *context,
-    const coap_address_t *listen_addr,
-    coap_proto_t proto
+    const coap_address_t *listen_addr
 );
 
 /**
