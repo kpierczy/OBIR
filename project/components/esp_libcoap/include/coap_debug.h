@@ -193,13 +193,13 @@ void coap_show_pdu(coap_log_t level, const coap_pdu_t *pdu);
  *   Internal Function.
  *
  * @param address:
- *    The address to print.
+ *    the address to print
  * @param buffer:
- *    The buffer to print into.
+ *    the buffer to print into
  * @param size:
- *    The size of the buffer to print into.
+ *    the size of the buffer to print into
  * @returns:
- *    The amount written into the buffer.
+ *    the amount of bytes written into the buffer
  */
 size_t coap_print_addr(const struct coap_address_t *address,
                        unsigned char *buffer, size_t size);
@@ -207,11 +207,11 @@ size_t coap_print_addr(const struct coap_address_t *address,
 /**
  * @brief: Set the packet loss level for testing.  This can be in one of two forms.
  *
- *    Percentage : 0% to 100%.  Use the specified probability.
- *    0% is send all packets, 100% is drop all packets.
+ *    Percentage : "0%"" to "100%"".  Use the specified probability.
+ *    "0%"" is send all packets, "100%"" is drop all packets.
  *   
- *    List: A comma separated list of numbers or number ranges that are the
- *    packets to drop.
+ *    List: A comma separated list of numbers (i.e "x,y,z, ...") or number ranges that
+ *    are the packets to drop (i.e. "x-y").
  *
  * @param loss_level:
  *    The defined loss level (percentage or list).
@@ -228,6 +228,9 @@ int coap_debug_set_packet_loss(const char *loss_level);
  *
  * @returns:
  *    1 if packet is to be sent, 0 if packet is to be dropped.
+ * 
+ * @note: this function bases on the intervals' list, if set with @f coap_debug_set_packet_loss
+ *    and on the loss_level (percentage value) otherwise.
  */
 int coap_debug_send_packet(void);
 

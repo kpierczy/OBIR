@@ -104,9 +104,9 @@ unsigned int coap_opt_block_num(const coap_opt_t *block_opt);
  * @brief: initializes @p block structure from @p pdu structure.
  *
  * @param pdu:
- *    The pdu to search for option @p type.
+ *    the pdu to search for option @p type.
  * @param type:
- *    The option to search for. Must be either COAP_OPTION_BLOCK1 or COAP_OPTION_BLOCK2.
+ *    the option to search for. Must be either COAP_OPTION_BLOCK1 or COAP_OPTION_BLOCK2.
  *    When option @p type was not found in @p pdu, @p block is initialized with values 
  *    from this option.
  * @param block [out]:

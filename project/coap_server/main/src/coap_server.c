@@ -10,7 +10,7 @@
 #define PORT 5683
 
 // Set this to 9 to get verbose logging from within libcoap
-#define COAP_LOGGING_LEVEL 0
+#define COAP_LOGGING_LEVEL LOG_DEBUG
 
 /* --------------------------- Global & static definitions --------------------------- */
 
@@ -21,6 +21,7 @@ static char *TAG = "coap_server";
 
 // Global variables initialization
 extern TaskHandle_t main_handler;
+
 
 /* ------------------------------------ Thread Code ----------------------------------- */
 
@@ -78,6 +79,46 @@ void coap_example_thread(void *pvParameters){
            break;
         }
 
+
+        /*-----------------------------------------------------------------------------*/
+
+        coap_pdu_t *pdu =
+            coap_pdu_init(
+                COAP_MESSAGE_CON,
+                12, 0, (size_t) 128
+            );
+
+        if(!pdu){
+            coap_log(LOG_INFO, "Null\n");
+            while(true);
+        }
+
+        // Get currnt time
+        time_t now;
+        time(&now);
+
+        coap_add_token(
+            pdu,
+            strlen("f"),
+            (uint8_t*) "f"
+        );
+
+        coap_add_option(
+            pdu, COAP_OPTION_CONTENT_FORMAT,
+            0,
+            COAP_MEDIATYPE_TEXT_PLAIN
+        );
+        
+        // Transform us time into string-formatted tm struct 
+        char strftime_buf[100] = "datatatata";
+        coap_add_data(
+            pdu, strlen("datatatata"), (uint8_t*) strftime_buf
+        );
+
+        coap_show_pdu(LOG_DEBUG, pdu);
+
+        /*-----------------------------------------------------------------------------*/
+
         // Run main processing loop
         ESP_LOGI(TAG, "Beginning dispatch loop");
         unsigned wait_ms = COAP_RESOURCE_CHECK_TIME * 1000;
@@ -97,7 +138,9 @@ void coap_example_thread(void *pvParameters){
             // Reset the timeout otherwise
             else
                 wait_ms = COAP_RESOURCE_CHECK_TIME * 1000;
+
         }
+        
     }
 
     // Clean context of the CoAP module before finishing task

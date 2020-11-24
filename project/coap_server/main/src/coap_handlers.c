@@ -115,7 +115,7 @@ void hnd_get(
 
     // Handle ' GET /time' request
     if( resource == coap_get_resource_from_uri_path(ctx, coap_make_str_const("time")) ){
-
+        
         // Get currnt time
         time_t now;
         time(&now);

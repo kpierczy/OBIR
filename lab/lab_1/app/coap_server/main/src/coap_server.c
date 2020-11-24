@@ -10,7 +10,7 @@
 #define PORT 5683
 
 // Set this to 9 to get verbose logging from within libcoap
-#define COAP_LOGGING_LEVEL 0
+#define COAP_LOGGING_LEVEL LOG_INFO
 
 /* --------------------------- Global & static definitions --------------------------- */
 
@@ -36,6 +36,7 @@ void coap_example_thread(void *pvParameters){
     // Startup CoAP stack
     coap_startup();
     coap_set_log_level(COAP_LOGGING_LEVEL);
+    coap_log(LOG_DEBUG, "STH\n");
 
     // Create CoAP module's context
     coap_context_t *ctx = NULL;
