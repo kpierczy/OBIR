@@ -111,7 +111,7 @@ coap_uri_t *coap_clone_uri(const coap_uri_t *uri);
  *    port which is set to @c COAP_DEFAULT_PORT. This function returns @p 0 if
  *    parsing succeeded, a value less than zero otherwise.
  *
- * @param str_var:
+ * @param str:
  *    the string to split up.
  * @param len:
  *    the actual length of @p str_var
@@ -121,17 +121,17 @@ coap_uri_t *coap_clone_uri(const coap_uri_t *uri);
  *    0 on success, or < 0 on error.
  *
  */
-int coap_split_uri(const uint8_t *str_var, size_t len, coap_uri_t *uri);
+int coap_split_uri(const uint8_t *str, size_t len, coap_uri_t *uri);
 
 /**
  * @brief: Splits the given URI path into segments. Each segment is preceded
  *    by an option pseudo-header with delta-value 0 and the actual length
  *    of the respective segment after percent-decoding.
  *
- * @param s:
+ * @param path:
  *    the path string to split.
  * @param length:
- *    the actual length of @p s.
+ *    the actual length of @p path.
  * @param buf:
  *    result buffer for parsed segments.
  * @param buflen:
@@ -140,10 +140,12 @@ int coap_split_uri(const uint8_t *str_var, size_t len, coap_uri_t *uri);
  * @returns:
  *    the number of segments created or @c -1 on error.
  */
-int coap_split_path(const uint8_t *s,
-                    size_t length,
-                    unsigned char *buf,
-                    size_t *buflen);
+int coap_split_path(
+    const uint8_t *path,
+    size_t length,
+    unsigned char *buf,
+    size_t *buflen
+  );
 
 /**
  * @brief: Splits the given URI query into segments. Each segment is preceded
@@ -165,13 +167,16 @@ int coap_split_path(const uint8_t *s,
  *
  * @bug This function does not reserve additional space for delta > 12.
  */
-int coap_split_query(const uint8_t *s,
-                     size_t length,
-                     unsigned char *buf,
-                     size_t *buflen);
+int coap_split_query(
+    const uint8_t *query,
+    size_t length,
+    unsigned char *buf,
+    size_t *buflen
+);
 
 /**
- * @brief: Extract query string from request PDU according to escape rules in 6.5.8.
+ * @brief: Extract query string from request PDU according to escape rules
+ *    in RFC 8252: Chapter 6.5 (point 8)
  * 
  * @param request:
  *    request PDU.

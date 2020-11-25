@@ -120,7 +120,6 @@ typedef struct coap_binary_t {
  *
  * @param size:
  *    the size to allocate for the binary string data.
- *
  * @returns:
  *    a pointer to the new object or @c NULL on error.
  */

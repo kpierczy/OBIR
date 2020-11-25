@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-22 23:34:53
+ *  Modified time: 2020-11-25 01:47:44
  *  Description:
  * 
  *      File contains API related to creation, analysis and manipulation CoAP PDUs (Protocol Data Units).
@@ -350,8 +350,9 @@ typedef struct coap_pdu_t {
 const char *coap_response_phrase(unsigned char code);
 
 /**
- * @brief: Creates a new CoAP PDU with at least enough storage space for the given @p size
- *    maximum message size. 
+ * @brief: Creates a new CoAP PDU and allocates at least enough storage space for the
+ *    given @p size bytes of the message. @a alloc_size and @a max_size are set to
+ *    @p size.    
  *
  * @param type:
  *    the type of the PDU (one of: COAP_MESSAGE_CON, COAP_MESSAGE_NON, COAP_MESSAGE_ACK,
@@ -391,17 +392,22 @@ coap_pdu_t *coap_pdu_init(
 int coap_pdu_resize(coap_pdu_t *pdu, size_t new_size);
 
 /**
- * @brief: Clears any contents from @p pdu and resets @p pdu->used_size and @p pdu->data pointers.
- *    @p pdu->max_size is set to @p size, any other field is set to @c 0.
+ * @brief: Clears any contents from @p pdu. Resets @p pdu->used_size and @p pdu->data, @p pdu->token
+ *    pointers. Allocated memory is expended / shrinked to the size (frees the old data). 
+ *    @p pdu->max_size is set to 0 (i.e. @ pdu is of the variable size). Rest of the @p pdu's fields
+ *    are set to 0.
  * 
  * @param pdu:
  *    PDU to clear 
  * @param size:
- *     @p pdu's desired max_size
+ *     @p pdu's desired allocation size
+ * @returns
+ *     non-negative value on success
+ *     negative value on error
  * 
  * @note: @p pdu must be a valid pointer to a coap_pdu_t object created e.g. by coap_pdu_init().
  */
-void coap_pdu_clear(coap_pdu_t *pdu, size_t size);
+int coap_pdu_clear(coap_pdu_t *pdu, size_t size);
 
 /**
  * @brief: Creates a new CoAP PDU for the @p session.
@@ -586,11 +592,15 @@ uint8_t *coap_add_data_after(
 /**
  * @brief: Retrieves the length and data pointer of specified PDU. 
  * 
+ * @param pdu:
+ *    pdu to get payload from
+ * @param len [out]:
+ *    inspected length of the payload
+ * @param data [out]:
+ *    inspected pointer to the payload
  * @returns:
  *    1 if @p *len and @p *data have correct values.
  *    0 on error
- * 
- * @note: data buffer in the @p pdu is destroyed with the pdu.
  */
 int coap_get_data(
     const coap_pdu_t *pdu,
