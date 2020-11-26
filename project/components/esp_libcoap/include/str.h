@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-20 17:03:26
+ *  Modified time: 2020-11-26 00:30:25
  *  Description:
  * 
  *      File contains libcoap-specific binary & string data manipulation API.

@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-24 23:32:30
+ *  Modified time: 2020-11-26 00:30:58
  *  Description:
  *  Credits: 
  *

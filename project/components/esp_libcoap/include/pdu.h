@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-25 01:47:44
+ *  Modified time: 2020-11-26 00:42:37
  *  Description:
  * 
  *      File contains API related to creation, analysis and manipulation CoAP PDUs (Protocol Data Units).
@@ -64,6 +64,9 @@ struct coap_session_t;
 
 // CoAP header's size
 #define COAP_HEADER_SIZE 4
+
+// CoOap message token's size
+#define COAP_MAX_TOKEN_SIZE 8
 
 // Default MTU (Maximum Transport Unit) (Excluding IP and UDP overhead)
 #ifndef COAP_DEFAULT_MTU

@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-23 12:23:48
+ *  Modified time: 2020-11-26 00:30:20
  *  Description:
  * 
  *      File defines basic API related to CoAP's subcription model.

@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-23 01:22:24
+ *  Modified time: 2020-11-26 02:03:52
  *  Description:
  * 
  *      File contains base API related to CoAP resources management.
@@ -470,10 +470,12 @@ void coap_delete_attr(coap_attr_t *attr);
  *    This is useful for dealing with the Block2 option. @p offset is updated during
  *    output as it is consumed.
  * @returns:
- *    if COAP_PRINT_STATUS_ERROR is set, an error occured.
- *    Otherwise, the lower 28 bits will indicate the number of characters that
- *    have actually been output into @p buffer. 
- *    The flag COAP_PRINT_STATUS_TRUNC indicates that the output has been truncated.
+ *    if bits [31 ... 28] are set to COAP_PRINT_STATUS_ERROR an error occured
+ *    if bits [31 ... 28] are set to COAP_PRINT_STATUS_TRUNC the output was truncated
+ *    and so @p len contains value higher that the number of bytes actually printed to
+ *    the @p buf
+ *    if no error mask was set, bits [27 .. 0] contains number of bytes actually
+ *    printed into the buffer
  */
 coap_print_status_t coap_print_link(
     const coap_resource_t *resource,
@@ -618,29 +620,34 @@ void coap_delete_observers(
 void coap_check_notify(coap_context_t *context);
 
 /**
- * @brief: Print text response to the /.well-known/core request into the @p data buffer
- *    using CoRE-link format. 
- * 
+ * @brief: Prints the representatio of resources registers in the context to @p buf (if @p buflen
+ *   is enough). Even if @p buf is to small to store the representation, function computes 
+ *   it's length and returns it via @p buflen.
+ *
  * @param context:
- *    context associated with the request
- * @param buf:
- *    the output buffer to write the description to.
- * @param buflen:
- *    must be initialized to the length of @p buf and will be set to the length
- *    of the printed link description.
+ *    the context holding the list of resources
+ * @param buf [out]:
+ *    the buffer to write the representation to
+ * @param buflen [in/out]:
+ *    must be initialized to the maximum length of @p buf; will be set to the length of the resources'
+ *    representation if no error occur
  * @param offset:
- *    the offset within the resource description where to start writing into @p buf.
- *    This is useful for dealing with the Block2 option. @p offset is updated during
- *    output as it is consumed.
- * @param query_filter: [?]
- *    
+ *    the offset (in bytes) where the function should start printing resources' representation from;
+ *    this parameter is used to support the Block2 option if /.well-known/core resource was requested
+ *    via block transfer
+ * @param query_filter:
+ *    a filter query according to RFC 6690 (Section 4.1)
  * @returns:
- *    if COAP_PRINT_STATUS_ERROR is set, an error occured.
- *    Otherwise, the lower 28 bits will indicate the number of characters that
- *    have actually been output into @p buffer. 
- *    The flag COAP_PRINT_STATUS_TRUNC indicates that the output has been truncated.
+ *    if bits [31 ... 28] are set to COAP_PRINT_STATUS_ERROR an error occured
+ *    if bits [31 ... 28] are set to COAP_PRINT_STATUS_TRUNC the output was truncated
+ *    and so @p len contains value higher that the number of bytes actually printed to
+ *    the @p buf
+ *    if no error mask was set, bits [27 .. 0] contains number of bytes actually
+ *    printed into the buffer
+ * 
+ * @note: Even if output string was truncated, the output of the function is not considere
+ *    erroneous and so value passed back in the @p buflen is correct.
  */
-
 coap_print_status_t coap_print_wellknown(
     coap_context_t *context,
     unsigned char *buf,
@@ -668,7 +675,11 @@ void coap_handle_failed_notify(
 );
 
 /**
- * @brief: Initiate the sending of an Observe packet for all observers of @p resource,
+ * @brief: Marks all observers of the given @p resource so that call to the @f coap_notify_observers()
+ *    could notify them. Optionally, when @p query is not NULL, marks only those observer, who has
+ *    the same query
+ * 
+ * Initiate the sending of an Observe packet for all observers of @p resource,
  *   optionally matching @p query if not NULL
  *
  * @param resource:

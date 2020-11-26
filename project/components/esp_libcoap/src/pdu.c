@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-24 23:37:34
+ *  Modified time: 2020-11-25 12:15:51
  *  Description:
  *  Credits: 
  *
@@ -43,7 +43,6 @@
 #include "encode.h"
 #include "pdu.h"
 #include "mem.h"
-
 
 
 /* -------------------------------------------- [Macrofeinitions] --------------------------------------------- */
