@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-26 01:38:33
+ *  Modified time: 2020-11-26 19:01:34
  *  Description:
  *  Credits: 
  *
@@ -27,9 +27,6 @@
 
 /* ------------------------------------------------------------------------------------------------------------ */
 
-
-#include "coap_config.h"
-
 #include <ctype.h>
 #include <stdio.h>
 #include <errno.h>
@@ -40,6 +37,7 @@
 #include "libcoap.h"
 #include "utlist.h"
 #include "coap_debug.h"
+#include "coap_config.h"
 #include "mem.h"
 #include "str.h"
 #include "async.h"

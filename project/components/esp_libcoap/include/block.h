@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-20 10:34:46
+ *  Modified time: 2020-11-26 19:03:15
  *  Description:
  * 
  *      File contains API of the block-wise CoAP transfers described in [RFC7959] document.

@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-22 22:10:09
+ *  Modified time: 2020-11-26 20:56:50
  *  Description:
  * 
  *      File contains main API for CoAP's options creation, parsing and manipulation.
@@ -159,6 +159,17 @@ typedef uint16_t coap_opt_filter_t[COAP_OPT_FILTER_SIZE];
  *    }
  * 
  * @endcode
+ * 
+ * @note: Functions, implementing mechanism for manipulating options' lists, was unnecessary
+ *    written as if pointers to the list's nodes were stored as a contiguous array - functions
+ *    takes @t coap_optlist_t** pointer. In fact there is no need for it, as @t coap_optlist_t
+ *    is a forward-linked list (i.e. every element has a ->next pointer, to the next node in the
+ *    list). The API was corrected, but keep in mind that it is no longer complaint with the
+ *    standard libcoap API.
+ * 
+ * @note: for some reason original API of the @f coap_delete_optlist() has taken a regular
+ *   @t coap_optlist_t*, by contrast to the rest of functions. Now, when an implementation 
+ *   was corrected, the API is consistent.
  */
 typedef struct {
   
@@ -181,17 +192,17 @@ typedef struct {
 
 
 /**
- * @brief: Representation of chained list of CoAP options to install
+ * @brief: Representation of the list of CoAP options to install
  *
  * @code
  * 
- *    coap_optlist_t *optlist_chain = NULL;
+ *    coap_optlist_t *optlist = NULL;
  *    coap_pdu_t *pdu = coap_new_pdu(session);
  *   
  *    ... other set up code ...
  * 
  *    coap_insert_optlist(
- *        &optlist_chain,
+ *        optlist_chain,
  *        coap_new_optlist(
  *            COAP_OPTION_OBSERVE,
  *            COAP_OBSERVE_ESTABLISH,
@@ -199,7 +210,7 @@ typedef struct {
  *        )
  *    );
  * 
- *    coap_add_optlist_pdu(pdu, &optlist_chain);
+ *    coap_add_optlist_pdu(pdu, optlist_chain);
  * 
  *    ... other code ...
  * 
@@ -368,7 +379,7 @@ coap_opt_t *coap_check_option(
  * @param opt [out]:
  *    the option buffer space where @p delta and @p length are written
  * @param maxlen:
- *    the maximum length of @p opt
+ *    the maximum length of @p opt buffer
  * @param delta:
  *    the actual delta value to encode
  * @param length:
@@ -405,7 +416,7 @@ size_t coap_opt_encode_size(uint16_t delta, size_t length);
  *
  * @param opt [out]:
  *    the option buffer space where @p val is written
- * @param n:
+ * @param opt_len:
  *    maximum length of @p opt
  * @param delta:
  *    the option delta
@@ -417,17 +428,17 @@ size_t coap_opt_encode_size(uint16_t delta, size_t length);
  *    the number of bytes that have been written to @p opt on success
  *    0 on error. 
  * 
- *    The return value will always be less than @p n.
+ *    The return value will always be less than @p opt_len.
  * 
  * @note: Error happens especially often when @p opt does not provide sufficient 
  *    space to store the option value, delta, and option jumps when required.
  */
 size_t coap_opt_encode(
     coap_opt_t *opt,
-    size_t n,
+    size_t opt_len,
     uint16_t delta,
-    const uint8_t *val,
-    size_t length
+    size_t length,
+    const uint8_t *val    
 );
 
 /**
@@ -437,7 +448,8 @@ size_t coap_opt_encode(
  * @param opt:
  *    the option to examine
  * @returns:
- *    the number of bytes read or @c 0 on error.
+ *    the number of bytes read
+ *    0 on error
  */
 uint16_t coap_opt_delta(const coap_opt_t *opt);
 
@@ -446,11 +458,11 @@ uint16_t coap_opt_delta(const coap_opt_t *opt);
  *    the option whose length should be returned
  * @returns:
  *    the option's length on success
- *    0 when @p opt is not an option
+ *    0 on error
  *
  * @note: The rationale for using 0 in case of an error is that in most contexts, the result of this
  *    function is used to skip the next coap_opt_length() bytes.
- * @note: @p opt must point to an option jump or the beginning of the option.
+ * @note: @p opt must point to an option jump or the beginning of the optisize_t lengthon.
  */
 uint16_t coap_opt_length(const coap_opt_t *opt);
 
@@ -485,40 +497,40 @@ coap_optlist_t *coap_new_optlist(
 );
 
 /**
- * @brief: Sorts the current optlist of @p optlist_chain (as per RFC7272 ordering requirements)
+ * @brief: Sorts the current optlist of @p optlist (as per RFC7272 ordering requirements)
  *    and then adds it to the @p pdu.
  *
  * @param pdu:
- *    the pdu to add the options to from the chain list
- * @param optlist_chain:
- *    the chained list of optlist to add to the pdu
+ *    the pdu to add the options to from the list
+ * @param optlist:
+ *    head node of the options' list to be inserted into @p pdu
  * @returns:
  *    1 if succesful
  *    0 if failure
  */
 int coap_add_optlist_pdu(
     coap_pdu_t *pdu,
-    coap_optlist_t** optlist_chain
+    coap_optlist_t* optlist
 );
 
 /**
- * @brief: Adds @p optlist to the given @p optlist_chain. The @p optlist_chain variable is
+ * @brief: Adds @p optlist to the given @p optlist. The @p optlist variable is
  *    set to NULL before the initial call to coap_insert_optlist(). 
  *
- * @param optlist_chain:
- *    the chain to add optlist to
  * @param optlist:
- *    the optlist to add to the queue
+ *    the chain to add optlist to
+ * @param optlist_node:
+ *    the optlist's element to add to the queue
  * @returns:
  *    1 on success
  *    0 on failure
  * 
- * @note: The @p optlist_chain will need to be deleted using coap_delete_optlist() when no 
+ * @note: The @p optlist will need to be deleted using coap_delete_optlist() when no 
  *    longer required.
  */
 int coap_insert_optlist(
-    coap_optlist_t **optlist_chain,
-    coap_optlist_t *optlist
+    coap_optlist_t *optlist,
+    coap_optlist_t *optlist_node
 );
 
 /**
@@ -540,7 +552,7 @@ void coap_delete_optlist(coap_optlist_t *optlist_chain);
  */
 COAP_STATIC_INLINE void
 coap_option_filter_clear(coap_opt_filter_t filter){
-  memset(filter, 0, sizeof(coap_opt_filter_t));
+    memset(filter, 0, sizeof(coap_opt_filter_t));
 }
 
 #endif /* COAP_OPTION_H_ */

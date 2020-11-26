@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-23 18:09:24
+ *  Modified time: 2020-11-26 19:02:16
  *  Description:
  *  Credits: 
  *

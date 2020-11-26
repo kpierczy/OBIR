@@ -1,0 +1,197 @@
+commit 55ff1f8fca4a63223a69fcb03fc155e328c41678
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Thu Nov 26 02:31:44 2020 +0100
+
+    CoAP Resources [Projekt]
+
+commit de2afe5463f81c8a68fab1632e159ca35654c2b7
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Wed Nov 25 02:38:30 2020 +0100
+
+    Coap PDU [Project]
+
+commit 7aac23cce24ac1aee852a2dbda59de8589152304
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Tue Nov 24 23:34:27 2020 +0100
+
+    Coap URI [Project]
+
+commit af3e73e5c2edb828fa6be14873c714efcc5e6e33
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Tue Nov 24 18:59:02 2020 +0100
+
+    Coap session [Project]
+
+commit cd14efc8128d2e86a8efdfce63fe4b0fa998cbba
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Tue Nov 24 16:21:15 2020 +0100
+
+    Remnant proto-dependencies removed [Project]
+
+commit 47bb78655aebea82843c0fadfc9eee10f762da65
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Tue Nov 24 15:54:15 2020 +0100
+
+    Minor files [Project]
+
+commit 69d4abc83e3c0b065be990cbc7549d3e5c27ecf6
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Tue Nov 24 15:18:15 2020 +0100
+
+    Coap IO [Project]
+
+commit 2c11ce9d7e9b6aef772830c55abf3acdf6a2853e
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Tue Nov 24 12:43:06 2020 +0100
+
+    Debug file - LOG_DEBUG bug found [Project]
+
+commit 071208b79cf88b81bf00a3897e81f768f0f29143
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Mon Nov 23 21:19:41 2020 +0100
+
+    Block transfer [Project]
+
+commit 943372383809443045e585675f5cac2cf10b15d5
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Mon Nov 23 16:16:49 2020 +0100
+
+    CoAP header made constant size [Project]
+
+commit 1567ea256e6d45023f2739154abb4d0c96f96fad
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Mon Nov 23 13:51:25 2020 +0100
+
+    TCP removed [Project]
+
+commit b9678f8ea52c2a244a0b45c1cb81b74aceb3d083
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Mon Nov 23 12:59:17 2020 +0100
+
+    Malloc type removed [Project]
+
+commit 91142466912a5c43ea3cde1573b5746cae71a6dc
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Mon Nov 23 12:42:49 2020 +0100
+
+    Platform specification [Project]
+
+commit 31ee7e804618e609e5e3346a3b8bf61e3edb2505
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Mon Nov 23 11:51:03 2020 +0100
+
+    (D)TLS removed [Project]
+
+commit fda9fe0e98f6e43584faead0629c9e1c7154144e
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Mon Nov 23 03:49:19 2020 +0100
+
+    First source files [Project]
+
+commit 8ad521bc0b06c8e4979322f5fb596772c44d27ae
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Mon Nov 23 01:29:52 2020 +0100
+
+    Headers finished [Project]
+
+commit 40907d2f94704014eae2aa54ef569febfc67aca0
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Sat Nov 21 17:20:02 2020 +0100
+
+    Session header [Project]
+
+commit 30d715ef1ebff0f4ca7a50e25d831be8a28e9a0f
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Fri Nov 20 17:14:06 2020 +0100
+
+    Session header [Project]
+
+commit cb3f9a17d96f9ecc87c22ca936fa7317bb1e109c
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Fri Nov 20 13:44:46 2020 +0100
+
+    IO Header documentation [Project]
+
+commit d4b1740ffb9932e887aa73b812ff686b9b334360
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Thu Nov 19 20:39:59 2020 +0100
+
+    First headers modifications [Project]
+
+commit 4a9308517bbf1a1164e45596966c97e8d4059146
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Thu Nov 19 16:31:41 2020 +0100
+
+    Init [Project]
+
+commit 72d33bb36214b7f7d6ab65525f5d91d316d349f1
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Wed Nov 18 20:28:07 2020 +0100
+
+    ESP8266 summary notes
+
+commit 6b2e749d804d77957df12db995e028a9a081b0fe
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Tue Nov 17 18:33:13 2020 +0100
+
+    Switching from Make to idf.py
+
+commit 30dcbabf0394a22ae265c5d7f873c84511ad7b92
+Author: Apruszkowski Lenovo <apruszko@o2.pl>
+Date:   Mon Nov 16 15:19:42 2020 +0100
+
+    Wprowadzenie w lab.2
+
+commit 21070f7c03324a8e9c4151133ef40fd67850229a
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Thu Nov 12 20:00:34 2020 +0100
+
+    Report [Lab 1]
+
+commit 38269490c0beed27ce1511a63f6a52b3a17b5cb2
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Thu Nov 12 17:21:44 2020 +0100
+
+    Code complete [Lab 1]
+
+commit c6f75656b0a89b41914a7e64d1a0405ef390e38c
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Tue Nov 10 20:56:49 2020 +0100
+
+    libcoap familiarising
+
+commit e698011ad417226a8581de873e4cdf625f876d40
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Mon Nov 9 17:52:26 2020 +0100
+
+    Example CoAP server [bugged]
+
+commit 452133783c1578321c8ca8484c4051ad6542aa64
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Sun Nov 8 21:08:44 2020 +0100
+
+    Firefox installation script
+
+commit b0b4503993eadaec398d6d8b8919d3a19e5c6b9a
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Sun Nov 8 21:06:10 2020 +0100
+
+    Firefox installation script
+
+commit 869c831762f9f7733556faaebdd385ccc776b29a
+Author: Cris <krzysztof.pierczyk@gmail.com>
+Date:   Mon Nov 2 23:22:11 2020 +0100
+
+    Environment check [ESP8266]
+
+commit 4e8f05e52ea1889ec8251b8c74e56f302647a79b
+Author: Aleksander Pruszkowski <A.Pruszkowski@tele.pw.edu.pl>
+Date:   Tue Oct 20 15:31:13 2020 +0200
+
+    Dodano PDF zspecyfikacja zadania lab1.
+
+commit 4f67bff8ae3cd20d8071e55a3ec81c315350d581
+Author: Aleksander Pruszkowski <A.Pruszkowski@tele.pw.edu.pl>
+Date:   Wed Oct 14 10:44:36 2020 +0200
+
+    Inicjacja git dla OBIR 2020Zima

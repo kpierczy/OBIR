@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-26 20:58:02
+ *  Modified time: 2020-11-26 18:35:47
  *  Description:
  *  Credits: 
  *
@@ -61,7 +61,7 @@
         return 0;                                              \
     } else {                                                   \
         (length) -= (step);                                    \
-        (option) = (option) + (step);                          \
+        (option) += (step);                                    \
     }
 
 /**
@@ -89,20 +89,11 @@
 /* ---------------------------------------- [Global and static data] ------------------------------------------ */
 
 /**
- * @brief: Local structure used for options filtering. This is in fact a named
- *    mapping of the data stored in the @t coap_opt_filter_t.
+ * @brief: Local structure used for options filtering
  */
 typedef struct {
 
-    /**
-     * @brief: Bit-wise mask used to denote what filters (of types described by the @a long_opts and
-     *    @a short_opts) are active. When Nth bit in this mask is set:
-     * 
-     *       - if N < COAP_OPT_FILTER_LONG, the Nth element in @a long_opts describes
-     *         type of the filtered option
-     *       - if N >= COAP_OPT_FILTER_LONG, the (N - COAP_OPT_FILTER_LONG)th  element
-     *         in @a short_ops describes type of the filtered option
-     */
+    // Bit-wise mask used for options filtering
     uint16_t mask;
 
     // Filtered options
@@ -119,58 +110,101 @@ enum filter_op_t { FILTER_SET, FILTER_CLEAR, FILTER_GET };
 
 /* ----------------------------------------------- [Functions] ------------------------------------------------ */
 
-size_t coap_opt_parse(
-    const coap_opt_t *opt, 
-    size_t length, 
-    coap_option_t *result
-) {
-    assert(opt); 
-    assert(result);
+size_t
+coap_opt_parse(const coap_opt_t *opt, size_t length, coap_option_t *result) {
 
-    if (length < 1)
-        return 0;
+  const coap_opt_t *opt_start = opt; /* store where parsing starts  */
 
-    result->delta = (*opt & 0xf0) >> 4;
-    result->length = *opt & 0x0f;
+  assert(opt); assert(result);
 
-    //  Pointer to the option's buffer start (@p opt will be forwareded within the function)
-    const coap_opt_t *opt_start = opt;
+  if (length < 1){
+    return 0;
+  }
 
-    // Compute option's delta and set @p opt to the first byt after delta's encoding
-    result->delta = coap_opt_delta(opt_start);
-    if(result->delta == 0 && (*opt & 0xf0) != 0){
-        result->delta = (*opt & 0xf0) >> 4;
-        if(*opt != COAP_PAYLOAD_START)
-            coap_log(LOG_DEBUG, "coap_opt_parse: ignored reserved option delta 15\n");
-        return 0;
+  result->delta = (*opt & 0xf0) >> 4;
+  result->length = *opt & 0x0f;
+
+  switch (result->delta) {
+      case 15: 
+          coap_log(LOG_WARNING, "coap_opt_delta: illegal option delta\n");
+          return 0;
+      // If delta = 14, it's notation will be extended by 2 bytes
+      case 14:
+          result->delta = (opt[0] << 8) + opt[1] + 269;
+          if (result->delta < 269) {
+              coap_log(LOG_DEBUG, "coap_opt_delta: delta too large\n");
+              return 0;
+          }
+          break;
+      // If delta = 13, it's notation will be extended by 1 bytes
+      case 13:
+          result->delta += opt[0];
+          break;
+  }
+
+  switch(result->delta) {
+  case 15:
+    if (*opt != COAP_PAYLOAD_START) {
+      coap_log(LOG_DEBUG, "ignored reserved option delta 15\n");
     }
-    else if(result->delta >= 269)
-        ADVANCE_OPT_CHECK(opt, length, 2);
-    else if(result->delta >= 13)
-        ADVANCE_OPT_CHECK(opt, length, 1);
-        
-    // Compute option's length and set @p opt to the first byt after length's encoding
-    result->length = coap_opt_length(opt_start);
-    if(result->length == 0 && (*opt & 0x0f) != 0){
-        result->length = *opt & 0x0f;
-        return 0;
+    return 0;
+  case 14:
+    /* Handle two-byte value: First, the MSB + 269 is stored as delta value.
+     * After that, the option pointer is advanced to the LSB which is handled
+     * just like case delta == 13. */
+    ADVANCE_OPT_CHECK(opt,length,1);
+    result->delta = ((*opt & 0xff) << 8) + 269;
+    if (result->delta < 269) {
+      coap_log(LOG_DEBUG, "delta too large\n");
+      return 0;
     }
-    else if(result->length >= 269)
-        ADVANCE_OPT_CHECK(opt, length, 2);
-    else if(result->length >= 13)
-        ADVANCE_OPT_CHECK(opt, length, 1);
+    /* fall through */
+  case 13:
+    ADVANCE_OPT_CHECK(opt,length,1);
+    result->delta += *opt & 0xff;
+    break;
 
-    // Move @p opt to the first byte of data (if any) and set option's value pointer to it
-    ADVANCE_OPT(opt, length, 1);
-    result->value = opt;
+  default:
+    ;
+  }
 
-    // Check if the length encoded is correct
-    if (length < result->length) {
-        coap_log(LOG_DEBUG, "invalid option length\n");
-        return 0;
-    }
+  switch(result->length) {
+  case 15:
+    coap_log(LOG_DEBUG, "found reserved option length 15\n");
+    return 0;
+  case 14:
+    /* Handle two-byte value: First, the MSB + 269 is stored as delta value.
+     * After that, the option pointer is advanced to the LSB which is handled
+     * just like case delta == 13. */
+    ADVANCE_OPT_CHECK(opt,length,1);
+    result->length = ((*opt & 0xff) << 8) + 269;
+    /* fall through */
+  case 13:
+    ADVANCE_OPT_CHECK(opt,length,1);
+    result->length += *opt & 0xff;
+    break;
 
-    return (opt + result->length) - opt_start;
+  default:
+    ;
+  }
+
+  result->delta = coap_opt_delta(opt_start);
+  result->length = coap_opt_length(opt_start);
+
+  /* ADVANCE_OPT() is correct here */
+  ADVANCE_OPT(opt,length,1);
+  /* opt now points to value, if present */
+
+  result->value = opt;
+  if (length < result->length) {
+    coap_log(LOG_DEBUG, "invalid option length\n");
+    return 0;
+  }
+
+#undef ADVANCE_OPT
+#undef ADVANCE_OPT_CHECK
+
+  return (opt + result->length) - opt_start;
 }
 
 
@@ -309,12 +343,12 @@ uint16_t coap_opt_delta(const coap_opt_t *opt) {
             return 0;
         // If delta = 14, it's notation will be extended by 2 bytes
         case 14:
-            delta = (opt[0] << 8) + opt[1] + 269;
+            delta = (opt[0] << 8) + 269;
+            ++opt;
             if (delta < 269) {
                 coap_log(LOG_DEBUG, "coap_opt_delta: delta too large\n");
                 return 0;
             }
-            break;
         // If delta = 13, it's notation will be extended by 1 bytes
         case 13:
             delta += opt[0];
@@ -598,212 +632,162 @@ static int coap_option_filter_op(
     uint16_t type,
     enum filter_op_t filter_op
 ) {
-    
-    uint16_t mask = 0;
+    size_t lindex = 0;
+    opt_filter *of = (opt_filter *)filter;
+    uint16_t nr, mask = 0;
 
-    opt_filter *filter_map = (opt_filter *)filter;
-
-    // If @p type represents a long option ...
+    // If @p type irepresents a long option ...
     if (is_long_option(type)) {
 
-        // Save a mask for the option's type
+        
         mask = LONG_MASK;
 
-        // Iterate over all possible long options held by the filter
-        size_t filter_num = 0;
-        for (uint16_t filter_mask = 1; filter_num < COAP_OPT_FILTER_LONG; filter_mask <<= 1, filter_num++) {
+        for (nr = 1; lindex < COAP_OPT_FILTER_LONG; nr <<= 1, lindex++) {
 
-            // If the filter is active and filter's code matches ...
-            if (filter_map->long_opts[filter_num] == type && filter_map->mask & filter_mask) {
-
-                // Deactivate the filter, if asked
-                if (filter_op == FILTER_CLEAR) 
-                    filter_map->mask &= ~filter_mask;
-
-                // Return 1, no matter the @p filter_op was
-                return 1;
+        if (((of->mask & nr) > 0) && (of->long_opts[lindex] == type)) {
+            if (filter_op == FILTER_CLEAR) {
+            of->mask &= ~nr;
             }
+
+            return 1;
+        }
         }
     }
-    // Else, @p type represents a short option ...
+    // Else, if @p type irepresents a short option ...
     else {
-
-        // Save a mask for the option's type
         mask = SHORT_MASK;
 
-        // Iterate over all possible long options held by the filter
-        size_t filter_num = 0;
-        for (uint16_t filter_mask = 1 << COAP_OPT_FILTER_LONG; filter_num < COAP_OPT_FILTER_SHORT; filter_mask <<= 1, filter_num++) {
+        for (nr = 1 << COAP_OPT_FILTER_LONG; lindex < COAP_OPT_FILTER_SHORT;
+            nr <<= 1, lindex++) {
 
-            // If the filter is active and filter's code matches ...
-            if (((filter_map->mask & filter_mask) > 0) && (filter_map->short_opts[filter_num] == (type & 0xff))) {
-                
-                // Deactivate the filter, if asked
-                if (filter_op == FILTER_CLEAR)
-                    filter_map->mask &= ~filter_mask;
-
-                // Return 1, no matter the @p filter_op was
-                return 1;
+        if (((of->mask & nr) > 0) && (of->short_opts[lindex] == (type & 0xff))) {
+            if (filter_op == FILTER_CLEAR) {
+            of->mask &= ~nr;
             }
+
+            return 1;
+        }
         }
     }
 
-    // If type was not found,there is nothing to do on CLEAR or GET
-    if ((filter_op == FILTER_CLEAR) || (filter_op == FILTER_GET))
+    /* type was not found, so there is nothing to do if op is CLEAR or GET */
+    if ((filter_op == FILTER_CLEAR) || (filter_op == FILTER_GET)) {
         return 0;
+    }
 
-    /* -- We get here only on FILTER_SET -- */
+    /* handle FILTER_SET: */
 
-    // Get number (i.e. index) of the first filter (of LONG/SHORT type, according to the case) that is free to be set
-    size_t filter_num  = coap_fls(~filter_map->mask & mask);
-    if (!filter_num)
+    lindex = coap_fls(~of->mask & mask);
+    if (!lindex) {
         return 0;
+    }
 
-    // Set @p type for the requested filter
-    if (is_long_option(type))
-        filter_map->long_opts[filter_num - 1] = type;
-    else
-        filter_map->short_opts[filter_num - COAP_OPT_FILTER_LONG - 1] = (uint8_t)type;
+    if (is_long_option(type)) {
+        of->long_opts[lindex - 1] = type;
+    } else {
+        of->short_opts[lindex - COAP_OPT_FILTER_LONG - 1] = (uint8_t)type;
+    }
 
-    // Activate the filter
-    filter_map->mask |= 1 << (filter_num - 1);
+    of->mask |= 1 << (lindex - 1);
 
     return 1;
 }
 
-
-int coap_option_filter_set(coap_opt_filter_t filter, uint16_t type) {
-    return coap_option_filter_op(filter, type, FILTER_SET);
+int
+coap_option_filter_set(coap_opt_filter_t filter, uint16_t type) {
+  return coap_option_filter_op(filter, type, FILTER_SET);
 }
 
-int coap_option_filter_unset(coap_opt_filter_t filter, uint16_t type) {
-    return coap_option_filter_op(filter, type, FILTER_CLEAR);
+int
+coap_option_filter_unset(coap_opt_filter_t filter, uint16_t type) {
+  return coap_option_filter_op(filter, type, FILTER_CLEAR);
 }
 
-/**
- * @note: [?] For some reson here was an ugly cast: 
- * 
- * @code
- *    return coap_option_filter_op((uint16_t *)filter, type, FILTER_GET);
- * @endcode
- * 
- *   In the author's opinion: "FILTER_GET wont change filter but as *_set and *_unset do,
- *   the function does not take a const". The cast was removed. Everything works fin by now.
- * 
- */
-int coap_option_filter_get(coap_opt_filter_t filter, uint16_t type) {
-    return coap_option_filter_op(filter, type, FILTER_GET);
+int
+coap_option_filter_get(coap_opt_filter_t filter, uint16_t type) {
+  /* Ugly cast to make the const go away (FILTER_GET wont change filter
+   * but as _set and _unset do, the function does not take a const). */
+  return coap_option_filter_op((uint16_t *)filter, type, FILTER_GET);
 }
 
-/**
- * @note: Underdefined functions, implementing mechanism for manipulating options' lists,
- *    are unnecessary written as if pointers to the list's nodes were stored as a contiguous
- *    array - functions takes @t coap_optlist_t** pointer. In fact there is no need for it,
- *    as @t coap_optlist_t is a forward-linked list (i.e. every element has a ->next pointer,
- *    to the next node in the list). The API was corrected, but keep in mind that it is
- *    no longer complaint with the standard libcoap API.
- * 
- * @note: for some reason original API of the @f coap_delete_optlist() has taken a regular
- *   @t coap_optlist_t*, by contrast to the rest of functions. Now, when an implementation 
- *   was corrected, the API is consistent.
- */
-
-coap_optlist_t *coap_new_optlist(
-    uint16_t number,
-    size_t length,
-    const uint8_t *data
+coap_optlist_t *
+coap_new_optlist(uint16_t number,
+                          size_t length,
+                          const uint8_t *data
 ) {
-    // Allocate memory for the list's node and the option's value field
-    coap_optlist_t *node = 
-        (coap_optlist_t*) coap_malloc(sizeof(coap_optlist_t) + length);
+  coap_optlist_t *node;
 
-    // Initialize the node, if allocation suceeded
-    if (node) {
-        memset(node, 0, (sizeof(coap_optlist_t) + length));
-        node->number = number;
-        node->length = length;
-        node->data = (uint8_t *)&node[1];
-        memcpy(node->data, data, length);
+  node = (coap_optlist_t*) coap_malloc(sizeof(coap_optlist_t) + length);
 
-    } else
-        coap_log(LOG_WARNING, "coap_new_optlist: malloc failure\n");
+  if (node) {
+    memset(node, 0, (sizeof(coap_optlist_t) + length));
+    node->number = number;
+    node->length = length;
+    node->data = (uint8_t *)&node[1];
+    memcpy(node->data, data, length);
+  } else {
+    coap_log(LOG_WARNING, "coap_new_optlist: malloc failure\n");
+  }
 
-    return node;
+  return node;
 }
 
+static int
+order_opts(void *a, void *b) {
+  coap_optlist_t *o1 = (coap_optlist_t *)a;
+  coap_optlist_t *o2 = (coap_optlist_t *)b;
 
-/**
- * @brief: Helper function used to sort the options' list using LL_SORT in
- *    an ascending option's code order
- * 
- * @param a:
- *    first option to be compared
- * @param b:
- *    first option to be compared
- * @return:
- *    > 0 if a > b
- *    0 if a == b
- *    < 0 if a < b 
- */
-static int order_opts(void *a, void *b) {
+  if (!a || !b)
+    return a < b ? -1 : 1;
 
-    if (!a || !b)
-        return a < b ? -1 : 1;
-
-    coap_optlist_t *opt_a = (coap_optlist_t *)a;
-    coap_optlist_t *opt_b = (coap_optlist_t *)b;
-
-    return (int) (opt_a->number - opt_b->number);
+  return (int)(o1->number - o2->number);
 }
 
+int
+coap_add_optlist_pdu(coap_pdu_t *pdu, coap_optlist_t** options) {
+  coap_optlist_t *opt;
 
-int coap_add_optlist_pdu(coap_pdu_t *pdu, coap_optlist_t* options) {
+  if (options && *options) {
+    /* sort options for delta encoding */
+    LL_SORT((*options), order_opts);
 
-    if (options) {
-
-        // Sort options for delta encoding */
-        LL_SORT(options, order_opts);
-
-        // Add options to the @p pdu
-        coap_optlist_t *opt;
-        LL_FOREACH(options, opt)
-            coap_add_option(pdu, opt->number, opt->length, opt->data);
-
-        return 1;
+    LL_FOREACH((*options), opt) {
+      coap_add_option(pdu, opt->number, opt->length, opt->data);
     }
-    return 0;
+    return 1;
+  }
+  return 0;
 }
 
+int
+coap_insert_optlist(coap_optlist_t **head, coap_optlist_t *node) {
+  if (!node) {
+    coap_log(LOG_DEBUG, "optlist not provided\n");
+  } else {
+    /* must append at the list end to avoid re-ordering of
+     * options during sort */
+    LL_APPEND((*head), node);
+  }
 
-int coap_insert_optlist(coap_optlist_t *head, coap_optlist_t *node) {
-
-    if (node)
-        LL_APPEND(head, node);
-    else
-        coap_log(LOG_DEBUG, "optlist not provided\n");
-
-    return node != NULL;
+  return node != NULL;
 }
 
-
-/**
- * @brief: Helper function used to free resources allocated by the @t coap_optlist_t's nodes
- * 
- * @param node:
- *    node whose resources will be freed
- */
-static void
+static int
 coap_internal_delete(coap_optlist_t *node) {
-    if (node)
-        coap_free(node);
+  if (node) {
+    coap_free(node);
+  }
+  return 1;
 }
 
+void
+coap_delete_optlist(coap_optlist_t *queue) {
+  coap_optlist_t *elt, *tmp;
 
-void coap_delete_optlist(coap_optlist_t *optlist) {
-    if (!optlist)
-        return;
-    coap_optlist_t *node, *tmp_node;
-    LL_FOREACH_SAFE(optlist, node, tmp_node)
-        coap_internal_delete(node);
+  if (!queue)
+    return;
+
+  LL_FOREACH_SAFE(queue, elt, tmp) {
+    coap_internal_delete(elt);
+  }
 }
-

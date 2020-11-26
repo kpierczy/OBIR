@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-26 02:21:01
+ *  Modified time: 2020-11-26 19:00:55
  *  Description:
  *  Credits: 
  *
@@ -104,6 +104,7 @@
 static coap_str_const_t *null_path = coap_make_str_const("");
 
 static const uint8_t coap_unknown_resource_uri[] = "- Unknown -";
+
 
 /* ----------------------------------------------- [Functions] ------------------------------------------------ */
 

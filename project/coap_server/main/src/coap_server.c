@@ -10,7 +10,7 @@
 #define PORT 5683
 
 // Set this to 9 to get verbose logging from within libcoap
-#define COAP_LOGGING_LEVEL LOG_ERR
+#define COAP_LOGGING_LEVEL 0
 
 /* --------------------------- Global & static definitions --------------------------- */
 

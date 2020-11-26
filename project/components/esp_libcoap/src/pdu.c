@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-25 12:15:51
+ *  Modified time: 2020-11-26 16:53:53
  *  Description:
  *  Credits: 
  *
@@ -352,11 +352,8 @@ size_t coap_add_option_later_impl(
 
     // Encode option and check length
     size_t optsize = coap_opt_encode(
-        opt, 
-        pdu->alloc_size - pdu->used_size,
-        type - pdu->max_delta, 
-        data, 
-        len
+        opt, pdu->alloc_size - pdu->used_size,
+        type - pdu->max_delta, len, data
     );
 
     // If an option could not be encoded, return error
