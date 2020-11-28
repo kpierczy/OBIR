@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-26 18:55:25
+ *  Modified time: 2020-11-28 15:08:23
  *  Description:
  *  Credits: 
  *
@@ -42,6 +42,20 @@
 #include "mem.h"
 #include "uri.h"
 
+struct cnt_str;
+typedef void (*segment_handler_t)(const uint8_t *, size_t, struct cnt_str *);
+
+COAP_STATIC_INLINE const uint8_t *strnchr(const uint8_t *s, size_t len, unsigned char c);
+static void decode_segment(const uint8_t *seg, size_t length, unsigned char *buf);
+static int check_segment(const uint8_t *seg, size_t length, size_t *segment_size);
+static int make_decoded_option(const uint8_t *seg, size_t length, unsigned char *buf, size_t buflen, size_t* optionsize);
+static void write_option(const uint8_t *seg, size_t len, struct cnt_str *data);
+COAP_STATIC_INLINE int dots(const uint8_t *seg, size_t len);
+static size_t coap_split_path_impl(const uint8_t *str, size_t length, segment_handler_t handler, void *data);
+COAP_STATIC_INLINE int is_unescaped_in_path(const uint8_t c);
+COAP_STATIC_INLINE int is_unescaped_in_query(const uint8_t c);
+static coap_string_t *coap_get_seg_impl(const coap_pdu_t *request, unsigned int filter_type);
+
 
 /* -------------------------------------------- [Macrofeinitions] --------------------------------------------- */
 
@@ -79,32 +93,7 @@ struct cnt_str {
 };
 
 
-typedef void (*segment_handler_t)(const uint8_t *, size_t, struct cnt_str *);
-
 /* ------------------------------------------- [Macrodefinitions] --------------------------------------------- */
-
-
-/**
- * @brief: A length-safe version of strchr().
- *
- * @param s:
- *    the string to search for @p c
- * @param len:
- *    the length of @p s
- * @param c:
- *    the character to search
- *
- * @returns:
- *    a pointer to the first occurence of @p c if found
- *    @c NULL if not found
- */
-COAP_STATIC_INLINE const uint8_t *
-strnchr(const uint8_t *s, size_t len, unsigned char c){
-    while (len && *s++ != c)
-        --len;
-    return len ? s : NULL;
-}
-
 
 int coap_split_uri(const uint8_t *str, size_t len, coap_uri_t *uri){
 
@@ -278,6 +267,166 @@ error:
 }
 
 
+int coap_split_path(
+    const uint8_t *path, 
+    size_t length,
+    unsigned char *buf, 
+    size_t *buflen
+){
+    struct cnt_str tmp = {
+        .buf = { .length =  *buflen, .s = buf },
+        .n   = 0 
+    };
+
+    // Split a path into segment. Each of them write to the tmp.buf as an option using write_option() callback
+    coap_split_path_impl(path, length, write_option, &tmp);
+
+    // Set @p buflen to the size of the remaining space
+    *buflen = *buflen - tmp.buf.length;
+
+    // Return number of segment created
+    return tmp.n;
+}
+
+
+int coap_split_query(
+    const uint8_t *query, 
+    size_t length,
+    unsigned char *buf,
+    size_t *buflen
+){
+    struct cnt_str tmp = {
+        .buf = { .length =  *buflen, .s = buf },
+        .n   = 0 
+    };
+
+    const uint8_t *query_start = query;
+
+    // Iterate over the query string
+    unsigned int i;
+    for(i = 0; i < length && query[i] != '#'; ++i, --length){
+        
+        // Start new query element
+        if (*query == '&') {
+            // Write a query option into the buffer
+            write_option(query_start, (query + i) - query_start, &tmp);
+            query_start = query + i + 1;
+        }
+    }
+
+    // Write the last query element
+    write_option(query_start, (query + i) - query_start, &tmp);
+
+    // Set @p buflen to the size of the remaining space
+    *buflen = *buflen - tmp.buf.length;
+    
+    return tmp.n;
+}
+
+
+coap_uri_t *coap_new_uri(const uint8_t *uri, unsigned int length) {
+  
+    // Allocate memory for the result structure and the @p uri's copy (+1 byte for terminating '\0')
+    unsigned char *result = 
+        (unsigned char*) coap_malloc(length + 1 + sizeof(coap_uri_t));
+    if (result == NULL)
+        return NULL;
+
+    // Make a local copy of the @uri in the allocated block; terminate it with '\0'
+    memcpy(URI_DATA(result), uri, length);
+    URI_DATA(result)[length] = '\0';
+
+    // Try to split URI into the structure
+    if (coap_split_uri(URI_DATA(result), length, (coap_uri_t *)result) < 0) {
+        coap_free(result);
+        return NULL;
+    }
+
+    return (coap_uri_t *)result;
+}
+
+
+coap_uri_t *coap_clone_uri(const coap_uri_t *uri){
+  
+    if(uri == NULL)
+        return NULL;
+
+    // Allocate memory for @p uri structure and it's internal buffers
+    coap_uri_t *result = 
+        (coap_uri_t *) coap_malloc( 
+            sizeof(coap_uri_t) +
+            uri->host.length   +
+            uri->path.length   + 
+            uri->query.length
+        );
+    if (result == NULL)
+        return NULL;
+
+    // Clear allocated memory
+    memset( result, 0, sizeof(coap_uri_t));
+
+    // Clone port value
+    result->port = uri->port;
+
+    // Clone host address as the first element after the @t coap_uri_t structure
+    if ( uri->host.length != 0) {
+        result->host.s  = URI_DATA(result);
+        result->host.length = uri->host.length;
+        memcpy((uint8_t *) result->host.s, uri->host.s, uri->host.length);
+    }
+
+    // Clone resource path as the second element after the @t coap_uri_t structure
+    if (uri->path.length != 0){
+        result->path.s = URI_DATA(result) + uri->host.length;
+        result->path.length = uri->path.length;
+        memcpy((uint8_t *) result->path.s, uri->path.s, uri->path.length);
+    }
+
+    // Clone query path as the first third after the @t coap_uri_t structure
+    if (uri->query.length != 0) {
+        result->query.s = URI_DATA(result) + uri->host.length + uri->path.length;
+        result->query.length = uri->query.length;
+        memcpy((uint8_t *) result->query.s, uri->query.s, uri->query.length);
+    }
+
+    return result;
+}
+
+
+coap_string_t *coap_get_query(const coap_pdu_t *request) {
+    return coap_get_seg_impl(request, COAP_OPTION_URI_QUERY);
+}
+
+
+coap_string_t *coap_get_uri_path(const coap_pdu_t *request) {
+    return coap_get_seg_impl(request, COAP_OPTION_URI_PATH);
+}
+
+
+/* ------------------------------------------- [Static Functions] --------------------------------------------- */
+
+/**
+ * @brief: A length-safe version of strchr().
+ *
+ * @param s:
+ *    the string to search for @p c
+ * @param len:
+ *    the length of @p s
+ * @param c:
+ *    the character to search
+ *
+ * @returns:
+ *    a pointer to the first occurence of @p c if found
+ *    @c NULL if not found
+ */
+COAP_STATIC_INLINE const uint8_t *
+strnchr(const uint8_t *s, size_t len, unsigned char c){
+    while (len && *s++ != c)
+        --len;
+    return len ? s : NULL;
+}
+
+
 /**
  * @brief: Decodes percent-encoded characters while copying the string @p seg
  *    of size @p length to @p buf. The caller of this function must ensure that
@@ -305,9 +454,6 @@ static void decode_segment(const uint8_t *seg, size_t length, unsigned char *buf
     }
 }
 
-/**
- * 
- */
 
 /**
  * @brief: Runs through the given path (or query) segment and checks if
@@ -506,131 +652,6 @@ size_t coap_split_path_impl(
 }
 
 
-int coap_split_path(
-    const uint8_t *path, 
-    size_t length,
-    unsigned char *buf, 
-    size_t *buflen
-){
-    struct cnt_str tmp = {
-        .buf = { .length =  *buflen, .s = buf },
-        .n   = 0 
-    };
-
-    // Split a path into segment. Each of them write to the tmp.buf as an option using write_option() callback
-    coap_split_path_impl(path, length, write_option, &tmp);
-
-    // Set @p buflen to the size of the remaining space
-    *buflen = *buflen - tmp.buf.length;
-
-    // Return number of segment created
-    return tmp.n;
-}
-
-
-int coap_split_query(
-    const uint8_t *query, 
-    size_t length,
-    unsigned char *buf,
-    size_t *buflen
-){
-    struct cnt_str tmp = {
-        .buf = { .length =  *buflen, .s = buf },
-        .n   = 0 
-    };
-
-    const uint8_t *query_start = query;
-
-    // Iterate over the query string
-    unsigned int i;
-    for(i = 0; i < length && query[i] != '#'; ++i, --length){
-        
-        // Start new query element
-        if (*query == '&') {
-            // Write a query option into the buffer
-            write_option(query_start, (query + i) - query_start, &tmp);
-            query_start = query + i + 1;
-        }
-    }
-
-    // Write the last query element
-    write_option(query_start, (query + i) - query_start, &tmp);
-
-    // Set @p buflen to the size of the remaining space
-    *buflen = *buflen - tmp.buf.length;
-    
-    return tmp.n;
-}
-
-
-coap_uri_t *coap_new_uri(const uint8_t *uri, unsigned int length) {
-  
-    // Allocate memory for the result structure and the @p uri's copy (+1 byte for terminating '\0')
-    unsigned char *result = 
-        (unsigned char*) coap_malloc(length + 1 + sizeof(coap_uri_t));
-    if (result == NULL)
-        return NULL;
-
-    // Make a local copy of the @uri in the allocated block; terminate it with '\0'
-    memcpy(URI_DATA(result), uri, length);
-    URI_DATA(result)[length] = '\0';
-
-    // Try to split URI into the structure
-    if (coap_split_uri(URI_DATA(result), length, (coap_uri_t *)result) < 0) {
-        coap_free(result);
-        return NULL;
-    }
-
-    return (coap_uri_t *)result;
-}
-
-
-coap_uri_t *coap_clone_uri(const coap_uri_t *uri){
-  
-    if(uri == NULL)
-        return NULL;
-
-    // Allocate memory for @p uri structure and it's internal buffers
-    coap_uri_t *result = 
-        (coap_uri_t *) coap_malloc( 
-            sizeof(coap_uri_t) +
-            uri->host.length   +
-            uri->path.length   + 
-            uri->query.length
-        );
-    if (result == NULL)
-        return NULL;
-
-    // Clear allocated memory
-    memset( result, 0, sizeof(coap_uri_t));
-
-    // Clone port value
-    result->port = uri->port;
-
-    // Clone host address as the first element after the @t coap_uri_t structure
-    if ( uri->host.length != 0) {
-        result->host.s  = URI_DATA(result);
-        result->host.length = uri->host.length;
-        memcpy((uint8_t *) result->host.s, uri->host.s, uri->host.length);
-    }
-
-    // Clone resource path as the second element after the @t coap_uri_t structure
-    if (uri->path.length != 0){
-        result->path.s = URI_DATA(result) + uri->host.length;
-        result->path.length = uri->path.length;
-        memcpy((uint8_t *) result->path.s, uri->path.s, uri->path.length);
-    }
-
-    // Clone query path as the first third after the @t coap_uri_t structure
-    if (uri->query.length != 0) {
-        result->query.s = URI_DATA(result) + uri->host.length + uri->path.length;
-        result->query.length = uri->query.length;
-        memcpy((uint8_t *) result->query.s, uri->query.s, uri->query.length);
-    }
-
-    return result;
-}
-
 /**
  * @returns:
  *    non-zero value if character is an unescaped character (considering the path string)
@@ -759,14 +780,3 @@ coap_string_t *coap_get_seg_impl(const coap_pdu_t *request, unsigned int filter_
 
     return string;
 }
-
-
-coap_string_t *coap_get_query(const coap_pdu_t *request) {
-    return coap_get_seg_impl(request, COAP_OPTION_URI_QUERY);
-}
-
-
-coap_string_t *coap_get_uri_path(const coap_pdu_t *request) {
-    return coap_get_seg_impl(request, COAP_OPTION_URI_PATH);
-}
-

@@ -23,6 +23,15 @@
 #include "encode.h"
 #include "net.h"
 
+COAP_STATIC_INLINE size_t print_timestamp(char *buf, size_t len, coap_tick_t t);
+static size_t print_readable(const uint8_t *data, size_t len, unsigned char *result, size_t buflen, bool encode_always);
+static const char *msg_type_string(uint16_t type);
+static const char *msg_code_string(uint16_t code);
+static const char *msg_option_string(uint8_t code, uint16_t option_type);
+static unsigned int print_content_format( unsigned int format_type, unsigned char *result, unsigned int buflen);
+COAP_STATIC_INLINE int is_binary(int content_format);
+
+
 /* ------------------------------------------- [Macrodefinitions] --------------------------------------------- */
 
 #ifndef min
@@ -107,95 +116,6 @@ void coap_set_log_level(coap_log_t level){
     maxlog = level;
 }
 
-/**
- * @brief: Prints formatted time data into the @p buf.
- * 
- * @param buf [out]:
- *    buffer to fill
- * @param len:
- *    @p buff's size
- * @param t:
- *    time to format
- * @return COAP_STATIC_INLINE 
- */
-COAP_STATIC_INLINE size_t
-print_timestamp(char *buf, size_t len, coap_tick_t t){
-    time_t now = coap_ticks_to_rt(t);
-    struct tm *tmp = localtime(&now);
-    return strftime(buf, len, "%b %d %H:%M:%S", tmp);
-}
-
-
-/**
- * @brief: Prints data from the @p data buffer into @p result buffer in the 
- *    human-redable form (i.e. transforming no-printable bytes into their
- *    hex codes)
- * 
- * @param data:
- *    source data buffer
- * @param len:
- *    length of the @p data
- * @param result:
- *    destination buffer
- * @param buflen:
-*    length of the @p result
- * @param encode_always:
- *   if true, all bytes from @p data (not only printable) are transformed to
- *   the hex code.
- * 
- * @return size_t 
- */
-static size_t print_readable(
-    const uint8_t *data,
-    size_t len,
-    unsigned char *result,
-    size_t buflen,
-    bool encode_always
-){
-    assert(data || len == 0);
-    
-    // Check if output buffer can be written
-    if (buflen == 0)
-        return 0;
-
-    
-    static const uint8_t hex[] = "0123456789ABCDEF";
-
-    // Iterate over all input bytes
-    int i;
-    for(i = 0; i < len; ++i){
-
-        // If @p encode_always flag is cleared, or character is printable, copy
-        // it from source buffer to result buffer without transforming
-        if (!encode_always && isprint(*data)) {
-
-            // Check if result buffer has enough room for additional data and terminating zero
-            if (i + 1 < buflen) { 
-                result[i] = *data++;
-            } else
-                break;
-        } 
-        // If @p encode_always flag is set, or character is not printable, copy
-        // it from source buffer to result buffer with transformation
-        //
-        // Check if result buffer has enough room for additional data and terminating zero
-        // (printing a byte in hex requires 4 bytes itself)
-        else if (i + 4 < buflen) {
-                *result++ = '0';
-                *result++ = 'x';
-                *result++ = hex[(*data & 0xf0) >> 4];
-                *result++ = hex[*data++ & 0x0f];
-                i += 3;
-        } else
-            break;
-    }
-
-    // Add a terminating zero
-    *result = '\0'; 
-
-    return i;
-}
-
 
 size_t coap_print_addr(
     const struct coap_address_t *addr, 
@@ -249,241 +169,6 @@ size_t coap_print_addr(
     p += snprintf((char *)p, len - (p - buf), ":%d", port);
 
     return p - buf;
-}
-
-
-/** 
- * @brief: Returns a textual description of the message type @p t. 
- * 
- * @param type:
- *    type of the message; one of values COAP_MESSAGE_*
- * @returns:
- *    pointer to the statically allocated buffer containing readable
- *    representation of the type
- */
-static 
-const char *msg_type_string(uint16_t type){
-    static const char *types[] = { "CON", "NON", "ACK", "RST", "???" };
-    return types[min(type, sizeof(types)/sizeof(char *) - 1)];
-}
-
-/**
- * @brief:  Returns a textual description of the method or response code.
- * 
- * @param code:
- *    code of the method/response; one of COAP_REQUEST_* ora COAP_SIGNALING* values
- * @returns:
- *    pointer to the statically allocated buffer containing readable representation 
- *    of the method/response code
- */
-static const char *msg_code_string(uint16_t code){
-
-    static const char *methods[] = { "0.00", "GET", "POST", "PUT", "DELETE", "FETCH", "PATCH", "iPATCH" };
-    static const char *signals[] = { "7.00", "CSM", "Ping", "Pong", "Release", "Abort" };
-    static char buf[5];
-
-    // Methode's code
-    if (code < sizeof(methods)/sizeof(const char *))
-        return methods[code];
-    // Response code
-    else if ((code & 0xe0) != 0  && (code & 0xe0) < (uint16_t)(sizeof(signals)/sizeof(const char *)))
-        return signals[code & 0xe0];
-    // Unknown code
-    else {
-        snprintf(buf, sizeof(buf), "%u.%02u", code >> 5, code & 0x1f);
-        return buf;
-    }
-}
-
-/** 
- * @brief: Returns a textual description of the option name. 
- * 
- * @param code:
- *    response code; one of COAP_SIGNALING_* values
- * 
- * @param option_type:
- *    decoded (i.e. absolute, no delta-coded) option's code
- */
-static const char *
-msg_option_string(uint8_t code, uint16_t option_type) {
-  
-    // Local structure describing an option
-    struct option_desc_t {
-        uint16_t type;
-        const char *name;
-    };
-
-    // Options descriptions
-    static struct option_desc_t options[] = {
-        { COAP_OPTION_IF_MATCH, "If-Match" },
-        { COAP_OPTION_URI_HOST, "Uri-Host" },
-        { COAP_OPTION_ETAG, "ETag" },
-        { COAP_OPTION_IF_NONE_MATCH, "If-None-Match" },
-        { COAP_OPTION_OBSERVE, "Observe" },
-        { COAP_OPTION_URI_PORT, "Uri-Port" },
-        { COAP_OPTION_LOCATION_PATH, "Location-Path" },
-        { COAP_OPTION_URI_PATH, "Uri-Path" },
-        { COAP_OPTION_CONTENT_FORMAT, "Content-Format" },
-        { COAP_OPTION_MAXAGE, "Max-Age" },
-        { COAP_OPTION_URI_QUERY, "Uri-Query" },
-        { COAP_OPTION_ACCEPT, "Accept" },
-        { COAP_OPTION_LOCATION_QUERY, "Location-Query" },
-        { COAP_OPTION_BLOCK2, "Block2" },
-        { COAP_OPTION_BLOCK1, "Block1" },
-        { COAP_OPTION_PROXY_URI, "Proxy-Uri" },
-        { COAP_OPTION_PROXY_SCHEME, "Proxy-Scheme" },
-        { COAP_OPTION_SIZE1, "Size1" },
-        { COAP_OPTION_SIZE2, "Size2" },
-        { COAP_OPTION_NORESPONSE, "No-Response" }
-    };
-
-    // CSM options descriptions
-    static struct option_desc_t options_csm[] = {
-        { COAP_SIGNALING_OPTION_MAX_MESSAGE_SIZE, "Max-Message-Size" },
-        { COAP_SIGNALING_OPTION_BLOCK_WISE_TRANSFER, "Block-wise-Transfer" }
-    };
-
-    // Ping-pong options descriptions
-    static struct option_desc_t options_pingpong[] = {
-        { COAP_SIGNALING_OPTION_CUSTODY, "Custody" }
-    };
-
-    // Release options descriptions
-    static struct option_desc_t options_release[] = {
-        { COAP_SIGNALING_OPTION_ALTERNATIVE_ADDRESS, "Alternative-Address" },
-        { COAP_SIGNALING_OPTION_HOLD_OFF, "Hold-Off" }
-    };
-
-    // Abort options descriptions
-    static struct option_desc_t options_abort[] = {
-        { COAP_SIGNALING_OPTION_BAD_CSM_OPTION, "Bad-CSM-Option" }
-    };
-    
-    // Select options set depending on the actual code
-    size_t options_num;
-    struct option_desc_t *opts;
-    switch(code){
-
-        case COAP_SIGNALING_CSM:
-            options_num = sizeof(options_csm) / sizeof(struct option_desc_t);
-            opts = options_csm;
-            break;
-        case COAP_SIGNALING_PING:
-        case COAP_SIGNALING_PONG:
-            options_num = sizeof(options_pingpong) / sizeof(struct option_desc_t);
-            opts = options_pingpong;
-            break;
-        case COAP_SIGNALING_RELEASE:
-            options_num = sizeof(options_release) / sizeof(struct option_desc_t);
-            opts = options_release;
-            break;
-        case COAP_SIGNALING_ABORT:
-            options_num = sizeof(options_abort) / sizeof(struct option_desc_t);
-            opts = options_abort;
-            break;
-        default:
-            options_num = sizeof(options) / sizeof(struct option_desc_t);
-            opts = options;
-            break;
-    }
-
-    // Look for desired option's description
-    for (size_t i = 0; i < options_num; i++)
-        if (option_type == opts[i].type)
-            return opts[i].name;
-
-    // If unknown option type, just print to buf
-    static char buf[6];
-    snprintf(buf, sizeof(buf), "%u", option_type);
-    return buf;
-}
-
-/**
- * @brief: Prints human-redeable description of the format-type to the
- *    given buffer.
- * 
- * @param format_type:
- *    desired format-type; one of COAP_MEDIATYPE_* values
- * @param result [out]:
- *    result buffer
- * @param buflen:
- *    size of the result buffer
- * @returns:
- *    number of bytes written to the @p result
- * 
- */
-static unsigned int
-print_content_format(
-    unsigned int format_type,
-    unsigned char *result, 
-    unsigned int buflen
-){
-    // Check if result buffer is writteable
-    if(buflen == 0)
-        return 0;
-    
-    // Local structure describing format-types
-    struct desc_t {
-        unsigned int type;
-        const char *name;
-    };
-
-    // Actual format-types
-    static struct desc_t formats[] = {
-        { COAP_MEDIATYPE_TEXT_PLAIN, "text/plain" },
-        { COAP_MEDIATYPE_APPLICATION_LINK_FORMAT, "application/link-format" },
-        { COAP_MEDIATYPE_APPLICATION_XML, "application/xml" },
-        { COAP_MEDIATYPE_APPLICATION_OCTET_STREAM, "application/octet-stream" },
-        { COAP_MEDIATYPE_APPLICATION_EXI, "application/exi" },
-        { COAP_MEDIATYPE_APPLICATION_JSON, "application/json" },
-        { COAP_MEDIATYPE_APPLICATION_CBOR, "application/cbor" },
-        { COAP_MEDIATYPE_APPLICATION_COSE_SIGN, "application/cose; cose-type=\"cose-sign\"" },
-        { COAP_MEDIATYPE_APPLICATION_COSE_SIGN1, "application/cose; cose-type=\"cose-sign1\"" },
-        { COAP_MEDIATYPE_APPLICATION_COSE_ENCRYPT, "application/cose; cose-type=\"cose-encrypt\"" },
-        { COAP_MEDIATYPE_APPLICATION_COSE_ENCRYPT0, "application/cose; cose-type=\"cose-encrypt0\"" },
-        { COAP_MEDIATYPE_APPLICATION_COSE_MAC, "application/cose; cose-type=\"cose-mac\"" },
-        { COAP_MEDIATYPE_APPLICATION_COSE_MAC0, "application/cose; cose-type=\"cose-mac0\"" },
-        { COAP_MEDIATYPE_APPLICATION_COSE_KEY, "application/cose-key" },
-        { COAP_MEDIATYPE_APPLICATION_COSE_KEY_SET, "application/cose-key-set" },
-        { COAP_MEDIATYPE_APPLICATION_SENML_JSON, "application/senml+json" },
-        { COAP_MEDIATYPE_APPLICATION_SENSML_JSON, "application/sensml+json" },
-        { COAP_MEDIATYPE_APPLICATION_SENML_CBOR, "application/senml+cbor" },
-        { COAP_MEDIATYPE_APPLICATION_SENSML_CBOR, "application/sensml+cbor" },
-        { COAP_MEDIATYPE_APPLICATION_SENML_EXI, "application/senml-exi" },
-        { COAP_MEDIATYPE_APPLICATION_SENSML_EXI, "application/sensml-exi" },
-        { COAP_MEDIATYPE_APPLICATION_SENML_XML, "application/senml+xml" },
-        { COAP_MEDIATYPE_APPLICATION_SENSML_XML, "application/sensml+xml" },
-        { 75, "application/dcaf+cbor" }
-    };
-
-    ;
-
-    // Search format_type in list of known content formats
-    for (size_t i = 0; i < sizeof(formats)/sizeof(struct desc_t); i++)
-        if (format_type == formats[i].type)
-            return snprintf((char *)result, buflen, "%s", formats[i].name);
-
-    // For unknown content format, just print numeric value to buf the buf
-    return snprintf((char *)result, buflen, "%d", format_type);
-}
-
-
-/**
- * @param content_format:
- *    content-format; one of COAP_MEDIATYPE_* values
- * @returns:
- *    1 if the given @p content_format is either unknown or known to carry binary data
- *    0 if it is printable data which is also assumed if @p content_format is -1.
- */
-COAP_STATIC_INLINE int
-is_binary(int content_format){
-    return !(
-        content_format == -1                                     ||
-        content_format == COAP_MEDIATYPE_TEXT_PLAIN              ||
-        content_format == COAP_MEDIATYPE_APPLICATION_LINK_FORMAT ||
-        content_format == COAP_MEDIATYPE_APPLICATION_XML         ||
-        content_format == COAP_MEDIATYPE_APPLICATION_JSON
-    );
 }
 
 
@@ -901,4 +586,334 @@ int coap_debug_send_packet(void){
 
     // Packet should be sent
     return 1;
+}
+
+
+/* ------------------------------------------- [Static Functions] --------------------------------------------- */
+
+/**
+ * @brief: Prints formatted time data into the @p buf.
+ * 
+ * @param buf [out]:
+ *    buffer to fill
+ * @param len:
+ *    @p buff's size
+ * @param t:
+ *    time to format
+ * @return COAP_STATIC_INLINE 
+ */
+COAP_STATIC_INLINE size_t
+print_timestamp(char *buf, size_t len, coap_tick_t t){
+    time_t now = coap_ticks_to_rt(t);
+    struct tm *tmp = localtime(&now);
+    return strftime(buf, len, "%b %d %H:%M:%S", tmp);
+}
+
+
+/**
+ * @brief: Prints data from the @p data buffer into @p result buffer in the 
+ *    human-redable form (i.e. transforming no-printable bytes into their
+ *    hex codes)
+ * 
+ * @param data:
+ *    source data buffer
+ * @param len:
+ *    length of the @p data
+ * @param result:
+ *    destination buffer
+ * @param buflen:
+*    length of the @p result
+ * @param encode_always:
+ *   if true, all bytes from @p data (not only printable) are transformed to
+ *   the hex code.
+ * 
+ * @return size_t 
+ */
+static size_t print_readable(
+    const uint8_t *data,
+    size_t len,
+    unsigned char *result,
+    size_t buflen,
+    bool encode_always
+){
+    assert(data || len == 0);
+    
+    // Check if output buffer can be written
+    if (buflen == 0)
+        return 0;
+
+    
+    static const uint8_t hex[] = "0123456789ABCDEF";
+
+    // Iterate over all input bytes
+    int i;
+    for(i = 0; i < len; ++i){
+
+        // If @p encode_always flag is cleared, or character is printable, copy
+        // it from source buffer to result buffer without transforming
+        if (!encode_always && isprint(*data)) {
+
+            // Check if result buffer has enough room for additional data and terminating zero
+            if (i + 1 < buflen) { 
+                result[i] = *data++;
+            } else
+                break;
+        } 
+        // If @p encode_always flag is set, or character is not printable, copy
+        // it from source buffer to result buffer with transformation
+        //
+        // Check if result buffer has enough room for additional data and terminating zero
+        // (printing a byte in hex requires 4 bytes itself)
+        else if (i + 4 < buflen) {
+                *result++ = '0';
+                *result++ = 'x';
+                *result++ = hex[(*data & 0xf0) >> 4];
+                *result++ = hex[*data++ & 0x0f];
+                i += 3;
+        } else
+            break;
+    }
+
+    // Add a terminating zero
+    *result = '\0'; 
+
+    return i;
+}
+
+
+/** 
+ * @brief: Returns a textual description of the message type @p t. 
+ * 
+ * @param type:
+ *    type of the message; one of values COAP_MESSAGE_*
+ * @returns:
+ *    pointer to the statically allocated buffer containing readable
+ *    representation of the type
+ */
+static 
+const char *msg_type_string(uint16_t type){
+    static const char *types[] = { "CON", "NON", "ACK", "RST", "???" };
+    return types[min(type, sizeof(types)/sizeof(char *) - 1)];
+}
+
+
+/**
+ * @brief:  Returns a textual description of the method or response code.
+ * 
+ * @param code:
+ *    code of the method/response; one of COAP_REQUEST_* ora COAP_SIGNALING* values
+ * @returns:
+ *    pointer to the statically allocated buffer containing readable representation 
+ *    of the method/response code
+ */
+static const char *msg_code_string(uint16_t code){
+
+    static const char *methods[] = { "0.00", "GET", "POST", "PUT", "DELETE", "FETCH", "PATCH", "iPATCH" };
+    static const char *signals[] = { "7.00", "CSM", "Ping", "Pong", "Release", "Abort" };
+    static char buf[5];
+
+    // Methode's code
+    if (code < sizeof(methods)/sizeof(const char *))
+        return methods[code];
+    // Response code
+    else if ((code & 0xe0) != 0  && (code & 0xe0) < (uint16_t)(sizeof(signals)/sizeof(const char *)))
+        return signals[code & 0xe0];
+    // Unknown code
+    else {
+        snprintf(buf, sizeof(buf), "%u.%02u", code >> 5, code & 0x1f);
+        return buf;
+    }
+}
+
+
+/** 
+ * @brief: Returns a textual description of the option name. 
+ * 
+ * @param code:
+ *    response code; one of COAP_SIGNALING_* values
+ * 
+ * @param option_type:
+ *    decoded (i.e. absolute, no delta-coded) option's code
+ */
+static const char *
+msg_option_string(uint8_t code, uint16_t option_type) {
+  
+    // Local structure describing an option
+    struct option_desc_t {
+        uint16_t type;
+        const char *name;
+    };
+
+    // Options descriptions
+    static struct option_desc_t options[] = {
+        { COAP_OPTION_IF_MATCH, "If-Match" },
+        { COAP_OPTION_URI_HOST, "Uri-Host" },
+        { COAP_OPTION_ETAG, "ETag" },
+        { COAP_OPTION_IF_NONE_MATCH, "If-None-Match" },
+        { COAP_OPTION_OBSERVE, "Observe" },
+        { COAP_OPTION_URI_PORT, "Uri-Port" },
+        { COAP_OPTION_LOCATION_PATH, "Location-Path" },
+        { COAP_OPTION_URI_PATH, "Uri-Path" },
+        { COAP_OPTION_CONTENT_FORMAT, "Content-Format" },
+        { COAP_OPTION_MAXAGE, "Max-Age" },
+        { COAP_OPTION_URI_QUERY, "Uri-Query" },
+        { COAP_OPTION_ACCEPT, "Accept" },
+        { COAP_OPTION_LOCATION_QUERY, "Location-Query" },
+        { COAP_OPTION_BLOCK2, "Block2" },
+        { COAP_OPTION_BLOCK1, "Block1" },
+        { COAP_OPTION_PROXY_URI, "Proxy-Uri" },
+        { COAP_OPTION_PROXY_SCHEME, "Proxy-Scheme" },
+        { COAP_OPTION_SIZE1, "Size1" },
+        { COAP_OPTION_SIZE2, "Size2" },
+        { COAP_OPTION_NORESPONSE, "No-Response" }
+    };
+
+    // CSM options descriptions
+    static struct option_desc_t options_csm[] = {
+        { COAP_SIGNALING_OPTION_MAX_MESSAGE_SIZE, "Max-Message-Size" },
+        { COAP_SIGNALING_OPTION_BLOCK_WISE_TRANSFER, "Block-wise-Transfer" }
+    };
+
+    // Ping-pong options descriptions
+    static struct option_desc_t options_pingpong[] = {
+        { COAP_SIGNALING_OPTION_CUSTODY, "Custody" }
+    };
+
+    // Release options descriptions
+    static struct option_desc_t options_release[] = {
+        { COAP_SIGNALING_OPTION_ALTERNATIVE_ADDRESS, "Alternative-Address" },
+        { COAP_SIGNALING_OPTION_HOLD_OFF, "Hold-Off" }
+    };
+
+    // Abort options descriptions
+    static struct option_desc_t options_abort[] = {
+        { COAP_SIGNALING_OPTION_BAD_CSM_OPTION, "Bad-CSM-Option" }
+    };
+    
+    // Select options set depending on the actual code
+    size_t options_num;
+    struct option_desc_t *opts;
+    switch(code){
+
+        case COAP_SIGNALING_CSM:
+            options_num = sizeof(options_csm) / sizeof(struct option_desc_t);
+            opts = options_csm;
+            break;
+        case COAP_SIGNALING_PING:
+        case COAP_SIGNALING_PONG:
+            options_num = sizeof(options_pingpong) / sizeof(struct option_desc_t);
+            opts = options_pingpong;
+            break;
+        case COAP_SIGNALING_RELEASE:
+            options_num = sizeof(options_release) / sizeof(struct option_desc_t);
+            opts = options_release;
+            break;
+        case COAP_SIGNALING_ABORT:
+            options_num = sizeof(options_abort) / sizeof(struct option_desc_t);
+            opts = options_abort;
+            break;
+        default:
+            options_num = sizeof(options) / sizeof(struct option_desc_t);
+            opts = options;
+            break;
+    }
+
+    // Look for desired option's description
+    for (size_t i = 0; i < options_num; i++)
+        if (option_type == opts[i].type)
+            return opts[i].name;
+
+    // If unknown option type, just print to buf
+    static char buf[6];
+    snprintf(buf, sizeof(buf), "%u", option_type);
+    return buf;
+}
+
+
+/**
+ * @brief: Prints human-redeable description of the format-type to the
+ *    given buffer.
+ * 
+ * @param format_type:
+ *    desired format-type; one of COAP_MEDIATYPE_* values
+ * @param result [out]:
+ *    result buffer
+ * @param buflen:
+ *    size of the result buffer
+ * @returns:
+ *    number of bytes written to the @p result
+ * 
+ */
+static unsigned int
+print_content_format(
+    unsigned int format_type,
+    unsigned char *result, 
+    unsigned int buflen
+){
+    // Check if result buffer is writteable
+    if(buflen == 0)
+        return 0;
+    
+    // Local structure describing format-types
+    struct desc_t {
+        unsigned int type;
+        const char *name;
+    };
+
+    // Actual format-types
+    static struct desc_t formats[] = {
+        { COAP_MEDIATYPE_TEXT_PLAIN, "text/plain" },
+        { COAP_MEDIATYPE_APPLICATION_LINK_FORMAT, "application/link-format" },
+        { COAP_MEDIATYPE_APPLICATION_XML, "application/xml" },
+        { COAP_MEDIATYPE_APPLICATION_OCTET_STREAM, "application/octet-stream" },
+        { COAP_MEDIATYPE_APPLICATION_EXI, "application/exi" },
+        { COAP_MEDIATYPE_APPLICATION_JSON, "application/json" },
+        { COAP_MEDIATYPE_APPLICATION_CBOR, "application/cbor" },
+        { COAP_MEDIATYPE_APPLICATION_COSE_SIGN, "application/cose; cose-type=\"cose-sign\"" },
+        { COAP_MEDIATYPE_APPLICATION_COSE_SIGN1, "application/cose; cose-type=\"cose-sign1\"" },
+        { COAP_MEDIATYPE_APPLICATION_COSE_ENCRYPT, "application/cose; cose-type=\"cose-encrypt\"" },
+        { COAP_MEDIATYPE_APPLICATION_COSE_ENCRYPT0, "application/cose; cose-type=\"cose-encrypt0\"" },
+        { COAP_MEDIATYPE_APPLICATION_COSE_MAC, "application/cose; cose-type=\"cose-mac\"" },
+        { COAP_MEDIATYPE_APPLICATION_COSE_MAC0, "application/cose; cose-type=\"cose-mac0\"" },
+        { COAP_MEDIATYPE_APPLICATION_COSE_KEY, "application/cose-key" },
+        { COAP_MEDIATYPE_APPLICATION_COSE_KEY_SET, "application/cose-key-set" },
+        { COAP_MEDIATYPE_APPLICATION_SENML_JSON, "application/senml+json" },
+        { COAP_MEDIATYPE_APPLICATION_SENSML_JSON, "application/sensml+json" },
+        { COAP_MEDIATYPE_APPLICATION_SENML_CBOR, "application/senml+cbor" },
+        { COAP_MEDIATYPE_APPLICATION_SENSML_CBOR, "application/sensml+cbor" },
+        { COAP_MEDIATYPE_APPLICATION_SENML_EXI, "application/senml-exi" },
+        { COAP_MEDIATYPE_APPLICATION_SENSML_EXI, "application/sensml-exi" },
+        { COAP_MEDIATYPE_APPLICATION_SENML_XML, "application/senml+xml" },
+        { COAP_MEDIATYPE_APPLICATION_SENSML_XML, "application/sensml+xml" },
+        { 75, "application/dcaf+cbor" }
+    };
+
+    ;
+
+    // Search format_type in list of known content formats
+    for (size_t i = 0; i < sizeof(formats)/sizeof(struct desc_t); i++)
+        if (format_type == formats[i].type)
+            return snprintf((char *)result, buflen, "%s", formats[i].name);
+
+    // For unknown content format, just print numeric value to buf the buf
+    return snprintf((char *)result, buflen, "%d", format_type);
+}
+
+
+/**
+ * @param content_format:
+ *    content-format; one of COAP_MEDIATYPE_* values
+ * @returns:
+ *    1 if the given @p content_format is either unknown or known to carry binary data
+ *    0 if it is printable data which is also assumed if @p content_format is -1.
+ */
+COAP_STATIC_INLINE int
+is_binary(int content_format){
+    return !(
+        content_format == -1                                     ||
+        content_format == COAP_MEDIATYPE_TEXT_PLAIN              ||
+        content_format == COAP_MEDIATYPE_APPLICATION_LINK_FORMAT ||
+        content_format == COAP_MEDIATYPE_APPLICATION_XML         ||
+        content_format == COAP_MEDIATYPE_APPLICATION_JSON
+    );
 }

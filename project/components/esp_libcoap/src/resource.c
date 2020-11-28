@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-26 19:00:55
+ *  Modified time: 2020-11-28 14:58:55
  *  Description:
  *  Credits: 
  *
@@ -37,6 +37,12 @@
 #include "resource.h"
 #include "subscribe.h"
 #include "utlist.h"
+
+static int match(const coap_str_const_t *text, const coap_str_const_t *pattern, int match_prefix,int match_substring);
+static void coap_free_resource(coap_resource_t *resource);
+static coap_subscription_t *coap_find_observer_query(coap_resource_t *resource, coap_session_t *session, const coap_string_t *query);
+static void coap_notify_observers(coap_context_t *context, coap_resource_t *resource);
+static void coap_remove_failed_observer(coap_context_t *context, coap_resource_t *resource, coap_session_t *session, const coap_binary_t *token);
 
 
 /* -------------------------------------------- [Macrofeinitions] --------------------------------------------- */
@@ -107,99 +113,6 @@ static const uint8_t coap_unknown_resource_uri[] = "- Unknown -";
 
 
 /* ----------------------------------------------- [Functions] ------------------------------------------------ */
-
-/**
- * @brief: Finds @p pattern substring in the @p text. If @p match_prefix is true,
- *    function tries to match @p pattern as a prefix of the @p text. If @p match_substring
- *    is true (exclusively), function tries to match @p pattern as a substring
- *    of the @p text. If both are true, the @p match_prefix flag is taken into account.
- *    If bot are false, function checks whether @p pattern is equal to the @p text
- * 
- * @param text:
- *    text to be analysed
- * @param pattern:
- *    pattern to be found in @p text
- * @param match_prefix:
- * @param mmatch_substring:
- *    pair of flag used to establish what kind of substring should be searched;
- *      1) if (true & false): checks if @p pattern is a prefix of the @p text
- *      2) if (false & true): checks if @p pattern is any substring of the @p text
- *      3) if (false & false): checks if @p pattern is equal to @p text
- *      4) if (true & true): checks if @p pattern is a prefix of the @p text (same as 1)
- *    i.e. @p match_prefix is a dominant flag.
- * @return int:
- *    != 0 when pattern is found in @p text
- *    0 otherwise
- * 
- * @note: @p text is parsed word-wide, not byte-wide (i.e. it compares string with word shifts,
- *    not single-character shifts).
- * 
- * @note: Substrings' search is used to parse resources' attributes that can have a few value
- *    values simultaneously (separated with spaces). According to RFC 6690 relation-type ('rel')
- *    is this kind of attribute.
- */
-static int match(
-    const coap_str_const_t *text, 
-    const coap_str_const_t *pattern, 
-    int match_prefix,
-    int match_substring
-){
-    assert(text); assert(pattern);
-
-    // Pattern's length cannot be bigger than text's length. Searched @p text cannot be empty
-    if (text->length < pattern->length || text->length == 0)
-        return 0;
-
-    // Match substring
-    if (!match_prefix && match_substring) {
-
-        /**
-         * @brief: Initialize token (substring from the @p text) to be compared witch pattern
-         *    - token -> first byte of the token (word)
-         *    - next_token -> the first byte after the token (word)
-         */
-        size_t token_length;
-        const uint8_t *token, *next_token = text->s;
-        
-        // Iterate over whole @p text
-        size_t remaining_length = text->length;
-        while (remaining_length) {
-
-            token = next_token;
-
-            // Check if pattern was found
-            if (pattern->length <= remaining_length && memcmp(token, pattern->s, pattern->length) == 0)
-                return 1;
-
-            // Advance the token to the next space (next word)
-            next_token = (unsigned char *) memchr(token, ' ', remaining_length);
-
-            // If space was found
-            if (next_token) {
-
-                // Get a token's length
-                token_length = next_token - token;
-
-                // Update remaining length of the @p text (count the ' ')
-                remaining_length -= (token_length + 1);
-
-                // Forward end of the token by 1 byte (to the first byte of the next word)
-                next_token++;
-            } 
-            // If end of the text was reached
-            else 
-                return 0;
-        }
-
-        // In case when @p text is ended with ' '
-        return 0;
-    }
-
-    // Match prefix or the whole pattern
-    return (match_prefix || pattern->length == text->length) &&
-            memcmp(text->s, pattern->s, pattern->length) == 0;
-}
-
 
 coap_print_status_t coap_print_wellknown(
     coap_context_t *context, 
@@ -547,39 +460,6 @@ void coap_delete_attr(coap_attr_t *attr) {
 }
 
 
-static void coap_free_resource(coap_resource_t *resource) {
-
-    assert(resource);
-
-    coap_attr_t *attr, *tmp;
-
-    // Delete registered attributes
-    LL_FOREACH_SAFE(resource->link_attr, attr, tmp) 
-        coap_delete_attr(attr);
-
-    // Free allocated URI-Path
-    coap_delete_str_const(resource->uri_path);
-
-
-    coap_subscription_t *obs, *otmp;
-    
-    // Free all elements from resource->subscribers
-    LL_FOREACH_SAFE( resource->subscribers, obs, otmp ) {
-
-        // Release observer's session
-        coap_session_release(obs->session);
-
-        // Delete observer's query
-        if (obs->query)
-            coap_delete_string(obs->query);
-
-        // Free observer itself
-        coap_free(obs);
-    }
-
-    coap_free(resource);
-}
-
 void coap_add_resource(
     coap_context_t *context, 
     coap_resource_t *resource
@@ -771,29 +651,6 @@ coap_subscription_t *coap_find_observer(
 }
 
 
-static coap_subscription_t *coap_find_observer_query(
-    coap_resource_t *resource,
-    coap_session_t *session,
-    const coap_string_t *query
-) {
-    assert(resource);
-    assert(session);
-
-    coap_subscription_t *observer;
-    LL_FOREACH(resource->subscribers, observer) {
-        
-        bool session_match = observer->session == session;
-        bool query_match = (!query && !observer->query) || 
-            (query && observer->query && coap_string_equal(query, observer->query));
-        
-        if (session_match && query_match)
-            return observer;
-    }
-
-    return NULL;
-}
-
-
 coap_subscription_t *coap_add_observer(
     coap_resource_t *resource,
     coap_session_t *session,
@@ -958,6 +815,258 @@ void coap_delete_observers(
 }
 
 
+int coap_resource_notify_observers(
+    coap_resource_t *resource, 
+    const coap_string_t *query
+) {
+    if ( !resource->observable )
+        return 0;
+
+    // If query was given ... 
+    if (query) {
+
+        int found = 0;
+        coap_subscription_t *observer;
+        
+        // Iterate over all observers registered to the @p resource
+        LL_FOREACH(resource->subscribers, observer) {
+
+            bool query_exist = observer->query;
+            bool query_match_length = query_exist && observer->query->length;
+            bool query_match = query_match_length &&
+                memcmp(observer->query->s, query->s, query->length) == 0;
+
+            // If observer was found
+            if (query_match) {
+                
+                // Set the flag
+                found = 1;
+
+                // Conditionally, mark resource as partially dirty and the observer as dirty
+                if (resource->dirty == 0 && observer->dirty == 0) {
+                    observer->dirty = 1;
+                    resource->partiallydirty = 1;
+                }
+            }
+        }
+
+        if(!found) 
+            return 0;
+
+    // No query given ...
+    } else {
+        
+        // If resource is subscribed mark whole resource as notifications-requiring
+        if ( !resource->subscribers )
+            return 0;
+        resource->dirty = 1;
+    }
+
+    // Increment value for next Observe use (Observe value must be < 2^24)
+    resource->observe = (resource->observe + 1) & 0xFFFFFF;
+
+    return 1;
+}
+
+
+void coap_check_notify(coap_context_t *context) {
+    RESOURCES_ITER(context->resources, r)
+        coap_notify_observers(context, r);
+}
+
+
+void coap_handle_failed_notify(
+    coap_context_t *context,
+    coap_session_t *session,
+    const coap_binary_t *token
+) {
+    // Iterate over all resources to find the observer to be removed
+    RESOURCES_ITER(context->resources, resource) 
+        coap_remove_failed_observer(context, resource, session, token);
+}
+
+
+/* ------------------------------------------- [Static Functions] --------------------------------------------- */
+
+/**
+ * @brief: Finds @p pattern substring in the @p text. If @p match_prefix is true,
+ *    function tries to match @p pattern as a prefix of the @p text. If @p match_substring
+ *    is true (exclusively), function tries to match @p pattern as a substring
+ *    of the @p text. If both are true, the @p match_prefix flag is taken into account.
+ *    If bot are false, function checks whether @p pattern is equal to the @p text
+ * 
+ * @param text:
+ *    text to be analysed
+ * @param pattern:
+ *    pattern to be found in @p text
+ * @param match_prefix:
+ * @param mmatch_substring:
+ *    pair of flag used to establish what kind of substring should be searched;
+ *      1) if (true & false): checks if @p pattern is a prefix of the @p text
+ *      2) if (false & true): checks if @p pattern is any substring of the @p text
+ *      3) if (false & false): checks if @p pattern is equal to @p text
+ *      4) if (true & true): checks if @p pattern is a prefix of the @p text (same as 1)
+ *    i.e. @p match_prefix is a dominant flag.
+ * @return int:
+ *    != 0 when pattern is found in @p text
+ *    0 otherwise
+ * 
+ * @note: @p text is parsed word-wide, not byte-wide (i.e. it compares string with word shifts,
+ *    not single-character shifts).
+ * 
+ * @note: Substrings' search is used to parse resources' attributes that can have a few value
+ *    values simultaneously (separated with spaces). According to RFC 6690 relation-type ('rel')
+ *    is this kind of attribute.
+ */
+static int match(
+    const coap_str_const_t *text, 
+    const coap_str_const_t *pattern, 
+    int match_prefix,
+    int match_substring
+){
+    assert(text); assert(pattern);
+
+    // Pattern's length cannot be bigger than text's length. Searched @p text cannot be empty
+    if (text->length < pattern->length || text->length == 0)
+        return 0;
+
+    // Match substring
+    if (!match_prefix && match_substring) {
+
+        /**
+         * @brief: Initialize token (substring from the @p text) to be compared witch pattern
+         *    - token -> first byte of the token (word)
+         *    - next_token -> the first byte after the token (word)
+         */
+        size_t token_length;
+        const uint8_t *token, *next_token = text->s;
+        
+        // Iterate over whole @p text
+        size_t remaining_length = text->length;
+        while (remaining_length) {
+
+            token = next_token;
+
+            // Check if pattern was found
+            if (pattern->length <= remaining_length && memcmp(token, pattern->s, pattern->length) == 0)
+                return 1;
+
+            // Advance the token to the next space (next word)
+            next_token = (unsigned char *) memchr(token, ' ', remaining_length);
+
+            // If space was found
+            if (next_token) {
+
+                // Get a token's length
+                token_length = next_token - token;
+
+                // Update remaining length of the @p text (count the ' ')
+                remaining_length -= (token_length + 1);
+
+                // Forward end of the token by 1 byte (to the first byte of the next word)
+                next_token++;
+            } 
+            // If end of the text was reached
+            else 
+                return 0;
+        }
+
+        // In case when @p text is ended with ' '
+        return 0;
+    }
+
+    // Match prefix or the whole pattern
+    return (match_prefix || pattern->length == text->length) &&
+            memcmp(text->s, pattern->s, pattern->length) == 0;
+}
+
+
+/**
+ * @brief: Frees memory allocated on behalf of the @t coap_resource_t objecy.
+ * 
+ * @param resource:
+ *    resource to be freed
+ */
+static void coap_free_resource(coap_resource_t *resource) {
+
+    assert(resource);
+
+    coap_attr_t *attr, *tmp;
+
+    // Delete registered attributes
+    LL_FOREACH_SAFE(resource->link_attr, attr, tmp) 
+        coap_delete_attr(attr);
+
+    // Free allocated URI-Path
+    coap_delete_str_const(resource->uri_path);
+
+
+    coap_subscription_t *obs, *otmp;
+    
+    // Free all elements from resource->subscribers
+    LL_FOREACH_SAFE( resource->subscribers, obs, otmp ) {
+
+        // Release observer's session
+        coap_session_release(obs->session);
+
+        // Delete observer's query
+        if (obs->query)
+            coap_delete_string(obs->query);
+
+        // Free observer itself
+        coap_free(obs);
+    }
+
+    coap_free(resource);
+}
+
+
+/**
+ * @brief Finds an observer in the @p resource's observer list matching both @p session
+ *    obejct assigned and the @p query.
+ * 
+ * @param resource:
+ *    a resource that observer is subscribing to
+ * @param session:
+ *    session that observer's subscription is maintained with
+ * @param query:
+ *    observer's query
+ * @return:
+ *    observer's object on success
+ *    NULL on failure
+ */
+static coap_subscription_t *coap_find_observer_query(
+    coap_resource_t *resource,
+    coap_session_t *session,
+    const coap_string_t *query
+) {
+    assert(resource);
+    assert(session);
+
+    coap_subscription_t *observer;
+    LL_FOREACH(resource->subscribers, observer) {
+        
+        bool session_match = observer->session == session;
+        bool query_match = (!query && !observer->query) || 
+            (query && observer->query && coap_string_equal(query, observer->query));
+        
+        if (session_match && query_match)
+            return observer;
+    }
+
+    return NULL;
+}
+
+
+/**
+ * @brief: Notifies all possible observers of the @p resource registered in the given @p context.
+ *    Marks @p resource appropriately if some of them could not be notified.
+ * 
+ * @param context:
+ *    a context that @p resource was registered in
+ * @param resource:
+ *    a subscribed resource 
+ */
 static void coap_notify_observers(
     coap_context_t *context, 
     coap_resource_t *resource
@@ -1073,66 +1182,6 @@ static void coap_notify_observers(
 }
 
 
-int coap_resource_notify_observers(
-    coap_resource_t *resource, 
-    const coap_string_t *query
-) {
-    if ( !resource->observable )
-        return 0;
-
-    // If query was given ... 
-    if (query) {
-
-        int found = 0;
-        coap_subscription_t *observer;
-        
-        // Iterate over all observers registered to the @p resource
-        LL_FOREACH(resource->subscribers, observer) {
-
-            bool query_exist = observer->query;
-            bool query_match_length = query_exist && observer->query->length;
-            bool query_match = query_match_length &&
-                memcmp(observer->query->s, query->s, query->length) == 0;
-
-            // If observer was found
-            if (query_match) {
-                
-                // Set the flag
-                found = 1;
-
-                // Conditionally, mark resource as partially dirty and the observer as dirty
-                if (resource->dirty == 0 && observer->dirty == 0) {
-                    observer->dirty = 1;
-                    resource->partiallydirty = 1;
-                }
-            }
-        }
-
-        if(!found) 
-            return 0;
-
-    // No query given ...
-    } else {
-        
-        // If resource is subscribed mark whole resource as notifications-requiring
-        if ( !resource->subscribers )
-            return 0;
-        resource->dirty = 1;
-    }
-
-    // Increment value for next Observe use (Observe value must be < 2^24)
-    resource->observe = (resource->observe + 1) & 0xFFFFFF;
-
-    return 1;
-}
-
-
-void coap_check_notify(coap_context_t *context) {
-    RESOURCES_ITER(context->resources, r)
-        coap_notify_observers(context, r);
-}
-
-
 /**
  * @brief: Checks the failure counter for (peer, token) and removes peer from
  *    the list of observers for the given resource when COAP_OBS_MAX_FAIL
@@ -1205,15 +1254,4 @@ coap_remove_failed_observer(
             break;
         }
     }
-}
-
-
-void coap_handle_failed_notify(
-    coap_context_t *context,
-    coap_session_t *session,
-    const coap_binary_t *token
-) {
-    // Iterate over all resources to find the observer to be removed
-    RESOURCES_ITER(context->resources, resource) 
-        coap_remove_failed_observer(context, resource, session, token);
 }

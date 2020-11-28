@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-26 20:56:50
+ *  Modified time: 2020-11-28 16:32:36
  *  Description:
  * 
  *      File contains main API for CoAP's options creation, parsing and manipulation.
@@ -160,16 +160,6 @@ typedef uint16_t coap_opt_filter_t[COAP_OPT_FILTER_SIZE];
  * 
  * @endcode
  * 
- * @note: Functions, implementing mechanism for manipulating options' lists, was unnecessary
- *    written as if pointers to the list's nodes were stored as a contiguous array - functions
- *    takes @t coap_optlist_t** pointer. In fact there is no need for it, as @t coap_optlist_t
- *    is a forward-linked list (i.e. every element has a ->next pointer, to the next node in the
- *    list). The API was corrected, but keep in mind that it is no longer complaint with the
- *    standard libcoap API.
- * 
- * @note: for some reason original API of the @f coap_delete_optlist() has taken a regular
- *   @t coap_optlist_t*, by contrast to the rest of functions. Now, when an implementation 
- *   was corrected, the API is consistent.
  */
 typedef struct {
   
@@ -202,7 +192,7 @@ typedef struct {
  *    ... other set up code ...
  * 
  *    coap_insert_optlist(
- *        optlist_chain,
+ *        &optlist_chain,
  *        coap_new_optlist(
  *            COAP_OPTION_OBSERVE,
  *            COAP_OBSERVE_ESTABLISH,
@@ -210,7 +200,7 @@ typedef struct {
  *        )
  *    );
  * 
- *    coap_add_optlist_pdu(pdu, optlist_chain);
+ *    coap_add_optlist_pdu(pdu, &optlist_chain);
  * 
  *    ... other code ...
  * 
@@ -510,7 +500,7 @@ coap_optlist_t *coap_new_optlist(
  */
 int coap_add_optlist_pdu(
     coap_pdu_t *pdu,
-    coap_optlist_t* optlist
+    coap_optlist_t** optlist
 );
 
 /**
@@ -529,7 +519,7 @@ int coap_add_optlist_pdu(
  *    longer required.
  */
 int coap_insert_optlist(
-    coap_optlist_t *optlist,
+    coap_optlist_t **optlist,
     coap_optlist_t *optlist_node
 );
 

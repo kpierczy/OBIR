@@ -3,7 +3,7 @@
  *  Author: Jean-Claue Michelou
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-24 18:49:57
+ *  Modified time: 2020-11-28 14:42:13
  *  Description:
  *  Credits: 
  *
@@ -38,6 +38,8 @@
 #include "encode.h"
 #include <stdio.h>
 
+static coap_session_t *coap_session_create_client(coap_context_t *ctx, const coap_address_t *local_if, const coap_address_t *server);
+static coap_session_t *coap_make_session(coap_session_type_t type, const coap_address_t *local_if, const coap_address_t *local_addr, const coap_address_t *remote_addr, int ifindex, coap_context_t *context, coap_endpoint_t *endpoint );
 
 /* ----------------------------------------------- [Functions] ------------------------------------------------ */
 
@@ -124,56 +126,6 @@ void coap_session_set_app_data(coap_session_t *session, void *app_data) {
 void *coap_session_get_app_data(const coap_session_t *session){
     assert(session);
     return session->app;
-}
-
-static coap_session_t *coap_make_session(
-    coap_session_type_t type,
-    const coap_address_t *local_if, 
-    const coap_address_t *local_addr,
-    const coap_address_t *remote_addr, 
-    int ifindex, 
-    coap_context_t *context,
-    coap_endpoint_t *endpoint
-){
-    // Allocate memory for the session
-    coap_session_t *session = (coap_session_t*)coap_malloc(sizeof(coap_session_t));
-    if(!session)
-        return NULL;
-
-    // Clear session's memory
-    memset(session, 0, sizeof(*session));
-
-    // Fill basic fields of the session
-    session->type = type;
-    session->ifindex = ifindex;
-    session->context = context;
-    session->endpoint = endpoint;
-    session->max_retransmit = COAP_DEFAULT_MAX_RETRANSMIT;
-    session->ack_timeout = COAP_DEFAULT_ACK_TIMEOUT;
-    session->ack_random_factor = COAP_DEFAULT_ACK_RANDOM_FACTOR;
-    // Set session's addresses,if given
-    if(local_if)
-        coap_address_copy(&session->local_if, local_if);
-    else
-        coap_address_init(&session->local_if);
-    if(local_addr)
-        coap_address_copy(&session->local_addr, local_addr);
-    else
-        coap_address_init(&session->local_addr);
-    if(remote_addr)
-        coap_address_copy(&session->remote_addr, remote_addr);
-    else
-        coap_address_init(&session->remote_addr);
-    // Initialize MTU
-    if (endpoint)
-        session->mtu = endpoint->default_mtu;
-    else
-        session->mtu = COAP_DEFAULT_MTU;
-
-    // Initialize ID's of the sent message with a random value
-    prng((unsigned char *)&session->tx_mid, sizeof(session->tx_mid));
-
-    return session;
 }
 
 
@@ -524,72 +476,6 @@ coap_session_t *coap_endpoint_get_session(
     return session;
 }
 
-/**
- * @brief: Creates client-type session in the given context. Connects the session
- *    with the @p server address. If @p local_if is not NULL, the session's socket
- *    is bound to this address
- * 
- * @param ctx:
- *    context of the created session
- * @param local_if:
- *    local address to be bound with the session
- * @param server:
- *    remote server that the session will connect with
- * @returns:
- *    created session on success
- *    NULL on error
- */
-static coap_session_t *coap_session_create_client(
-    coap_context_t *ctx,
-    const coap_address_t *local_if,
-    const coap_address_t *server
-){
-    assert(server);
-
-    // Create a new session of the client type
-    coap_session_t *session = coap_make_session(
-        COAP_SESSION_TYPE_CLIENT, 
-        local_if, local_if, server,
-        0, ctx, NULL
-    );
-    if (!session)
-        goto error;
-
-    // Increment references counter on the session
-    coap_session_reference(session);
-
-    // Connect the session to the remote endpoint
-    int ret = coap_socket_connect(
-        &session->sock, 
-        &session->local_if, 
-        server,
-        COAP_DEFAULT_PORT, 
-        &session->local_addr, 
-        &session->remote_addr
-    );
-    if (!ret)
-        goto error;
-
-    // Set flags for the session's socket
-    session->sock.flags |= COAP_SOCKET_NOT_EMPTY | COAP_SOCKET_WANT_READ;    
-    if (local_if)
-        session->sock.flags |= COAP_SOCKET_BOUND;
-    session->state = COAP_SESSION_STATE_ESTABLISHED;
-    
-    // Set the timestamp on the session
-    coap_ticks(&session->last_rx_tx);
-
-    // Append session to the context's sessions list
-    LL_PREPEND(ctx->sessions, session);
-
-    return session;
-
-error:
-    // On fail, free the alocated session
-    coap_session_release(session);
-    return NULL;
-}
-
 
 coap_session_t *coap_new_client_session(
     struct coap_context_t *ctx,
@@ -768,3 +654,142 @@ const char *coap_endpoint_str(const coap_endpoint_t *endpoint) {
     return szEndpoint;
 }
 
+
+/* ------------------------------------------- [Static Functions] --------------------------------------------- */
+
+
+/**
+ * @brief: Creates a clear @t coap_session_t object with given parameters
+ * 
+ * @param type:
+ *    session's type
+ * @param local_if:
+ *    address of the local interface
+ * @param local_addr:
+ *    local address the session will be receiving on
+ * @param remote_addr:
+ *    remote address the session will be send to
+ * @param ifindex:
+ *    [?]
+ * @param context:
+ *    context the session belongs to
+ * @param endpoint:
+ *    edpoint the session belongs to 
+ * @return:
+ *    a new @t coap_session_t object
+ */
+static coap_session_t *coap_make_session(
+    coap_session_type_t type,
+    const coap_address_t *local_if, 
+    const coap_address_t *local_addr,
+    const coap_address_t *remote_addr, 
+    int ifindex, 
+    coap_context_t *context,
+    coap_endpoint_t *endpoint
+){
+    // Allocate memory for the session
+    coap_session_t *session = (coap_session_t*)coap_malloc(sizeof(coap_session_t));
+    if(!session)
+        return NULL;
+
+    // Clear session's memory
+    memset(session, 0, sizeof(*session));
+
+    // Fill basic fields of the session
+    session->type = type;
+    session->ifindex = ifindex;
+    session->context = context;
+    session->endpoint = endpoint;
+    session->max_retransmit = COAP_DEFAULT_MAX_RETRANSMIT;
+    session->ack_timeout = COAP_DEFAULT_ACK_TIMEOUT;
+    session->ack_random_factor = COAP_DEFAULT_ACK_RANDOM_FACTOR;
+    // Set session's addresses,if given
+    if(local_if)
+        coap_address_copy(&session->local_if, local_if);
+    else
+        coap_address_init(&session->local_if);
+    if(local_addr)
+        coap_address_copy(&session->local_addr, local_addr);
+    else
+        coap_address_init(&session->local_addr);
+    if(remote_addr)
+        coap_address_copy(&session->remote_addr, remote_addr);
+    else
+        coap_address_init(&session->remote_addr);
+    // Initialize MTU
+    if (endpoint)
+        session->mtu = endpoint->default_mtu;
+    else
+        session->mtu = COAP_DEFAULT_MTU;
+
+    // Initialize ID's of the sent message with a random value
+    prng((unsigned char *)&session->tx_mid, sizeof(session->tx_mid));
+
+    return session;
+}
+
+/**
+ * @brief: Creates client-type session in the given context. Connects the session
+ *    with the @p server address. If @p local_if is not NULL, the session's socket
+ *    is bound to this address
+ * 
+ * @param ctx:
+ *    context of the created session
+ * @param local_if:
+ *    local address to be bound with the session
+ * @param server:
+ *    remote server that the session will connect with
+ * @returns:
+ *    created session on success
+ *    NULL on error
+ */
+static coap_session_t *coap_session_create_client(
+    coap_context_t *ctx,
+    const coap_address_t *local_if,
+    const coap_address_t *server
+){
+    assert(server);
+
+    // Create a new session of the client type
+    coap_session_t *session = coap_make_session(
+        COAP_SESSION_TYPE_CLIENT, 
+        local_if, local_if, server,
+        0, ctx, NULL
+    );
+    if (!session)
+        goto error;
+
+    // Increment references counter on the session
+    coap_session_reference(session);
+
+    // Connect the session to the remote endpoint
+    int ret = coap_socket_connect(
+        &session->sock, 
+        &session->local_if, 
+        server,
+        COAP_DEFAULT_PORT, 
+        &session->local_addr, 
+        &session->remote_addr
+    );
+    if (!ret)
+        goto error;
+
+    // Set flags for the session's socket
+    session->sock.flags |= COAP_SOCKET_NOT_EMPTY | COAP_SOCKET_WANT_READ;    
+    if (local_if)
+        session->sock.flags |= COAP_SOCKET_BOUND;
+    session->state = COAP_SESSION_STATE_ESTABLISHED;
+    
+    // Set the timestamp on the session
+    coap_ticks(&session->last_rx_tx);
+
+    // Append session to the context's sessions list
+    LL_PREPEND(ctx->sessions, session);
+
+    return session;
+
+error:
+    // On fail, free the alocated session
+    coap_session_release(session);
+    return NULL;
+}

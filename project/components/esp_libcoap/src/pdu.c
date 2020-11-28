@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-26 16:53:53
+ *  Modified time: 2020-11-28 14:47:38
  *  Description:
  *  Credits: 
  *
@@ -43,6 +43,10 @@
 #include "encode.h"
 #include "pdu.h"
 #include "mem.h"
+
+static int coap_pdu_check_resize(coap_pdu_t *pdu, size_t size);
+static size_t coap_add_option_later_impl(coap_pdu_t *pdu, uint16_t type, size_t len, const uint8_t *data);
+static size_t next_option_safe(coap_opt_t **optp, size_t *length);
 
 
 /* -------------------------------------------- [Macrofeinitions] --------------------------------------------- */
@@ -230,48 +234,6 @@ int coap_pdu_resize(coap_pdu_t *pdu, size_t new_size) {
 }
 
 
-/**
- * @brief: Checks if @p bytes of data can be fitted into the @p pdu.
- *   If not, functions tries to expand the actual allocated region
- *   by factor 2^x. If it can be done so that @a max_size is not violated
- *   and @p size bytes can fit, the pdu is resized.
- * 
- * @param pdu:
- *    PDU to check 
- * @param size:
- *     desired size
- * @return
- *    1 on success
- *    0 on error
- */
-static 
-int coap_pdu_check_resize(coap_pdu_t *pdu, size_t size) {
-
-    // If data of size @p size cannot be fitted ...
-    if (size > pdu->alloc_size) {
-
-        // Find minimal suitable size for data
-        size_t new_size = max(256, pdu->alloc_size * 2);
-        while (size > new_size)
-            new_size *= 2;
-        
-        // Check if a new size doesn't violate a @a max_size
-        if (pdu->max_size && new_size > pdu->max_size) {
-            // If so, try to shrink size to @a max_size
-            new_size = pdu->max_size;
-            if (new_size < size)
-                return 0;
-        }
-
-        // If a suitable size was found, resize the PDU
-        if (!coap_pdu_resize(pdu, new_size))
-            return 0;
-    }
-    
-    return 1;
-}
-
-
 int coap_add_token(
     coap_pdu_t *pdu, 
     size_t len, 
@@ -303,70 +265,6 @@ int coap_add_token(
     pdu->data = NULL;
 
     return 1;
-}
-
-
-/**
- * @brief: implementation of the @f coap_add_option_later. The code is reused by the
- *    @f coap_add_option.
- * 
- * @param pdu:
- *    PDU to write option to
- * @param type:
- *    option's type
- * @param len:
- *    length of the option's value
- * @param data:
- *    option's value to be copied int option field
- * @returns:
- *     size of the encoded option on success
- *     0 on error
- */
-static
-size_t coap_add_option_later_impl(
-    coap_pdu_t *pdu, 
-    uint16_t type, 
-    size_t len, 
-    const uint8_t *data
-){
-
-    assert(pdu);
-
-    // Reset data pointer when an option is added
-    pdu->data = NULL;
-
-    // As options are delta-coded, an option with the code lower than the code of 
-    // the last option cannot be added
-    if (type < pdu->max_delta) {
-        coap_log(LOG_WARNING,
-                "coap_add_option: options are not in correct order\n");
-        return 0;
-    }
-
-    // Check if PDU has enough free space for the option and realloc if needed
-    if (!coap_pdu_check_resize(pdu, pdu->used_size + coap_opt_encode_size(type - pdu->max_delta, len)))
-        return 0;
-
-    // Initialize pointer to the new option
-    coap_opt_t *opt = pdu->token + pdu->used_size;
-
-    // Encode option and check length
-    size_t optsize = coap_opt_encode(
-        opt, pdu->alloc_size - pdu->used_size,
-        type - pdu->max_delta, len, data
-    );
-
-    // If an option could not be encoded, return error
-    if (optsize == 0) {
-        coap_log(LOG_WARNING, "coap_add_option: cannot add option\n");
-        return 0;
-    } 
-
-    // Otherwise, update @ max_delta and @ a used_size
-    pdu->max_delta = type;
-    pdu->used_size += (uint16_t) optsize;
-
-    return optsize;
 }
 
 
@@ -479,37 +377,6 @@ const char *coap_response_phrase(unsigned char code) {
 }
 
 #endif
-
-
-/**
- * @brief: Advances @p *optp to next option if still in PDU. 
- * 
- * @param optopt [in/out]:
- *    pointer to the option to be parsed
- * @param length:
- *    max option's length
- * @returns:
- *     the number of bytes @p *optopt has been advanced 
- *     @c 0 on error
- */
-static size_t next_option_safe(coap_opt_t **optp, size_t *length) {
-
-    assert(optp); assert(*optp);
-    assert(length);
-
-    // Parse the option into a @t coap_option_t structure
-    coap_option_t option;
-    size_t optsize = coap_opt_parse(*optp, *length, &option);
-
-    if(optsize == 0)
-        return 0;
-
-    // Advance pointers to the new values
-    *optp += optsize;
-    *length -= optsize;
-
-    return optsize;
-}
 
 
 int coap_pdu_parse_header(coap_pdu_t *pdu) {
@@ -647,4 +514,140 @@ void coap_pdu_encode_header(coap_pdu_t *pdu) {
     // Encode the third and the fourth bytes (message ID)
     header[2] = (uint8_t)(pdu->tid >> 8);
     header[3] = (uint8_t)(pdu->tid);
+}
+
+
+/* ------------------------------------------- [Static Functions] --------------------------------------------- */
+
+/**
+ * @brief: Checks if @p bytes of data can be fitted into the @p pdu.
+ *   If not, functions tries to expand the actual allocated region
+ *   by factor 2^x. If it can be done so that @a max_size is not violated
+ *   and @p size bytes can fit, the pdu is resized.
+ * 
+ * @param pdu:
+ *    PDU to check 
+ * @param size:
+ *     desired size
+ * @return
+ *    1 on success
+ *    0 on error
+ */
+static int coap_pdu_check_resize(coap_pdu_t *pdu, size_t size) {
+
+    // If data of size @p size cannot be fitted ...
+    if (size > pdu->alloc_size) {
+
+        // Find minimal suitable size for data
+        size_t new_size = max(256, pdu->alloc_size * 2);
+        while (size > new_size)
+            new_size *= 2;
+        
+        // Check if a new size doesn't violate a @a max_size
+        if (pdu->max_size && new_size > pdu->max_size) {
+            // If so, try to shrink size to @a max_size
+            new_size = pdu->max_size;
+            if (new_size < size)
+                return 0;
+        }
+
+        // If a suitable size was found, resize the PDU
+        if (!coap_pdu_resize(pdu, new_size))
+            return 0;
+    }
+    
+    return 1;
+}
+
+/**
+ * @brief: implementation of the @f coap_add_option_later. The code is reused by the
+ *    @f coap_add_option.
+ * 
+ * @param pdu:
+ *    PDU to write option to
+ * @param type:
+ *    option's type
+ * @param len:
+ *    length of the option's value
+ * @param data:
+ *    option's value to be copied int option field
+ * @returns:
+ *     size of the encoded option on success
+ *     0 on error
+ */
+static size_t coap_add_option_later_impl(
+    coap_pdu_t *pdu, 
+    uint16_t type, 
+    size_t len, 
+    const uint8_t *data
+){
+
+    assert(pdu);
+
+    // Reset data pointer when an option is added
+    pdu->data = NULL;
+
+    // As options are delta-coded, an option with the code lower than the code of 
+    // the last option cannot be added
+    if (type < pdu->max_delta) {
+        coap_log(LOG_WARNING,
+                "coap_add_option: options are not in correct order\n");
+        return 0;
+    }
+
+    // Check if PDU has enough free space for the option and realloc if needed
+    if (!coap_pdu_check_resize(pdu, pdu->used_size + coap_opt_encode_size(type - pdu->max_delta, len)))
+        return 0;
+
+    // Initialize pointer to the new option
+    coap_opt_t *opt = pdu->token + pdu->used_size;
+
+    // Encode option and check length
+    size_t optsize = coap_opt_encode(
+        opt, pdu->alloc_size - pdu->used_size,
+        type - pdu->max_delta, len, data
+    );
+
+    // If an option could not be encoded, return error
+    if (optsize == 0) {
+        coap_log(LOG_WARNING, "coap_add_option: cannot add option\n");
+        return 0;
+    } 
+
+    // Otherwise, update @ max_delta and @ a used_size
+    pdu->max_delta = type;
+    pdu->used_size += (uint16_t) optsize;
+
+    return optsize;
+}
+
+
+/**
+ * @brief: Advances @p *optp to next option if still in PDU. 
+ * 
+ * @param optopt [in/out]:
+ *    pointer to the option to be parsed
+ * @param length:
+ *    max option's length
+ * @returns:
+ *     the number of bytes @p *optopt has been advanced 
+ *     @c 0 on error
+ */
+static size_t next_option_safe(coap_opt_t **optp, size_t *length) {
+
+    assert(optp); assert(*optp);
+    assert(length);
+
+    // Parse the option into a @t coap_option_t structure
+    coap_option_t option;
+    size_t optsize = coap_opt_parse(*optp, *length, &option);
+
+    if(optsize == 0)
+        return 0;
+
+    // Advance pointers to the new values
+    *optp += optsize;
+    *length -= optsize;
+
+    return optsize;
 }

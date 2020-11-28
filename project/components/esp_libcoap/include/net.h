@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-23 11:30:06
+ *  Modified time: 2020-11-28 17:17:58
  *  Description:
  * 
  *      File contains base API related with the CoAP context stack manipulation.
@@ -194,7 +194,7 @@ typedef struct coap_context_t {
     // List of asynchronous transactions/
     struct coap_async_state_t *async_state;
 
-    // Queue of of sent packets (waiting for ACK)
+    // Queue of of sent packets (waiting for ACK) (retransmisssion queue)
     coap_queue_t *sendqueue;
     // Base time for time stamps of packets in a sendqueue
     coap_tick_t sendqueue_basetime;
@@ -295,32 +295,33 @@ void coap_delete_all(coap_queue_t *queue);
 coap_queue_t *coap_new_node(void);
 
 /**
- * @brief: Set sendqueue_basetime in the given context object @p ctx to @p now.
+ * @brief: Sets sendqueue_basetime in the given context object @p context to @p now.
  * 
-
+ * @param context:
+ *    CoAP context to be adjusted
  * @param now:
  *     current time
  * @returns:
- *    the number of elements in the queue head that have timed out.
+ *    the number of elements in the @pcontext->sendqueue that have timed out.
  */
-unsigned int coap_adjust_basetime(coap_context_t *ctx, coap_tick_t now);
+unsigned int coap_adjust_basetime(coap_context_t *context, coap_tick_t now);
 
 /**
- * @param ctx:
+ * @param context:
  *    context to be checked
  * @returns:
  *    the next pdu from the sedqueue if the queue is not empty
- *    NULL if @p ctx is null or sendqueue is empty
+ *    NULL if @p context is null or sendqueue is empty
  */
-coap_queue_t *coap_peek_next( coap_context_t *ctx );
+coap_queue_t *coap_peek_next( coap_context_t *context );
 
 /**
- * @param ctx:
+ * @param context:
  *    context to adjust basetime for 
  * @returns:
  *    the next pdu to send and removes it from the sendqeue.
  */
-coap_queue_t *coap_pop_next( coap_context_t *ctx );
+coap_queue_t *coap_pop_next( coap_context_t *context );
 
 /**
  * @brief: Creates a new @t coap_context_t object that will hold the CoAP stack status.
@@ -732,12 +733,12 @@ void coap_ticks(coap_tick_t *);
 
 /**
  * @brief: Verifies that @p pdu contains no unknown critical options. Options must be
- *    registered at @p ctx, using the function coap_register_option(). A basic set of options
+ *    registered at @p context, using the function coap_register_option(). A basic set of options
  *    is registered automatically by coap_new_context(). The given filter object @p unknown 
  *    will be updated with the unknown options. As only @c COAP_MAX_OPT options can be 
  *    signalled this way, remaining options must be examined manually.
  *
- * @param ctx:
+ * @param context:
  *    the context where all known options are registered
  * @param pdu:
  *    the PDU to check
@@ -754,7 +755,7 @@ void coap_ticks(coap_tick_t *);
  *   coap_opt_filter_t f = COAP_OPT_NONE;
  *   coap_opt_iterator_t opt_iter;
  *   
- *   if (coap_option_check_critical(ctx, pdu, f) == 0) {
+ *   if (coap_option_check_critical(context, pdu, f) == 0) {
  *     coap_option_iterator_init(pdu, &opt_iter, f);
  *   
  *     while (coap_option_next(&opt_iter)) {
@@ -767,7 +768,7 @@ void coap_ticks(coap_tick_t *);
  * @endcode
  */
 int coap_option_check_critical(
-    coap_context_t *ctx,
+    coap_context_t *context,
     coap_pdu_t *pdu,
     coap_opt_filter_t unknown
 );
@@ -803,12 +804,12 @@ coap_pdu_t *coap_wellknown_response(
  *
  * @param session:
  *    session timeout is associated with
- * @param r:
+ * @param random:
  *    random value as fractional part of a Q0.MAX_BITS fixed point value
  * @returns:
  *    COAP_TICKS_PER_SECOND * @p session->ack_timeout * (1 + (@p session->ack_random_factor - 1) * r)
  */
-unsigned int coap_calc_timeout(coap_session_t *session, unsigned char r);
+unsigned int coap_calc_timeout(coap_session_t *session, unsigned char random);
 
 
 /* ---------------------------------------- [Static-inline functions] ----------------------------------------- */
