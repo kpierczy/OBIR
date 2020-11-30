@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-26 19:02:16
+ *  Modified time: 2020-11-30 00:08:33
  *  Description:
  *  Credits: 
  *
@@ -47,16 +47,15 @@ unsigned int coap_opt_block_num(const coap_opt_t *block_opt) {
 
     // Get options' length
     uint16_t len = coap_opt_length(block_opt);
-    if (len == 0) {
-      return 0;
-    }
+    if (len == 0)
+        return 0;
 
     // Get upper 'len - 1' bytes of the option's value as an integer
     unsigned int num = 0;
     if (len > 1)
         num = coap_decode_var_bytes(coap_opt_value(block_opt), len - 1);
 
-    // Put 'num' and 4 upper bits of the least significant byte into single number (i.e block num)
+    // Put 'num' and 4 upper bits of the least significant byte into a single number (i.e block's num)
     return (num << 4) | ( (*COAP_OPT_BLOCK_LAST_BYTE(block_opt) & 0xF0) >> 4);
 }
 
@@ -115,7 +114,22 @@ int coap_write_block_opt(
     }
 
     // Compute free space that will be available for data in the pdu after writing an option
-    size_t available = pdu->max_size - pdu->used_size - 4;
+    size_t available = pdu->max_size - pdu->used_size - 2 - 1;
+    if(block->num < 0xf)
+        available -= 1;
+    else if(block->num < 0xfff)
+        available -= 2;
+    else
+        available -= 3;    
+
+    /**
+     * @note: In the statement before the if-else ladder, '-1' referes to the payload marker that
+     *    will be written to the PDU before data and '-2' is the max size of the Block2 option
+     *    header.
+     * 
+     * @note: The if-else ladder updates the available space with respect to the length of the
+     *    Block2 option value's length.
+     */
 
     // Check if entire block fits in message
     if (block_size <= available) {

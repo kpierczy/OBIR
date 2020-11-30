@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-21 16:32:46
+ *  Modified time: 2020-11-30 02:12:02
  *  Description:
  * 
  *      File contains header associated with CoAP session abstraction.
@@ -66,7 +66,7 @@ typedef struct coap_fixed_point_t coap_fixed_point_t;
  * @brief: possible values of @t coap_session_state_t type
  */
 #define COAP_SESSION_STATE_NONE        0
-#define COAP_SESSION_STATE_ESTABLISHED 4
+#define COAP_SESSION_STATE_ESTABLISHED 1
 
 /**
  * @brief: Number of seconds when to expect an ACK or a response to an outstanding
@@ -139,7 +139,7 @@ typedef struct coap_session_t {
     coap_session_type_t type;
     // Session's state (@see coap_session_state_t)
     coap_session_state_t state;
-    // Count of refferences to the session from queues [?]
+    // Count of refferences to the session from message queues
     unsigned ref;
 
     /* ----------------------- Session's parameters ------------------------------ */
@@ -159,20 +159,21 @@ typedef struct coap_session_t {
     int ifindex;
     // Local interface address (optional) [?]
     coap_address_t local_if;
+
     // Remote address and port
     coap_address_t remote_addr;
     // Local address and port
     coap_address_t local_addr;
     // Socket object for the session (if any)
-    coap_socket_t sock;               
+    coap_socket_t sock;
     // Session's endpoint [?]
-    struct coap_endpoint_t *endpoint; 
+    struct coap_endpoint_t *endpoint;
 
     /* -------------------------- Messages' info --------------------------------- */
 
     // The last message id that was used in this session
     uint16_t tx_mid;
-    // Active CON request sent [?][mid/tag ?]
+    // Counter of active CON request sent (waiting for the ACK message)
     uint8_t con_active;
 
     // List of delayed messages waiting to be sent
@@ -187,6 +188,8 @@ typedef struct coap_session_t {
 
     // Informations about incomplete incoming pdu [?]
     coap_pdu_t *partial_pdu;
+
+    // Session's timestamps
     coap_tick_t last_rx_tx;
     coap_tick_t last_tx_rst;
     coap_tick_t last_ping;
@@ -276,7 +279,10 @@ void coap_session_set_app_data(coap_session_t *session, void *data);
 void *coap_session_get_app_data(const coap_session_t *session);
 
 /**
- * @brief: Notify session that it has failed.
+ * @brief: Changes state of the session to COAP_SESSION_STATE_NONE. Cleans partial
+ *    PDU. Deletes observers associated with the session. Clears the delayqueue.
+ *    Delayed CON messages are put to the context's retransmittion queue if @p reason
+ *    is not COAP_NACK_RST.
  *
  * @param session:
  *    the CoAP session
@@ -286,7 +292,8 @@ void *coap_session_get_app_data(const coap_session_t *session);
 void coap_session_disconnected(coap_session_t *session, coap_nack_reason_t reason);
 
 /**
- * @brief: Notifies session that it has just connected or reconnected.
+ * @brief: Changes state of the session to COAP_SESSION_STATE_ESTABLISHED. Flushes
+ *    (i.e. tries to send) all of the packets put into the @p session->delayqueue.
  *
  * @param session:
  *    the CoAP session.
@@ -400,17 +407,17 @@ ssize_t coap_session_send_pdu(
 const char *coap_session_str(const coap_session_t *session);
 
 /**
- * @brief: Appends @p pdu to the end of the @p session's delayqueue. If pdu is currently
- *    scheduled for sending in the @p session->context's sendqueue pointed by @p node
- *    it is removed from it.
+ * @brief: Appends @p pdu to the end of the @p session's delayqueue or re-places the
+ *    @p node of the delayqueue.
  * 
  * @param session:
  *    session to delay PDU with
  * @param pdu:
- *    PDU to be delayed
+ *    if not NULL, PDU to be delayed
  * @param node [in/out]:
- *    if not NULL points to the entity in the @t coap_context_t->sendqueue
- *    if NULL will point to the created entity in the @p session->delayqueue
+ *    if not NULL points to the entity in the @t coap_context_t->sendqueue to be removed 
+ *    before delaying
+ *    if NULL and @p pdu is not NULL will point to the created entity in the @p session->delayqueue
  * @return ssize_t:
  *    @c COAP_PDU_DELAYED on success
  *    @c COAP_INVALID_TID when @p pdu->tid is already in the in the delayqueue

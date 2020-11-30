@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-26 00:42:37
+ *  Modified time: 2020-11-30 01:08:51
  *  Description:
  * 
  *      File contains API related to creation, analysis and manipulation CoAP PDUs (Protocol Data Units).
@@ -89,16 +89,6 @@ struct coap_session_t;
 #define COAP_MESSAGE_ACK 2 /* used to acknowledge confirmable messages */
 #define COAP_MESSAGE_RST 3 /* indicates error in received messages */
 
-// CoAP request methods
-#define COAP_REQUEST_GET    1
-#define COAP_REQUEST_POST   2
-#define COAP_REQUEST_PUT    3
-#define COAP_REQUEST_DELETE 4
-// (RFC 8132 :)
-#define COAP_REQUEST_FETCH  5
-#define COAP_REQUEST_PATCH  6
-#define COAP_REQUEST_IPATCH 7
-
 // The highest option number 
 #define COAP_MAX_OPT 65535 
 
@@ -133,6 +123,9 @@ struct coap_session_t;
 #define COAP_OPTION_SUBSCRIPTION \
     COAP_OPTION_OBSERVE
 
+// Maximum length of error phrase
+#define COAP_ERROR_PHRASE_LENGTH 32
+
 /* @note: Response codes are encoded to base 32, i.e. the three upper bits determine 
  *    the response class while the remaining five fine-grained information specific 
  *    to that class.
@@ -145,8 +138,15 @@ struct coap_session_t;
 // Encodes integer signaling code value into the 3-5 bits format
 #define COAP_SIGNALING_CODE(N) (((N)/100 << 5) | (N)%100)
 
-// Maximum length of error phrase
-#define COAP_ERROR_PHRASE_LENGTH 32
+// CoAP request methods
+#define COAP_REQUEST_GET    1
+#define COAP_REQUEST_POST   2
+#define COAP_REQUEST_PUT    3
+#define COAP_REQUEST_DELETE 4
+// (RFC 8132 :)
+#define COAP_REQUEST_FETCH  5
+#define COAP_REQUEST_PATCH  6
+#define COAP_REQUEST_IPATCH 7
 
 // PDUs' codes
 #define COAP_RESPONSE_200       COAP_RESPONSE_CODE(200)  /* 2.00 OK                       */
@@ -442,9 +442,7 @@ void coap_delete_pdu(coap_pdu_t *pdu);
  *    1 for success 
  *    0 on error
  */
-int coap_pdu_parse_header(
-    coap_pdu_t *pdu
-);
+int coap_pdu_parse_header(coap_pdu_t *pdu);
 
 /**
  * @brief: Verify consistency in the given CoAP PDU structure and locate the data.

@@ -3,7 +3,7 @@
  *  Author: Jean-Claue Michelou
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-28 14:42:13
+ *  Modified time: 2020-11-30 02:18:33
  *  Description:
  *  Credits: 
  *
@@ -259,9 +259,9 @@ ssize_t coap_session_delay_pdu(
     // If node has to be created ...
     else {
 
-        /**
-         * Check if the same tid is not getting re-used (it would be violation of RFC7252)
-         */
+        assert(pdu);
+
+        // Check if the same tid is not getting re-used (it would be violation of RFC7252)
         coap_queue_t *q = NULL;
         LL_FOREACH(session->delayqueue, q) {
             if (q->id == pdu->tid) {
@@ -321,12 +321,12 @@ void coap_session_connected(coap_session_t *session){
 
         // Get head of the queue of delayed packets
         coap_queue_t *q = session->delayqueue;
-        // If it's a CON message ...
+        // If it's a CON message (i.e. the one, that has to wait for an ACK message)...
         if (q->pdu->type == COAP_MESSAGE_CON){
-            // If no more active connections can be hanfled, break
+            // If no more active connections can be handled, break the send loop
             if(session->con_active >= COAP_DEFAULT_NSTART)
                 break;
-            // Else, increment counter of simultaneously hold connections
+            // Else, increment counter of simultaneously hold CON connections
             session->con_active++;
         }
 
@@ -391,7 +391,7 @@ void coap_session_disconnected(
             coap_session_str(session), q->id);
 
         // If peer didn't sent RST message and detached message was of the typ CON, put the message
-        // to the equeue of messages waiting for ACK 
+        // to the queue of messages waiting for ACK 
         if(q->pdu->type == COAP_MESSAGE_CON && reason != COAP_NACK_RST)
             if (coap_wait_ack(session->context, session, q) >= 0)
                 q = NULL;

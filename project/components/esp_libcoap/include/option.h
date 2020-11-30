@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-28 16:32:36
+ *  Modified time: 2020-11-29 22:59:44
  *  Description:
  * 
  *      File contains main API for CoAP's options creation, parsing and manipulation.
@@ -300,19 +300,19 @@ int coap_option_filter_unset(coap_opt_filter_t filter, uint16_t type);
 int coap_option_filter_get(coap_opt_filter_t filter, uint16_t type);
 
 /**
- * @brief: Initializes the given option iterator @p oi to point to the beginning of the
+ * @brief: Initializes the given option iterator @p opt_iter to point to the beginning of the
  *    @p pdu's option list.
  *
  * @param pdu:
  *    the PDU the options of which should be walked through
- * @param oi:
+ * @param opt_iter:
  *    an iterator object that will be initilized
  * @param filter:
  *    an optional option type filter. With @p type != @c COAP_OPT_ALL, coap_option_next()
  *    will return only options matching this bitmask. Fence-post options 14, 28, 42, ...
  *    are always skipped.
  * @returns:
- *    the iterator object @p oi on success
+ *    the iterator object @p opt_iter on success
  *    NULL on error (i.e. when no options exist)
  * 
  * @note: A length check on the option list must be performed before coap_option_iterator_init()
@@ -320,17 +320,17 @@ int coap_option_filter_get(coap_opt_filter_t filter, uint16_t type);
  */
 coap_opt_iterator_t *coap_option_iterator_init(
     const coap_pdu_t *pdu,
-    coap_opt_iterator_t *oi,
+    coap_opt_iterator_t *opt_iter,
     const coap_opt_filter_t filter
 );
 
 /**
- * @brief: Updates the iterator @p oi to point to the next option. The contents of @p oi will be
- *    updated. In particular, @c oi->n specifies the current option's ordinal number (counted from
- *    1), @p oi->type is the option's type code, and @p oi->option points to the beginning of the
- *    current option itself. When advanced past the last option, @p oi->option will be NULL.
+ * @brief: Updates the iterator @p opt_iter to point to the next option. The contents of @p opt_iter will be
+ *    updated. In particular, @c opt_iter->n specifies the current option's ordinal number (counted from
+ *    1), @p opt_iter->type is the option's type code, and @p opt_iter->option points to the beginning of the
+ *    current option itself. When advanced past the last option, @p opt_iter->option will be NULL.
  *
- * @param oi:
+ * @param opt_iter:
  *    the option iterator to update
  * @returns:
  *    the next option on success
@@ -340,10 +340,10 @@ coap_opt_iterator_t *coap_option_iterator_init(
  *    coap_option_iterator_init() are 0. Options with type codes that do not fit in this filter
  *    hence will always be returned.
  */
-coap_opt_t *coap_option_next(coap_opt_iterator_t *oi);
+coap_opt_t *coap_option_next(coap_opt_iterator_t *opt_iter);
 
 /**
- * @brief: Retrieves the first option of type @p type from @p pdu. @p oi must point to a
+ * @brief: Retrieves the first option of type @p type from @p pdu. @p opt_iter must point to a
  *    @t coap_opt_iterator_t object that will be initialized by this function to a filter only options
  *    with code @p type.
  *
@@ -351,7 +351,7 @@ coap_opt_t *coap_option_next(coap_opt_iterator_t *oi);
  *    the PDU to parse for options
  * @param type:
  *    the option type code to search for
- * @param oi:
+ * @param opt_iter:
  *    an iterator object to use
  * @returns:
  *    a pointer to the first option of type @p type
@@ -360,7 +360,7 @@ coap_opt_t *coap_option_next(coap_opt_iterator_t *oi);
 coap_opt_t *coap_check_option(
     coap_pdu_t *pdu,
     uint16_t type,
-    coap_opt_iterator_t *oi
+    coap_opt_iterator_t *opt_iter
 );
 
 /**
