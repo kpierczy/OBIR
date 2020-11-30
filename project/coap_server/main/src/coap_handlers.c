@@ -104,7 +104,6 @@ void resources_deinit(coap_context_t *context){
  * @brief Handler for GET request
  */
 void hnd_get(
-    coap_context_t *ctx,
     coap_resource_t *resource,
     coap_session_t *session, 
     coap_pdu_t *request,
@@ -114,7 +113,7 @@ void hnd_get(
 ){
 
     // Handle ' GET /time' request
-    if( resource == coap_get_resource_from_uri_path(ctx, coap_make_str_const("time")) ){
+    if( resource == coap_get_resource_from_uri_path(session->context, coap_make_str_const("time")) ){
         
         // Get currnt time
         time_t now;
@@ -141,7 +140,7 @@ void hnd_get(
         );
     }    
     // Handle ' GET /colour' request
-    if( resource == coap_get_resource_from_uri_path(ctx, coap_make_str_const("colour")) ){
+    if( resource == coap_get_resource_from_uri_path(session->context, coap_make_str_const("colour")) ){
         
         // Construct text from the resource
         char colour_buf[18];
@@ -166,7 +165,6 @@ void hnd_get(
  * @brief Handler for PUT request
  */
 void hnd_put(
-    coap_context_t *ctx,
     coap_resource_t *resource,
     coap_session_t *session,
     coap_pdu_t *request,
@@ -221,5 +219,9 @@ void hnd_put(
 
             data = (uint8_t *) endp;
         }
+
+        // Notify observers, if any
+        if(response->code == COAP_RESPONSE_CHANGED)        
+            coap_resource_notify_observers(resource, NULL);
     }
 }

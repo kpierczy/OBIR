@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-26 02:03:52
+ *  Modified time: 2020-11-30 21:51:55
  *  Description:
  * 
  *      File contains base API related to CoAP resources management.
@@ -147,14 +147,8 @@
 /* -------------------------------------------- [Data structures] --------------------------------------------- */
 
 /**
- 
- */
-
-/**
  * @brief: Message handler function for the @t coap_resource_t.
  * 
- * @param context:
- *    context associated with the resource
  * @param resource:
  *    resource associated with the request
  * @param session:
@@ -171,7 +165,6 @@
  * @see: @t coap_resource_t
  */
 typedef void (*coap_method_handler_t)(
-    coap_context_t  *context,
     struct coap_resource_t *resource,
     coap_session_t *session,
     coap_pdu_t *request,
@@ -565,15 +558,12 @@ coap_subscription_t *coap_find_observer(
 /**
  * @brief: Marks an observer as alive.
  *
- * @param context:
- *    the CoAP context to use
  * @param session:
  *    the observer's session
  * @param token:
  *    the corresponding token that has been used for the subscription.
  */
 void coap_touch_observer(
-    coap_context_t *context,
     coap_session_t *session,
     const coap_binary_t *token
 );
@@ -601,13 +591,10 @@ int coap_delete_observer(
 /**
  * @brief: Removes any subscription for @p session and releases the allocated storage.
  *
- * @param context:
- *    the CoAP context to use
  * @param session:
  *    the observer's session
  */
 void coap_delete_observers(
-    coap_context_t *context, 
     coap_session_t *session
 );
 
@@ -658,18 +645,15 @@ coap_print_status_t coap_print_wellknown(
 
 /**
  * @brief: Deals with observer's notification failure. Iterates over all resources in the 
- *    @p context and checks the failure counter for all (peer, token) tuples. Removes peer
+ *    @p session->context and checks the failure counter for all (peer, token) tuples. Removes peer
  *    from the list of observers for the given resource when COAP_OBS_MAX_FAIL is reached.
  * 
- * @param context:
- *    context to handle
  * @param session:
  *    session associated with the failed notification
  * @param token: 
  *    token identifying subscription that failed to notify
  */
 void coap_handle_failed_notify(
-    coap_context_t *context,
     coap_session_t *session,
     const coap_binary_t *token
 );

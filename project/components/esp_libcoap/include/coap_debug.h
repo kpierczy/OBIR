@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-20 10:35:06
+ *  Modified time: 2020-11-30 21:26:53
  *  Description:
  * 
  *      File contains API for intra-library logging and debugging mechanisms.
@@ -201,8 +201,11 @@ void coap_show_pdu(coap_log_t level, const coap_pdu_t *pdu);
  * @returns:
  *    the amount of bytes written into the buffer
  */
-size_t coap_print_addr(const struct coap_address_t *address,
-                       unsigned char *buffer, size_t size);
+size_t coap_print_addr(
+    const struct coap_address_t *address,
+    unsigned char *buffer, 
+    size_t size
+);
 
 /**
  * @brief: Set the packet loss level for testing.  This can be in one of two forms.

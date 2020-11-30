@@ -27,7 +27,6 @@ void resources_deinit(coap_context_t *context);
  * @param response 
  */
 void hnd_get(
-    coap_context_t *ctx,
     coap_resource_t *resource,
     coap_session_t *session, 
     coap_pdu_t *request,
@@ -48,7 +47,6 @@ void hnd_get(
  * @param response 
  */
 void hnd_put(
-    coap_context_t *ctx,
     coap_resource_t *resource,
     coap_session_t *session,
     coap_pdu_t *request,

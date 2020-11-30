@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-30 02:12:02
+ *  Modified time: 2020-12-01 00:20:38
  *  Description:
  * 
  *      File contains header associated with CoAP session abstraction.
@@ -53,7 +53,6 @@ typedef struct coap_fixed_point_t coap_fixed_point_t;
  */
 #define COAP_DEFAULT_SESSION_TIMEOUT 300
 #define COAP_PARTIAL_SESSION_TIMEOUT_TICKS (30 * COAP_TICKS_PER_SECOND)
-#define COAP_DEFAULT_MAX_HANDSHAKE_SESSIONS 100
 
 /**
  * @brief: possible values of @t coap_session_type_t type
@@ -155,11 +154,6 @@ typedef struct coap_session_t {
 
     /* ------------------------- Endpoints' info --------------------------------- */
 
-    // Interface index [?]
-    int ifindex;
-    // Local interface address (optional) [?]
-    coap_address_t local_if;
-
     // Remote address and port
     coap_address_t remote_addr;
     // Local address and port
@@ -176,25 +170,12 @@ typedef struct coap_session_t {
     // Counter of active CON request sent (waiting for the ACK message)
     uint8_t con_active;
 
-    // List of delayed messages waiting to be sent
+    // List of delayed messages waiting to be sent (only the CON messages can be delayed)
     struct coap_queue_t *delayqueue;
-
-    // Number of bytes already written from the pdu at the head of sendqueue (if > 0)
-    size_t partial_write;
-    // Buffpr for header of incoming message header
-    uint8_t read_header[8];
-    // Number of bytes already read for an incoming message (if > 0)
-    size_t partial_read;
-
-    // Informations about incomplete incoming pdu [?]
-    coap_pdu_t *partial_pdu;
 
     // Session's timestamps
     coap_tick_t last_rx_tx;
     coap_tick_t last_tx_rst;
-    coap_tick_t last_ping;
-    coap_tick_t last_pong;
-    coap_tick_t csm_tx;
     
 } coap_session_t;
 
@@ -336,9 +317,9 @@ size_t coap_session_max_pdu_size(const coap_session_t *session);
  *    a new CoAP session or NULL if failed. Call coap_session_release to free.
  */
 coap_session_t *coap_new_client_session(
-  struct coap_context_t *ctx,
-  const coap_address_t *local_if,
-  const coap_address_t *server
+    struct coap_context_t *ctx,
+    const coap_address_t *local_if,
+    const coap_address_t *server
 );
 
 /**
@@ -355,26 +336,6 @@ coap_session_t *coap_new_client_session(
  *    the number of bytes written on success, or a value less than zero on error.
  */
 ssize_t coap_session_send(
-    coap_session_t *session,
-    const uint8_t *data,
-    size_t datalen
-);
-
-/**
- * @brief: Function interface for stream data transmission. This function returns the number
- *    of bytes that have been transmitted, or a value less than zero on error. The number of
- *    bytes written may be less than datalen because of congestion control.
- *
- * @param session:
- *    session to send data on.
- * @param data:
- *    the data to send.
- * @param datalen:
- *    the actual length of @p data.
- * @returns:
- *    the number of bytes written on success, or a value less than zero on error.
- */
-ssize_t coap_session_write(
     coap_session_t *session,
     const uint8_t *data,
     size_t datalen
@@ -501,26 +462,6 @@ coap_session_t *coap_endpoint_get_session(
 );
 
 /**
- * @brief: Finds session object in the @p ctx->sessions basing on a given peer's
- *    address.
- * 
- * @param ctx:
- *    context associated with a session
- * @param remote_addr:
- *    peer's address
- * @param ifindex:
- *    session's interface
- * @returns:
- *    session found on sucess
- *    NULL on failure
- */
-coap_session_t *coap_session_get_by_peer(
-    struct coap_context_t *ctx,
-    const struct coap_address_t *remote_addr,
-    int ifindex
-);
-
-/**
  * @brief: Releases resources allocated by the library fo the session
  * 
  * @param session:
@@ -614,12 +555,12 @@ coap_fixed_point_t coap_session_get_ack_timeout(coap_session_t *session);
 coap_fixed_point_t coap_session_get_ack_random_factor(coap_session_t *session);
 
 /**
- * @brief: Send a ping message for the session.
+ * @brief: Sends a ping message for the session.
  * 
  * @param session:
- *    the CoAP session.
+ *    the CoAP session
  * @returns:
- *    COAP_INVALID_TID if there is an error
+ *    @c COAP_INVALID_TID if there is an error
  */
 coap_tid_t coap_session_send_ping(coap_session_t *session);
 

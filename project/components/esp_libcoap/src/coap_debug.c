@@ -226,111 +226,50 @@ void coap_show_pdu(coap_log_t level, const coap_pdu_t *pdu) {
         int encode;
 
         // Search through pdu codes and print desired values into 'buf'
-        switch(pdu->code){
-            case COAP_SIGNALING_CSM: // CSM
-                switch(opt_iter.type){
-                    case COAP_SIGNALING_OPTION_MAX_MESSAGE_SIZE:
-                        buf_len = 
-                            snprintf( (char *) buf, sizeof(buf), "%u",
-                                coap_decode_var_bytes(coap_opt_value(option), coap_opt_length(option))
-                            );
-                        break;
-                    default:
-                        buf_len = 0;
-                        break;
-                }
+        switch (opt_iter.type){
+            case COAP_OPTION_CONTENT_FORMAT:
+                content_format = (int)coap_decode_var_bytes(coap_opt_value(option), coap_opt_length(option));
+                buf_len = print_content_format(content_format, buf, sizeof(buf));
                 break;
 
-            case COAP_SIGNALING_PING: // PING
-            case COAP_SIGNALING_PONG: // PONG
-                buf_len = 0;
+            case COAP_OPTION_BLOCK1:
+            case COAP_OPTION_BLOCK2:
+                buf_len = 
+                    snprintf((char *)buf, sizeof(buf), "%u/%c/%u",
+                        coap_opt_block_num(option),              /* block number */
+                        COAP_OPT_BLOCK_MORE(option) ? 'M' : '_', /* M bit        */
+                        (1 << (COAP_OPT_BLOCK_SZX(option) + 4))  /* block size   */
+                    );
                 break;
 
-            case COAP_SIGNALING_RELEASE: // Release
-                switch(opt_iter.type){
-                    case COAP_SIGNALING_OPTION_ALTERNATIVE_ADDRESS:
-                        buf_len = print_readable(
-                                      coap_opt_value(option),
-                                      coap_opt_length(option),
-                                      buf, sizeof(buf), 0
-                                  );
-                        break;
-
-                    case COAP_SIGNALING_OPTION_HOLD_OFF:
-                        buf_len = 
-                            snprintf((char *)buf, sizeof(buf), "%u",
-                                coap_decode_var_bytes(coap_opt_value(option), coap_opt_length(option))
-                            );
-                        break;
-
-                    default:
-                        buf_len = 0;       
-                        break;
-                }
+            case COAP_OPTION_URI_PORT:
+            case COAP_OPTION_MAXAGE:
+            case COAP_OPTION_OBSERVE:
+            case COAP_OPTION_SIZE1:
+            case COAP_OPTION_SIZE2:
+                buf_len = 
+                    snprintf((char *)buf, sizeof(buf), "%u",
+                        coap_decode_var_bytes(coap_opt_value(option),
+                        coap_opt_length(option))
+                    );
                 break;
 
-            case COAP_SIGNALING_ABORT: // ABORT
-                switch(opt_iter.type){
-                    case COAP_SIGNALING_OPTION_BAD_CSM_OPTION:
-                        buf_len = 
-                            snprintf((char *)buf, sizeof(buf), "%u",
-                                coap_decode_var_bytes(coap_opt_value(option), coap_opt_length(option))
+            default:
+                if (opt_iter.type == COAP_OPTION_URI_PATH ||
+                    opt_iter.type == COAP_OPTION_PROXY_URI ||
+                    opt_iter.type == COAP_OPTION_URI_HOST ||
+                    opt_iter.type == COAP_OPTION_LOCATION_PATH ||
+                    opt_iter.type == COAP_OPTION_LOCATION_QUERY ||
+                    opt_iter.type == COAP_OPTION_URI_QUERY
+                ) 
+                    encode = 0;
+                else
+                    encode = 1;
+                buf_len = print_readable(
+                                coap_opt_value(option), 
+                                coap_opt_length(option),
+                                buf, sizeof(buf), encode
                             );
-                        break;
-                
-                    default:
-                        buf_len = 0;
-                        break;
-                }
-                break;
-
-            default: // Others
-                switch (opt_iter.type){
-                    case COAP_OPTION_CONTENT_FORMAT:
-                        content_format = (int)coap_decode_var_bytes(coap_opt_value(option), coap_opt_length(option));
-                        buf_len = print_content_format(content_format, buf, sizeof(buf));
-                        break;
-
-                    case COAP_OPTION_BLOCK1:
-                    case COAP_OPTION_BLOCK2:
-                        buf_len = 
-                            snprintf((char *)buf, sizeof(buf), "%u/%c/%u",
-                                coap_opt_block_num(option),              /* block number */
-                                COAP_OPT_BLOCK_MORE(option) ? 'M' : '_', /* M bit        */
-                                (1 << (COAP_OPT_BLOCK_SZX(option) + 4))  /* block size   */
-                            ); 
-
-                        break;
-
-                    case COAP_OPTION_URI_PORT:
-                    case COAP_OPTION_MAXAGE:
-                    case COAP_OPTION_OBSERVE:
-                    case COAP_OPTION_SIZE1:
-                    case COAP_OPTION_SIZE2:
-                        buf_len = 
-                            snprintf((char *)buf, sizeof(buf), "%u",
-                                coap_decode_var_bytes(coap_opt_value(option),
-                                coap_opt_length(option))
-                            );
-                        break;
-
-                    default:
-                        if (opt_iter.type == COAP_OPTION_URI_PATH ||
-                            opt_iter.type == COAP_OPTION_PROXY_URI ||
-                            opt_iter.type == COAP_OPTION_URI_HOST ||
-                            opt_iter.type == COAP_OPTION_LOCATION_PATH ||
-                            opt_iter.type == COAP_OPTION_LOCATION_QUERY ||
-                            opt_iter.type == COAP_OPTION_URI_QUERY
-                        ) 
-                            encode = 0;
-                        else
-                            encode = 1;
-                        buf_len = print_readable(
-                                      coap_opt_value(option), 
-                                      coap_opt_length(option),
-                                      buf, sizeof(buf), encode
-                                  );
-                }
                 break;
         }
 
@@ -709,15 +648,11 @@ const char *msg_type_string(uint16_t type){
 static const char *msg_code_string(uint16_t code){
 
     static const char *methods[] = { "0.00", "GET", "POST", "PUT", "DELETE", "FETCH", "PATCH", "iPATCH" };
-    static const char *signals[] = { "7.00", "CSM", "Ping", "Pong", "Release", "Abort" };
     static char buf[5];
 
     // Methode's code
     if (code < sizeof(methods)/sizeof(const char *))
         return methods[code];
-    // Response code
-    else if ((code & 0xe0) != 0  && (code & 0xe0) < (uint16_t)(sizeof(signals)/sizeof(const char *)))
-        return signals[code & 0xe0];
     // Unknown code
     else {
         snprintf(buf, sizeof(buf), "%u.%02u", code >> 5, code & 0x1f);
@@ -767,56 +702,14 @@ msg_option_string(uint8_t code, uint16_t option_type) {
         { COAP_OPTION_SIZE2, "Size2" },
         { COAP_OPTION_NORESPONSE, "No-Response" }
     };
-
-    // CSM options descriptions
-    static struct option_desc_t options_csm[] = {
-        { COAP_SIGNALING_OPTION_MAX_MESSAGE_SIZE, "Max-Message-Size" },
-        { COAP_SIGNALING_OPTION_BLOCK_WISE_TRANSFER, "Block-wise-Transfer" }
-    };
-
-    // Ping-pong options descriptions
-    static struct option_desc_t options_pingpong[] = {
-        { COAP_SIGNALING_OPTION_CUSTODY, "Custody" }
-    };
-
-    // Release options descriptions
-    static struct option_desc_t options_release[] = {
-        { COAP_SIGNALING_OPTION_ALTERNATIVE_ADDRESS, "Alternative-Address" },
-        { COAP_SIGNALING_OPTION_HOLD_OFF, "Hold-Off" }
-    };
-
-    // Abort options descriptions
-    static struct option_desc_t options_abort[] = {
-        { COAP_SIGNALING_OPTION_BAD_CSM_OPTION, "Bad-CSM-Option" }
-    };
     
     // Select options set depending on the actual code
     size_t options_num;
     struct option_desc_t *opts;
-    switch(code){
 
-        case COAP_SIGNALING_CSM:
-            options_num = sizeof(options_csm) / sizeof(struct option_desc_t);
-            opts = options_csm;
-            break;
-        case COAP_SIGNALING_PING:
-        case COAP_SIGNALING_PONG:
-            options_num = sizeof(options_pingpong) / sizeof(struct option_desc_t);
-            opts = options_pingpong;
-            break;
-        case COAP_SIGNALING_RELEASE:
-            options_num = sizeof(options_release) / sizeof(struct option_desc_t);
-            opts = options_release;
-            break;
-        case COAP_SIGNALING_ABORT:
-            options_num = sizeof(options_abort) / sizeof(struct option_desc_t);
-            opts = options_abort;
-            break;
-        default:
-            options_num = sizeof(options) / sizeof(struct option_desc_t);
-            opts = options;
-            break;
-    }
+    options_num = sizeof(options) / sizeof(struct option_desc_t);
+    opts = options;
+
 
     // Look for desired option's description
     for (size_t i = 0; i < options_num; i++)

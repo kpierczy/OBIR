@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-29 22:59:44
+ *  Modified time: 2020-11-30 22:10:58
  *  Description:
  * 
  *      File contains main API for CoAP's options creation, parsing and manipulation.
@@ -83,6 +83,40 @@
  */
 #define COAP_OPT_ALL NULL
 
+
+// The highest option number 
+#define COAP_MAX_OPT 65535 
+
+/*
+ * @brief: CoAP option types 
+ * 
+ * @note: Be sure to update coap_option_check_critical() when adding options
+ */
+#define COAP_OPTION_IF_MATCH        1 /* C,     opaque,     0-8 B, (none)                         */
+#define COAP_OPTION_URI_HOST        3 /* C,     String,   1-255 B,  destination address           */
+#define COAP_OPTION_ETAG            4 /* E,     opaque,     1-8 B, (none)                         */
+#define COAP_OPTION_IF_NONE_MATCH   5 /* -,      empty,       0 B, (none)                         */
+#define COAP_OPTION_URI_PORT        7 /* C,       uint,     0-2 B,  destination port              */
+#define COAP_OPTION_LOCATION_PATH   8 /* E,     String,   0-255 B,  -                             */
+#define COAP_OPTION_URI_PATH       11 /* C,     String,   0-255 B, (none)                         */
+#define COAP_OPTION_CONTENT_FORMAT 12 /* E,       uint,     0-2 B, (none)                         */
+#define COAP_OPTION_MAXAGE         14 /* E,       uint,    0--4 B,  60 Seconds                    */
+#define COAP_OPTION_URI_QUERY      15 /* C,     String,   1-255 B, (none)                         */
+#define COAP_OPTION_ACCEPT         17 /* C,       uint,     0-2 B, (none)                         */
+#define COAP_OPTION_LOCATION_QUERY 20 /* E,     String,   0-255 B, (none)                         */
+#define COAP_OPTION_SIZE2          28 /* E,       uint,     0-4 B, (none)                         */
+#define COAP_OPTION_PROXY_URI      35 /* C,     String,  1-1034 B, (none)                         */
+#define COAP_OPTION_PROXY_SCHEME   39 /* C,     String,   1-255 B, (none)                         */
+#define COAP_OPTION_SIZE1          60 /* E,       uint,     0-4 B, (none)                         */
+#define COAP_OPTION_OBSERVE         6 /* E, empty/uint, 0 B/0-3 B, (none)              (RFC 7641) */
+#define COAP_OPTION_BLOCK2         23 /* C,       uint,    0--3 B, (none)              (RFC 7959) */
+#define COAP_OPTION_BLOCK1         27 /* C,       uint,    0--3 B, (none)              (RFC 7959) */
+#define COAP_OPTION_NORESPONSE    258 /* N,       uint,    0--1 B,  0                  (RFC 7967) */
+// Synonymous options
+#define COAP_OPTION_CONTENT_TYPE \
+    COAP_OPTION_CONTENT_FORMAT
+#define COAP_OPTION_SUBSCRIPTION \
+    COAP_OPTION_OBSERVE
 
 /* -------------------------------------------- [Data structures] --------------------------------------------- */
 

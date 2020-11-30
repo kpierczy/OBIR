@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-26 19:03:15
+ *  Modified time: 2020-11-30 21:26:20
  *  Description:
  * 
  *      File contains API of the block-wise CoAP transfers described in [RFC7959] document.
@@ -199,15 +199,17 @@ int coap_add_block(
  *
  */
 void
-coap_add_data_blocked_response(struct coap_resource_t *resource,
-                               struct coap_session_t *session,
-                               coap_pdu_t *request,
-                               coap_pdu_t *response,
-                               const coap_binary_t *token,
-                               uint16_t media_type,
-                               int maxage,
-                               size_t length,
-                               const uint8_t* data);
+coap_add_data_blocked_response(
+    struct coap_resource_t *resource,
+    struct coap_session_t *session,
+    coap_pdu_t *request,
+    coap_pdu_t *response,
+    const coap_binary_t *token,
+    uint16_t media_type,
+    int maxage,
+    size_t length,
+    const uint8_t* data
+);
 
 
 /* ---------------------------------------- [Static-inline functions] ----------------------------------------- */

@@ -23,7 +23,6 @@
 #include "async.h"
 #include "bits.h"
 #include "block.h"
-#include "coap_event.h"
 #include "coap_io.h"
 #include "coap_time.h"
 #include "coap_debug.h"

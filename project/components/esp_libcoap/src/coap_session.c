@@ -3,7 +3,7 @@
  *  Author: Jean-Claue Michelou
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-30 02:18:33
+ *  Modified time: 2020-12-01 00:22:39
  *  Description:
  *  Credits: 
  *
@@ -39,7 +39,7 @@
 #include <stdio.h>
 
 static coap_session_t *coap_session_create_client(coap_context_t *ctx, const coap_address_t *local_if, const coap_address_t *server);
-static coap_session_t *coap_make_session(coap_session_type_t type, const coap_address_t *local_if, const coap_address_t *local_addr, const coap_address_t *remote_addr, int ifindex, coap_context_t *context, coap_endpoint_t *endpoint );
+static coap_session_t *coap_make_session(coap_session_type_t type, const coap_address_t *local_addr, const coap_address_t *remote_addr, coap_context_t *context, coap_endpoint_t *endpoint );
 
 /* ----------------------------------------------- [Functions] ------------------------------------------------ */
 
@@ -133,9 +133,6 @@ void coap_session_mfree(coap_session_t *session){
 
     coap_queue_t *q, *tmp;
 
-    // Free incomplete pdu
-    if (session->partial_pdu)
-        coap_delete_pdu(session->partial_pdu);
     // Close used socket
     if (session->sock.flags != COAP_SOCKET_EMPTY)
         coap_socket_close(&session->sock);
@@ -218,25 +215,6 @@ ssize_t coap_session_send(
 }
 
 
-ssize_t coap_session_write(
-    coap_session_t *session, 
-    const uint8_t *data, 
-    size_t datalen
-){
-    // Write data to the socket
-    ssize_t bytes_written = coap_socket_write(&session->sock, data, datalen);
-
-    // Log informations about session's transaction
-    if (bytes_written > 0) {
-        coap_ticks(&session->last_rx_tx);
-        coap_log(LOG_DEBUG, "*  %s: sent %zd bytes\n", coap_session_str(session), datalen);
-    } else if (bytes_written < 0)
-        coap_log(LOG_DEBUG,  "*   %s: failed to send %zd bytes\n", coap_session_str(session), datalen );
-
-    return bytes_written;
-}
-
-
 ssize_t coap_session_delay_pdu(
     coap_session_t *session, 
     coap_pdu_t *pdu,
@@ -279,7 +257,7 @@ ssize_t coap_session_delay_pdu(
         node->id = pdu->tid;
         node->pdu = pdu;
 
-        // If PDU is a CON message, set a random timeout for the aknowledge
+        // If PDU is a CON message, set a random timeout for the ACK
         if (pdu->type == COAP_MESSAGE_CON) {
             uint8_t r;
             prng(&r, sizeof(r));
@@ -302,7 +280,7 @@ coap_tid_t coap_session_send_ping(coap_session_t *session){
         return 0;
 
     // Create PING packet
-    coap_pdu_t *ping = coap_pdu_init(COAP_MESSAGE_CON, COAP_SIGNALING_PING, 0, 1);
+    coap_pdu_t *ping = coap_pdu_init(COAP_MESSAGE_CON, COAP_RESPONSE_EMPTY, 0, 1);
     if (!ping)
         return COAP_INVALID_TID;
 
@@ -315,7 +293,6 @@ void coap_session_connected(coap_session_t *session){
 
     // Mark session as connected
     session->state = COAP_SESSION_STATE_ESTABLISHED;
-    session->partial_write = 0;
 
     while(session->delayqueue && session->state == COAP_SESSION_STATE_ESTABLISHED){
 
@@ -344,7 +321,7 @@ void coap_session_connected(coap_session_t *session){
 
         // If the sent message was of the CON type (waits for ACK), put it's node into context's sendqueue
         if (q->pdu->type == COAP_MESSAGE_CON){
-            if (coap_wait_ack(session->context, session, q) >= 0)
+            if (coap_wait_ack(session, q) >= 0)
                 q = NULL;
             // If invalid TID was set to the PDU, delete it
             else
@@ -364,19 +341,10 @@ void coap_session_disconnected(
             coap_session_str(session), reason);
 
     // Every Obervation relationship has a dedicated active sesion; delate it in such case
-    coap_delete_observers( session->context, session );
+    coap_delete_observers(session);
 
     // Mark session's state
     session->state = COAP_SESSION_STATE_NONE;
-
-    // Any partial PDU associated with the connection should be deleted
-    if (session->partial_pdu){
-        coap_delete_pdu(session->partial_pdu);
-        session->partial_pdu = NULL;
-    }
-
-    // Cancel all partial reads
-    session->partial_read = 0;
 
     // Iterate over all delayed messages
     while (session->delayqueue) {
@@ -393,7 +361,7 @@ void coap_session_disconnected(
         // If peer didn't sent RST message and detached message was of the typ CON, put the message
         // to the queue of messages waiting for ACK 
         if(q->pdu->type == COAP_MESSAGE_CON && reason != COAP_NACK_RST)
-            if (coap_wait_ack(session->context, session, q) >= 0)
+            if (coap_wait_ack(session, q) >= 0)
                 q = NULL;
         // If message could not be added to the ACK-waiting queue ...
         if(q != NULL){
@@ -426,8 +394,7 @@ coap_session_t *coap_endpoint_get_session(
     LL_FOREACH(endpoint->sessions, session){
 
         // If @p packet can be unambiguously associated with a session, refresh session's time stamp
-        if (session->ifindex == packet->ifindex &&
-            coap_address_equals(&session->local_addr, &packet->dst) &&
+        if (coap_address_equals(&session->local_addr, &packet->dst) &&
             coap_address_equals(&session->remote_addr, &packet->src)
         ){
             session->last_rx_tx = now;
@@ -458,8 +425,7 @@ coap_session_t *coap_endpoint_get_session(
     // Create a new session for the endpoint
     session = coap_make_session(
         COAP_SESSION_TYPE_SERVER,
-        NULL, &packet->dst, &packet->src, 
-        packet->ifindex, 
+        &packet->dst, &packet->src, 
         endpoint->context,
         endpoint
     );
@@ -478,12 +444,14 @@ coap_session_t *coap_endpoint_get_session(
 
 
 coap_session_t *coap_new_client_session(
-    struct coap_context_t *ctx,
+    struct coap_context_t *context,
     const coap_address_t *local_if,
     const coap_address_t *server
 ){
+    assert(context);
+    
     // Create a new session, connect it to the @p server and bound with the @p local_if
-    coap_session_t *session = coap_session_create_client(ctx, local_if, server);
+    coap_session_t *session = coap_session_create_client(context, local_if, server);
     if (session)
         coap_log(LOG_DEBUG, "***%s: new outgoing session\n", coap_session_str(session));
     
@@ -508,7 +476,6 @@ coap_endpoint_t *coap_new_endpoint(
 
     // Cleanup memory of the endpoint
     memset(ep, 0, sizeof(struct coap_endpoint_t));
-
 
     ep->context = context;
 
@@ -576,31 +543,6 @@ void coap_free_endpoint(coap_endpoint_t *ep){
 }
 
 
-coap_session_t *coap_session_get_by_peer(
-    coap_context_t *ctx,
-    const coap_address_t *remote_addr,
-    int ifindex
-){
-
-    // Look for the session in the context's sessions list
-    coap_session_t *s;
-    LL_FOREACH(ctx->sessions, s) {
-        if (s->ifindex == ifindex && coap_address_equals(&s->remote_addr, remote_addr))
-            return s;
-    }
-
-    // Look for the session in the sessions list of all endpoint registered in the context
-    coap_endpoint_t *ep;
-    LL_FOREACH(ctx->endpoint, ep) {
-        LL_FOREACH(ep->sessions, s) {
-            if (s->ifindex == ifindex && coap_address_equals(&s->remote_addr, remote_addr))
-                return s;
-        }
-    }
-    return NULL;
-}
-
-
 const char *coap_session_str(const coap_session_t *session) {
     
     static char szSession[256];
@@ -621,10 +563,6 @@ const char *coap_session_str(const coap_session_t *session) {
         if (coap_print_addr(&session->remote_addr, (unsigned char*)start, end - start) > 0)
             start += strlen(start);
     }
-
-    // Write index of the net interface
-    if (session->ifindex > 0 && start < end - 1)
-        start += snprintf(start, end - start, " (if%d)", session->ifindex);
     
     // Write name of the transport layter protocol 
     if (start + 6 < end) {
@@ -663,14 +601,10 @@ const char *coap_endpoint_str(const coap_endpoint_t *endpoint) {
  * 
  * @param type:
  *    session's type
- * @param local_if:
- *    address of the local interface
  * @param local_addr:
  *    local address the session will be receiving on
  * @param remote_addr:
  *    remote address the session will be send to
- * @param ifindex:
- *    [?]
  * @param context:
  *    context the session belongs to
  * @param endpoint:
@@ -680,13 +614,13 @@ const char *coap_endpoint_str(const coap_endpoint_t *endpoint) {
  */
 static coap_session_t *coap_make_session(
     coap_session_type_t type,
-    const coap_address_t *local_if, 
     const coap_address_t *local_addr,
     const coap_address_t *remote_addr, 
-    int ifindex, 
     coap_context_t *context,
     coap_endpoint_t *endpoint
 ){
+    assert(context);
+
     // Allocate memory for the session
     coap_session_t *session = (coap_session_t*)coap_malloc(sizeof(coap_session_t));
     if(!session)
@@ -697,17 +631,12 @@ static coap_session_t *coap_make_session(
 
     // Fill basic fields of the session
     session->type = type;
-    session->ifindex = ifindex;
     session->context = context;
     session->endpoint = endpoint;
     session->max_retransmit = COAP_DEFAULT_MAX_RETRANSMIT;
     session->ack_timeout = COAP_DEFAULT_ACK_TIMEOUT;
     session->ack_random_factor = COAP_DEFAULT_ACK_RANDOM_FACTOR;
     // Set session's addresses,if given
-    if(local_if)
-        coap_address_copy(&session->local_if, local_if);
-    else
-        coap_address_init(&session->local_if);
     if(local_addr)
         coap_address_copy(&session->local_addr, local_addr);
     else
@@ -744,17 +673,18 @@ static coap_session_t *coap_make_session(
  *    NULL on error
  */
 static coap_session_t *coap_session_create_client(
-    coap_context_t *ctx,
+    coap_context_t *context,
     const coap_address_t *local_if,
     const coap_address_t *server
 ){
+    assert(context);
     assert(server);
 
     // Create a new session of the client type
     coap_session_t *session = coap_make_session(
         COAP_SESSION_TYPE_CLIENT, 
-        local_if, local_if, server,
-        0, ctx, NULL
+        local_if, server,
+        context, NULL
     );
     if (!session)
         goto error;
@@ -765,7 +695,7 @@ static coap_session_t *coap_session_create_client(
     // Connect the session to the remote endpoint
     int ret = coap_socket_connect(
         &session->sock, 
-        &session->local_if, 
+        &session->local_addr, 
         server,
         COAP_DEFAULT_PORT, 
         &session->local_addr, 
@@ -784,7 +714,7 @@ static coap_session_t *coap_session_create_client(
     coap_ticks(&session->last_rx_tx);
 
     // Append session to the context's sessions list
-    LL_PREPEND(ctx->sessions, session);
+    LL_PREPEND(context->sessions, session);
 
     return session;
 

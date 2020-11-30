@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-20 13:46:52
+ *  Modified time: 2020-12-01 00:06:12
  *  Description:
  * 
  *       File contains basic IO interface declaration for the library.
@@ -70,19 +70,14 @@ void coap_mfree_endpoint( struct coap_endpoint_t *ep );
 #define COAP_SOCKET_BOUND        0x0002  /**< the socket is bound */
 #define COAP_SOCKET_CONNECTED    0x0004  /**< the socket is connected */
 #define COAP_SOCKET_WANT_READ    0x0010  /**< non blocking socket is waiting for reading */
-#define COAP_SOCKET_WANT_WRITE   0x0020  /**< non blocking socket is waiting for writing */
-
 #define COAP_SOCKET_CAN_READ     0x0100  /**< non blocking socket can now read without blocking */
-#define COAP_SOCKET_CAN_WRITE    0x0200  /**< non blocking socket can now write without blocking */
-
 #define COAP_SOCKET_MULTICAST    0x1000  /**< socket is used for multicast communication */
 
 /**
- * @brief: Macro implemented for future usage
+ * @brief: Max number of the sockets' file descriptors observed by the select()
+ *    call in the coap_run_once()
  */
-#ifndef coap_mcast_interface
-# define coap_mcast_interface(Local) 0
-#endif
+#define COAP_MAX_SOCKET_OBSERVED 64
 
 /* -------------------------------------------- [Data structures] --------------------------------------------- */
 
@@ -118,8 +113,6 @@ typedef struct coap_packet_t {
     coap_address_t src;
     // Destination address of the packet
     coap_address_t dst;
-    // Index of the net interface
-    int ifindex;
 
     // Buffer storing packet's payload
     unsigned char payload[COAP_RXBUFFER_SIZE];
@@ -206,7 +199,7 @@ void coap_socket_close(coap_socket_t *sock);
 
 
 /**
- * @brief: Sends datato the remote address associated with @p session. Uses system socket associated
+ * @brief: Sends data to the remote address associated with @p session. Uses system socket associated
  *    with @p sock as an interface.
  * 
  *    Internally uses network_send() method associated with the context that @p session is assigned to.
@@ -230,52 +223,7 @@ ssize_t coap_socket_send(
 );
 
 /**
- * @brief: Sends packet to the system socket associated with @p sock. The system socket,
- *    even UDP one, needs to be 'connected' as function uses internally send(), no sendto().
- * 
- * @param sock:
- *    socket associated with system socket to write to
- * @param data:
- *    buffer with outcoming data
- * @param data_len:
- *    size of the buffer
- * @return ssize_t:
- *    number of bytes sent
- *    0 when the next attempt to send is required
- *    value lesser than 0 on error
- */
-ssize_t coap_socket_write(
-    coap_socket_t *sock,
-    const uint8_t *data,
-    size_t data_len
-);
-
-
-/**
- * @brief: Recieves packet from the system socket associated with @p sock. The system socket,
- *    even UDP one, needs to be 'connected' as function uses internally recv(), no recvfrom().
- * 
- * @param sock:
- *    socket associated with system socket to read from
- * @param data [out]:
- *    buffer for incoming data
- * @param data_len:
- *    size of the buffer
- * @return ssize_t:
- *    number of received bytes to the buffer
- *    0 when any data was not received by the socket (non-blocking mode), timeout has expired
- *    (blocking-mode) or interrupt signal was sent before receiving started
- *    < 0  on error
- */
-ssize_t
-coap_socket_read(
-    coap_socket_t *sock,
-    uint8_t *data,
-    size_t data_len
-);
-
-/**
- * @brief: Main interface for data transmission. Sends data to the remote address associated 
+ * @brief: Low level interface for data transmission. Sends data to the remote address associated 
  *    with @p session. Uses system socket associated with @p sock as an interface.
  *
  * @param sock:
@@ -297,8 +245,8 @@ ssize_t coap_network_send(
 );
 
 /**
- * @rief: Main interface reading data. Reads data from the system socket associated with @p sock
- *    and puts it into @p packet. If system socket is not connected, data is read from 
+ * @rief: Low level interface fo reading data. Reads data from the system socket associated with
+ *    @p sock and puts it into @p packet. If system socket is not connected, data is read from 
  *    @p packet->src address. 
  *
  * @param sock:
@@ -319,23 +267,6 @@ ssize_t coap_network_read(
  * @returns: current @v errno value in the humman-readable form
  */
 const char *coap_socket_strerror( void );
-
-/**
- * @brief: Given a packet, set msg and msg_len to an address and length of the packet's
- *    data in memory.
- * 
- * @param packet:
- *    packet to inspect
- * @param address [out]:
- *    pointer to the pointer do the packet's payload
- * @param length [out]:
- *    pointer to the packet's length
- */
-void coap_packet_get_memmapped(
-    struct coap_packet_t *packet,
-    unsigned char **address,
-    size_t *length
-);
 
 /**
  * @brief: Sets packet's src and dst addresses to values given with @p src and @p dst.

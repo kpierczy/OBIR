@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-24 13:00:39
+ *  Modified time: 2020-12-01 00:07:33
  *  Description:
  *  Credits: 
  *
@@ -141,9 +141,7 @@ int coap_socket_bind_udp(
     // Get local address bound with the socket by the system
     bound_addr->size = (socklen_t)sizeof(*bound_addr);
     if (getsockname(sock->fd, &bound_addr->addr.sa, &bound_addr->size) < 0) {
-        coap_log(LOG_WARNING,
-                "coap_socket_bind_udp: getsockname: %s\n",
-                coap_socket_strerror());
+        coap_log(LOG_WARNING, "coap_socket_bind_udp: getsockname: %s\n", coap_socket_strerror());
         goto error;
     }
 
@@ -295,46 +293,6 @@ void coap_socket_close(coap_socket_t *sock){
 }
 
 
-ssize_t coap_socket_write(
-    coap_socket_t *sock, 
-    const uint8_t *data, 
-    size_t data_len
-){
-
-    // Set socket's flags which will denote the fact that it has been already  written
-    sock->flags &= ~(COAP_SOCKET_WANT_WRITE | COAP_SOCKET_CAN_WRITE);
-
-    // Perform actual write
-    ssize_t r = send(sock->fd, data, data_len, 0);
-
-    // On error ...
-    if (r == COAP_SOCKET_ERROR) {
-
-        /**
-         * @brief: If the reason was:
-         *   - EAGAIN (a socket has not been previously bound to the port, and an ephemeral port
-         *     could not be assigned at the moment)
-         *   - EINTR (transmission was interrupted before the beggining)
-         *  mark the socket as a one, that needs to write (as data intended to send was not
-         *  transmitted)
-         */
-        if (errno==EAGAIN || errno == EINTR) {
-            sock->flags |= COAP_SOCKET_WANT_WRITE;
-            return 0;
-        }
-
-        // On critical error return -1
-        coap_log(LOG_WARNING, "coap_socket_write: send: %s\n", coap_socket_strerror());
-        return -1;
-    }
-
-    // If not all data was send, mark the socket as write-needing
-    if (r < (ssize_t)data_len)
-        sock->flags |= COAP_SOCKET_WANT_WRITE;
-
-    return r;
-}
-
 ssize_t coap_socket_send(
     coap_socket_t *sock,
     coap_session_t *session,
@@ -342,49 +300,6 @@ ssize_t coap_socket_send(
     size_t data_len
 ){
     return session->context->network_send(sock, session, data, data_len);
-}
-
-
-ssize_t coap_socket_read(
-    coap_socket_t *sock, 
-    uint8_t *data, 
-    size_t data_len
-){
-
-    // Read from the socket     
-    ssize_t r = recv(sock->fd, data, data_len, 0);
-
-    // When it comes to connectionless protocols, 0 value can be returned when
-    // an empty datagram was read or requested number of bytes to read was 0
-    if (r == 0) {
-
-        // In both cases mark the read datagram as read and so the socket as no read-needing
-        sock->flags &= ~COAP_SOCKET_CAN_READ;
-        return -1;
-    } 
-    // On error ...
-    else if (r == COAP_SOCKET_ERROR) {
-
-        // By default mark socket as no read-needing (no data from received datagram to read)
-        sock->flags &= ~COAP_SOCKET_CAN_READ;
-
-        // Mark EAGAIN and EINTR with a special, meaningfull return value
-        if (errno==EAGAIN || errno == EINTR) {
-            return 0;
-        }
-
-        // Verbosely mark ECONNRESET error
-        if (errno != ECONNRESET)
-            coap_log(LOG_WARNING, "coap_socket_read: recv: %s\n",
-                    coap_socket_strerror());
-
-        return -1;
-    }
-    // If more data from the datagram waits to be read, mark the socket as read-needing
-    if (r < (ssize_t)data_len)
-        sock->flags &= ~COAP_SOCKET_CAN_READ;
-    
-    return r;
 }
 
 
@@ -412,12 +327,6 @@ ssize_t coap_network_send(
         coap_log(LOG_CRIT, "coap_network_send: %s\n", coap_socket_strerror());
 
     return bytes_written;
-}
-
-
-void coap_packet_get_memmapped(coap_packet_t *packet, unsigned char **address, size_t *length) {
-    *address = packet->payload;
-    *length = packet->length;
 }
 
 
@@ -491,7 +400,6 @@ ssize_t coap_network_read(
             
             // Save a length of the received data
             packet->length = (size_t)len;
-            packet->ifindex = 0;
 
             // Save destination (i.e. local) address of the packet
             if (getsockname(sock->fd, &packet->dst.addr.sa, &packet->dst.size) < 0){
@@ -504,142 +412,19 @@ ssize_t coap_network_read(
     return len;
 }
 
-unsigned int coap_write(
-    coap_context_t *ctx,
-    coap_socket_t *sockets[],
-    unsigned int max_sockets,
-    unsigned int *num_sockets,
-    coap_tick_t now
-){
-    // Set start number of sockets in the @p sockets to 0
-    *num_sockets = 0;
 
-    // Check to see if we need to send off any Observe requests
-    coap_check_notify(ctx);
-
-    // Set timeout of the sessions that will be used for the data transfer
-    coap_tick_t session_timeout;
-    if (ctx->session_timeout > 0)
-        session_timeout = ctx->session_timeout * COAP_TICKS_PER_SECOND;
-    else
-        session_timeout = COAP_DEFAULT_SESSION_TIMEOUT * COAP_TICKS_PER_SECOND;
-
-    // Prepare a bunch of working data 
-    coap_tick_t timeout = 0;
-    coap_queue_t *nextpdu;
-    coap_endpoint_t *ep;
-    coap_session_t *s;
-    coap_session_t *tmp;
-
-    // Iterate over all endpoints used by the context
-    LL_FOREACH(ctx->endpoint, ep) {
-
-        // If the endpoint's socket was marked as read-needing or write-needing ...
-        if (ep->sock.flags & (COAP_SOCKET_WANT_READ | COAP_SOCKET_WANT_WRITE)) {
-            // ... check if more sockets can be used
-            if (*num_sockets < max_sockets)
-                // If so, hold the socket used by the endpoint
-                sockets[(*num_sockets)++] = &ep->sock;
-        }
-
-        // Iterate over al sessions hold by the endpoint
-        LL_FOREACH_SAFE(ep->sessions, s, tmp) {
-
-            /**
-             * If: 
-             *   - session is a server session (i.e. it waits to receive data from a client)
-             *   - it is not referenced by any transaction (i.e. any transaction in progress does not use the session)
-             *   - there are no more packets delayed to send within the session
-             *   - time that passed since the last transaction (rx or tx) is greater than session's timeout OR
-             *     a session is in a NON state
-             * consider the session as unused and free it's resources.+
-             */
-            if(s->type == COAP_SESSION_TYPE_SERVER && s->ref == 0 && s->delayqueue == NULL &&
-               (s->last_rx_tx + session_timeout <= now || s->state == COAP_SESSION_STATE_NONE)){
-                coap_session_free(s);
-            } 
-            // If session is in use ...
-            else {
-                
-                // If the session is of a 'server' type, it's not referred by any current transaction and it has no
-                // packets delayed to be sent ...
-                if (s->type == COAP_SESSION_TYPE_SERVER && s->ref == 0 && s->delayqueue == NULL) {
-
-                    // Get time remaining to the timeout 
-                    coap_tick_t s_timeout = (s->last_rx_tx + session_timeout) - now;
-
-                    // If the remaining time is shorter than the shortes remaining time
-                    // from all session that have been already checked
-                    if (timeout == 0 || s_timeout < timeout)
-                        timeout = s_timeout;
-                }
-                // If the session's socket was marked as read-needing or write-needing ...
-                if (s->sock.flags & (COAP_SOCKET_WANT_READ | COAP_SOCKET_WANT_WRITE)) {
-                    // ... check if more sockets can be used
-                    if (*num_sockets < max_sockets)
-                        // If so, hold the socket used by the endpoint
-                        sockets[(*num_sockets)++] = &s->sock;
-                }
-            }
-        }
-    }
-
-    // Iterate over all sessions associated with the context
-    LL_FOREACH_SAFE(ctx->sessions, s, tmp) {
-
-        // If the context's socket was marked as read-needing or write-needing ...
-        if (s->sock.flags & (COAP_SOCKET_WANT_READ | COAP_SOCKET_WANT_WRITE)) {
-            // ... check if more sockets can be used
-            if (*num_sockets < max_sockets)
-                // If so, hold the socket used by the endpoint
-                sockets[(*num_sockets)++] = &s->sock;
-        }
-    }
-
-    /**
-     * @note:  Here, we've already checked all of the sockets that potentially 
-     *   need to be written or read
-     */
-
-    // Get the next packet from the sendqueue 
-    nextpdu = coap_peek_next(ctx);
-
-    // 
-
-    /**
-     * For all packets in the sendqueue if:
-     *    - context's base time lies in the past
-     *    - retransmission interval time for the has passed
-     * try to retransmit the packet
-     */
-    while (nextpdu && now >= ctx->sendqueue_basetime && nextpdu->t <= now - ctx->sendqueue_basetime) {
-        coap_retransmit(ctx, coap_pop_next(ctx));
-        nextpdu = coap_peek_next(ctx);
-    }
-
-    /**
-     * If the time to retransmission the next, unchecked packet (if any) is shorter than the
-     * timeout of any of the checked sessions, save it.
-     */
-    if (nextpdu && (timeout == 0 || nextpdu->t - ( now - ctx->sendqueue_basetime ) < timeout))
-        timeout = nextpdu->t - (now - ctx->sendqueue_basetime);
-
-    // Return timeout in [ms]
-    return (unsigned int)((timeout * 1000 + COAP_TICKS_PER_SECOND - 1) / COAP_TICKS_PER_SECOND);
-}
-
-
-int coap_run_once(coap_context_t *ctx, unsigned timeout_ms) {
+int coap_run_once(coap_context_t *context, unsigned timeout_ms) {
 
     // Get time stamp of the routine's start
     coap_tick_t before;
     coap_ticks(&before);
 
-    coap_socket_t *sockets[64];
+    // Prepare array of sockets that potentially need to read data 
+    coap_socket_t *sockets[COAP_MAX_SOCKET_OBSERVED];
     unsigned int num_sockets = 0;
 
-    // Retransmit packets waiting in the @p ctx->sendqueue
-    unsigned int timeout = coap_write(ctx, sockets, (unsigned int)(sizeof(sockets) / sizeof(sockets[0])), &num_sockets, before);
+    // Perform all operations required to establish what sessions should send messages
+    unsigned int timeout = coap_write(context, sockets, (unsigned int)(sizeof(sockets) / sizeof(sockets[0])), &num_sockets, before);
 
     // Set timeout as a minimum of timeout returned by the coap_write and the one determined by the user
     if (timeout == 0 || timeout_ms < timeout)
@@ -651,19 +436,13 @@ int coap_run_once(coap_context_t *ctx, unsigned timeout_ms) {
     FD_ZERO(&writefds);
     FD_ZERO(&exceptfds);
 
-    // Highest file descriptors (sockets) that needs to perform an action
+    // Highest file descriptors (sockets) that needs to perform an action (plus 1) [@see select(2) man]
     coap_fd_t nfds = 0;
 
-    // Iterate over all sockets marked by the @f coap_write()
+    // Iterate over all sockets marked by the @f coap_write() to lt select() observe them
     for(unsigned int i = 0; i < num_sockets; i++) {
-
         nfds = max(sockets[i]->fd + 1, nfds);
-
-        // If a socket needs perform an action add it to a suitable set
-        if (sockets[i]->flags & COAP_SOCKET_WANT_READ)
-            FD_SET(sockets[i]->fd, &readfds);
-        if (sockets[i]->flags & COAP_SOCKET_WANT_WRITE)
-            FD_SET(sockets[i]->fd, &writefds);
+        FD_SET(sockets[i]->fd, &readfds);
     }
 
     // Convert actual timeout to the timeval
@@ -673,8 +452,15 @@ int coap_run_once(coap_context_t *ctx, unsigned timeout_ms) {
         tv.tv_sec = (long)(timeout / 1000);
     }
 
-    // Wait for sockets' readiness
+    // Wait for the one of the sockets checked by coap_write() to be ready
     int result = select(nfds, &readfds, &writefds, &exceptfds, timeout > 0 ? &tv : NULL);
+
+    /**
+     * @note: before passing fd_sets to the select() the read/write-wanting sockets are set inside them.
+     *    It means that select() will observer if they are ready and return either when the @v timeout
+     *    is reached or some of the are ready. Before returning it will clear all fd_sets and set them
+     *    to those descriptors that have become ready.
+     */
 
     // On select's error ...
     if (result < 0) {
@@ -690,19 +476,18 @@ int coap_run_once(coap_context_t *ctx, unsigned timeout_ms) {
 
         // Iterate over all sockets that possibly want to perform an action
         for (int i = 0; i < num_sockets; i++) {
-            // If socket is marked as read-needing and it's ready to be read, mark it as read-able
-            if ((sockets[i]->flags & COAP_SOCKET_WANT_READ) && FD_ISSET(sockets[i]->fd, &readfds))
+            // If socket is ready to be read, mark it as read-able
+            if (FD_ISSET(sockets[i]->fd, &readfds))
                 sockets[i]->flags |= COAP_SOCKET_CAN_READ;
-            // If socket is marked as write-needing and it's ready to be written, mark it as write-able
-            if ((sockets[i]->flags & COAP_SOCKET_WANT_WRITE) && FD_ISSET(sockets[i]->fd, &writefds))
-                sockets[i]->flags |= COAP_SOCKET_CAN_WRITE;
         }
     }
 
     // Get time stamp of the routine's end
     coap_tick_t now;
     coap_ticks(&now);
-    coap_read(ctx, now);
+
+    // Handle incoming data
+    coap_read(context, now);
 
     // Return number of miliseconds that passed during the procedure call
     return (int)(((now - before) * 1000) / COAP_TICKS_PER_SECOND);

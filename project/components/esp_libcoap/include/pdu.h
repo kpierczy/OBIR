@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-30 01:08:51
+ *  Modified time: 2020-11-30 22:58:10
  *  Description:
  * 
  *      File contains API related to creation, analysis and manipulation CoAP PDUs (Protocol Data Units).
@@ -60,7 +60,7 @@ struct coap_session_t;
 #define COAP_DEFAULT_URI_WELLKNOWN ".well-known/core"
 
 // Default Max-Age (in seconds)
-#define COAP_DEFAULT_MAX_AGE     60
+#define COAP_DEFAULT_MAX_AGE 60
 
 // CoAP header's size
 #define COAP_HEADER_SIZE 4
@@ -89,40 +89,6 @@ struct coap_session_t;
 #define COAP_MESSAGE_ACK 2 /* used to acknowledge confirmable messages */
 #define COAP_MESSAGE_RST 3 /* indicates error in received messages */
 
-// The highest option number 
-#define COAP_MAX_OPT 65535 
-
-/*
- * @brief: CoAP option types 
- * 
- * @note: Be sure to update coap_option_check_critical() when adding options
- */
-#define COAP_OPTION_IF_MATCH        1 /* C,     opaque,     0-8 B, (none)                         */
-#define COAP_OPTION_URI_HOST        3 /* C,     String,   1-255 B,  destination address           */
-#define COAP_OPTION_ETAG            4 /* E,     opaque,     1-8 B, (none)                         */
-#define COAP_OPTION_IF_NONE_MATCH   5 /* -,      empty,       0 B, (none)                         */
-#define COAP_OPTION_URI_PORT        7 /* C,       uint,     0-2 B,  destination port              */
-#define COAP_OPTION_LOCATION_PATH   8 /* E,     String,   0-255 B,  -                             */
-#define COAP_OPTION_URI_PATH       11 /* C,     String,   0-255 B, (none)                         */
-#define COAP_OPTION_CONTENT_FORMAT 12 /* E,       uint,     0-2 B, (none)                         */
-#define COAP_OPTION_MAXAGE         14 /* E,       uint,    0--4 B,  60 Seconds                    */
-#define COAP_OPTION_URI_QUERY      15 /* C,     String,   1-255 B, (none)                         */
-#define COAP_OPTION_ACCEPT         17 /* C,       uint,     0-2 B, (none)                         */
-#define COAP_OPTION_LOCATION_QUERY 20 /* E,     String,   0-255 B, (none)                         */
-#define COAP_OPTION_SIZE2          28 /* E,       uint,     0-4 B, (none)                         */
-#define COAP_OPTION_PROXY_URI      35 /* C,     String,  1-1034 B, (none)                         */
-#define COAP_OPTION_PROXY_SCHEME   39 /* C,     String,   1-255 B, (none)                         */
-#define COAP_OPTION_SIZE1          60 /* E,       uint,     0-4 B, (none)                         */
-#define COAP_OPTION_OBSERVE         6 /* E, empty/uint, 0 B/0-3 B, (none)              (RFC 7641) */
-#define COAP_OPTION_BLOCK2         23 /* C,       uint,    0--3 B, (none)              (RFC 7959) */
-#define COAP_OPTION_BLOCK1         27 /* C,       uint,    0--3 B, (none)              (RFC 7959) */
-#define COAP_OPTION_NORESPONSE    258 /* N,       uint,    0--1 B,  0                  (RFC 7967) */
-// Synonymous options
-#define COAP_OPTION_CONTENT_TYPE \
-    COAP_OPTION_CONTENT_FORMAT
-#define COAP_OPTION_SUBSCRIPTION \
-    COAP_OPTION_OBSERVE
-
 // Maximum length of error phrase
 #define COAP_ERROR_PHRASE_LENGTH 32
 
@@ -135,8 +101,6 @@ struct coap_session_t;
 #define COAP_RESPONSE_CODE(N)  (((N)/100 << 5) | (N)%100)
 // Determines the class of response code C (i.e value of the upper three bits)
 #define COAP_RESPONSE_CLASS(C) (((C) >> 5) & 0xFF)
-// Encodes integer signaling code value into the 3-5 bits format
-#define COAP_SIGNALING_CODE(N) (((N)/100 << 5) | (N)%100)
 
 // CoAP request methods
 #define COAP_REQUEST_GET    1
@@ -147,6 +111,9 @@ struct coap_session_t;
 #define COAP_REQUEST_FETCH  5
 #define COAP_REQUEST_PATCH  6
 #define COAP_REQUEST_IPATCH 7
+
+// Empty message
+#define COAP_RESPONSE_EMPTY     COAP_RESPONSE_CODE(0)     /* 0.00 Empty                   */
 
 // PDUs' codes
 #define COAP_RESPONSE_200       COAP_RESPONSE_CODE(200)  /* 2.00 OK                       */
@@ -174,13 +141,6 @@ struct coap_session_t;
 #define COAP_RESPONSE_504       COAP_RESPONSE_CODE(504)  /* 5.04 Gateway Timeout          */
 #define COAP_RESPONSE_505       COAP_RESPONSE_CODE(505)  /* 5.05 Proxying Not Supported   */
 
-#define COAP_SIGNALING_700     COAP_SIGNALING_CODE(700)
-#define COAP_SIGNALING_CSM     COAP_SIGNALING_CODE(701)
-#define COAP_SIGNALING_PING    COAP_SIGNALING_CODE(702)
-#define COAP_SIGNALING_PONG    COAP_SIGNALING_CODE(703)
-#define COAP_SIGNALING_RELEASE COAP_SIGNALING_CODE(704)
-#define COAP_SIGNALING_ABORT   COAP_SIGNALING_CODE(705)
-
 // PDUs' codes by names
 #define COAP_RESPONSE_OK                       COAP_RESPONSE_CODE(200)
 #define COAP_RESPONSE_CREATED                  COAP_RESPONSE_CODE(201)
@@ -206,17 +166,6 @@ struct coap_session_t;
 #define COAP_RESPONSE_SERVICE_UNAVAILABLE      COAP_RESPONSE_CODE(503)
 #define COAP_RESPONSE_GATEWAY_TIMEOUT          COAP_RESPONSE_CODE(504)
 #define COAP_RESPONSE_PROXYING_NOT_SUPPORTED   COAP_RESPONSE_CODE(505)
-
-// Applies to COAP_SIGNALING_CSM
-#define COAP_SIGNALING_OPTION_MAX_MESSAGE_SIZE 2
-#define COAP_SIGNALING_OPTION_BLOCK_WISE_TRANSFER 4
-// Applies to COAP_SIGNALING_PING / COAP_SIGNALING_PONG
-#define COAP_SIGNALING_OPTION_CUSTODY 2
-// Applies to COAP_SIGNALING_RELEASE
-#define COAP_SIGNALING_OPTION_ALTERNATIVE_ADDRESS 2
-#define COAP_SIGNALING_OPTION_HOLD_OFF 4
-// Applies to COAP_SIGNALING_ABORT
-#define COAP_SIGNALING_OPTION_BAD_CSM_OPTION 2
 
 // CoAP media type encoding
 #define COAP_MEDIATYPE_TEXT_PLAIN                 0 /* text/plain (UTF-8)       */
@@ -288,7 +237,6 @@ struct coap_session_t;
 #define COAP_PDU_IS_EMPTY(pdu)     ((pdu)->code == 0)
 #define COAP_PDU_IS_REQUEST(pdu)   (!COAP_PDU_IS_EMPTY(pdu) && (pdu)->code < 32)
 #define COAP_PDU_IS_RESPONSE(pdu)  ((pdu)->code >= 64 && (pdu)->code < 224)
-#define COAP_PDU_IS_SIGNALING(pdu) ((pdu)->code >= 224)
 
 
 /* -------------------------------------------- [Data structures] --------------------------------------------- */

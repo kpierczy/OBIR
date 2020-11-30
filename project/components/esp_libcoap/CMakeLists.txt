@@ -6,7 +6,6 @@ set(srcs
     "src/address.c"
     "src/async.c"
     "src/block.c"
-    "src/coap_event.c"
     "src/coap_hashkey.c"
     "src/coap_io.c"
     "src/coap_session.c"

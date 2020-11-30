@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-28 14:58:55
+ *  Modified time: 2020-11-30 21:51:43
  *  Description:
  *  Credits: 
  *
@@ -727,14 +727,13 @@ coap_subscription_t *coap_add_observer(
 
 
 void coap_touch_observer(
-    coap_context_t *context, 
     coap_session_t *session,
     const coap_binary_t *token
 ) {
     coap_subscription_t *observer;
 
     // Iterate over all resources in the context
-    RESOURCES_ITER(context->resources, resource) {
+    RESOURCES_ITER(session->context->resources, resource) {
 
         // Find an observer
         observer = coap_find_observer(resource, session, token);
@@ -785,11 +784,10 @@ int coap_delete_observer(
 
 
 void coap_delete_observers(
-    coap_context_t *context, 
     coap_session_t *session
 ) {
     // Iterate over all resources registered within context
-    RESOURCES_ITER(context->resources, resource) {
+    RESOURCES_ITER(session->context->resources, resource) {
         
         coap_subscription_t *observer, *observer_tmp;
 
@@ -870,19 +868,18 @@ int coap_resource_notify_observers(
 
 
 void coap_check_notify(coap_context_t *context) {
-    RESOURCES_ITER(context->resources, r)
-        coap_notify_observers(context, r);
+    RESOURCES_ITER(context->resources, resource)
+        coap_notify_observers(context, resource);
 }
 
 
 void coap_handle_failed_notify(
-    coap_context_t *context,
     coap_session_t *session,
     const coap_binary_t *token
 ) {
     // Iterate over all resources to find the observer to be removed
-    RESOURCES_ITER(context->resources, resource) 
-        coap_remove_failed_observer(context, resource, session, token);
+    RESOURCES_ITER(session->context->resources, resource) 
+        coap_remove_failed_observer(session->context, resource, session, token);
 }
 
 
@@ -1082,11 +1079,6 @@ static void coap_notify_observers(
 
         // Iterate over all resource's subscriber
         LL_FOREACH(resource->subscribers, observer) {
-            
-            /*
-            * running this resource due to partiallydirty, but this observation's
-            * notification was already enqueued
-            */
 
             // If resource is partially dirty (i.e. some of the subscriber was not 
             // notified yet) but the observer itself was notified / unqueued in the
@@ -1097,13 +1089,16 @@ static void coap_notify_observers(
 
             bool active_con_limit_reached = observer->session->con_active >= COAP_DEFAULT_NSTART;
             bool notify_by_con = observer->non_cnt >= COAP_OBS_MAX_NON ||
-                resource->flags & COAP_RESOURCE_FLAGS_NOTIFY_CON;
+                                 resource->flags & COAP_RESOURCE_FLAGS_NOTIFY_CON;
                 
             // Continue, if a new CON message connot be sent
-            if ( active_con_limit_reached && notify_by_con)
+            if ( active_con_limit_reached && notify_by_con){
+                observer->dirty = 1;
+                resource->partiallydirty = 1;
                 continue;
+            }
 
-            // At this point observer will surely be notified
+            // At this point observer will be notified
             observer->dirty = 0;
 
             // Initialize notification response
@@ -1150,7 +1145,7 @@ static void coap_notify_observers(
             assert(handler);
 
             // Call user-defined GET handler to fill response with data
-            handler(context, resource, observer->session, NULL, &token, observer->query, response);
+            handler(resource, observer->session, NULL, &token, observer->query, response);
 
             // Update NON counter
             if (response->type == COAP_MESSAGE_CON)
@@ -1158,7 +1153,7 @@ static void coap_notify_observers(
             else
                 observer->non_cnt++;
 
-            // Check if response's cod eset in the handler belongs to 2.XX (Success) group
+            // Check if response's code set in the handler belongs to 2.XX (Success) group
             if ( COAP_RESPONSE_CLASS(response->code) <= 2 ){
 
                 // Send a message
@@ -1242,7 +1237,7 @@ coap_remove_failed_observer(
                 #endif /* NDEBUG */
 
                 // Cancel all mesages associated with the observer
-                coap_cancel_all_messages(context, observer->session, observer->token, observer->token_length);
+                coap_cancel_all_messages(observer->session, observer->token, observer->token_length);
 
                 // Release observer's resources
                 coap_session_release( observer->session );
