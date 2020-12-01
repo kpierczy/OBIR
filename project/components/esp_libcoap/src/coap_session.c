@@ -3,7 +3,7 @@
  *  Author: Jean-Claue Michelou
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-12-01 00:22:39
+ *  Modified time: 2020-12-01 04:02:56
  *  Description:
  *  Credits: 
  *
@@ -207,9 +207,9 @@ ssize_t coap_session_send(
     // Log informations about session's transaction
     if (bytes_written == (ssize_t)datalen){
         coap_ticks(&session->last_rx_tx);
-        coap_log(LOG_DEBUG, "*  %s: sent %zd bytes\n", coap_session_str(session), datalen);
+        coap_log(LOG_DEBUG, "*  %s: sent %lu bytes\n", coap_session_str(session), (unsigned long) datalen);
     } else
-        coap_log(LOG_DEBUG, "*  %s: failed to send %zd bytes\n", coap_session_str(session), datalen);
+        coap_log(LOG_DEBUG, "*  %s: failed to send %lu bytes\n", coap_session_str(session), (unsigned long) datalen);
 
     return bytes_written;
 }
@@ -436,7 +436,7 @@ coap_session_t *coap_endpoint_get_session(
         session->state = COAP_SESSION_STATE_ESTABLISHED;
         LL_PREPEND(endpoint->sessions, session);
         coap_log(LOG_DEBUG, "***%s: new incoming session\n",
-                coap_session_str(session));
+            coap_session_str(session));
     }
 
     return session;
@@ -622,7 +622,7 @@ static coap_session_t *coap_make_session(
     assert(context);
 
     // Allocate memory for the session
-    coap_session_t *session = (coap_session_t*)coap_malloc(sizeof(coap_session_t));
+    coap_session_t *session = (coap_session_t*) coap_malloc(sizeof(coap_session_t));
     if(!session)
         return NULL;
 

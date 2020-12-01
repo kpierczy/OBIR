@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-12-01 00:07:33
+ *  Modified time: 2020-12-01 01:25:19
  *  Description:
  *  Credits: 
  *
@@ -86,10 +86,12 @@ int coap_socket_bind_udp(
         goto error;
     }
 
+#ifdef NOBLOCK
     // Set socket to non-blocking mode
     if (ioctl(sock->fd, FIONBIO, &on) == COAP_SOCKET_ERROR) {
         coap_log(LOG_WARNING, "coap_socket_bind_udp: ioctl FIONBIO: %s\n", coap_socket_strerror());
     }
+#endif
 
     // Set socket to have reusable address
     if (setsockopt(sock->fd, SOL_SOCKET, SO_REUSEADDR, OPTVAL_T(&on), sizeof(on)) == COAP_SOCKET_ERROR){
@@ -180,9 +182,11 @@ int coap_socket_connect(
         goto error;
     }
 
+#ifdef NOBLOCK
     // Try to set socket in the non-blocking mode
     if (ioctl(sock->fd, FIONBIO, &on) == COAP_SOCKET_ERROR)
         coap_log(LOG_WARNING, "coap_socket_connect: ioctl FIONBIO: %s\n", coap_socket_strerror());
+#endif
 
     // Set IP-gen-dependent options
     switch (connect_addr.addr.sa.sa_family) {

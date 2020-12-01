@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-30 21:26:53
+ *  Modified time: 2020-12-01 00:46:14
  *  Description:
  * 
  *      File contains API for intra-library logging and debugging mechanisms.

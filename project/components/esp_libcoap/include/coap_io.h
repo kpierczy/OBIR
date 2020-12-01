@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-12-01 00:06:12
+ *  Modified time: 2020-12-01 01:24:55
  *  Description:
  * 
  *       File contains basic IO interface declaration for the library.
@@ -47,6 +47,12 @@ struct coap_endpoint_t *coap_malloc_endpoint( void );
 void coap_mfree_endpoint( struct coap_endpoint_t *ep );
 
 /* ------------------------------------------- [Macrodefinitions] --------------------------------------------- */
+
+/**
+ * @brief: If the NOBLOCK macro is defined, all sockets used by the 
+ *    library are configured to the FIONBIO mode.
+ */
+// #define NOBLOCK
 
 /**
  * @brief: Size of the buffer caching incoming PDUs

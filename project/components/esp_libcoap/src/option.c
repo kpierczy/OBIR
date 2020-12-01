@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-28 15:55:54
+ *  Modified time: 2020-12-01 05:03:03
  *  Description:
  *  Credits: 
  *
@@ -300,7 +300,6 @@ uint16_t coap_opt_delta(const coap_opt_t *opt) {
 
     switch (delta) {
         case 15: 
-            coap_log(LOG_WARNING, "coap_opt_delta: illegal option delta\n");
             return 0;
         // If delta = 14, it's notation will be extended by 2 bytes
         case 14:
@@ -328,7 +327,6 @@ uint16_t coap_opt_length(const coap_opt_t *opt) {
     // Inspect "Option Delta" field to check if delta notation is extended
     switch (*opt++ & 0xf0) {
     case 0xf0:
-        coap_log(LOG_DEBUG, "coap_opt_length: illegal option delta\n");
         return 0;
     // If delta = 14, it's notation will be extended by 2 bytes
     // (i.e potential length's extension will start at 3rd byte)
@@ -470,7 +468,7 @@ size_t coap_opt_setheader(
         
         // Verify buffer's length
         if (maxlen < data_offset + 2) {
-            coap_log(LOG_DEBUG, "insufficient space to encode option length %zu\n", length);
+            coap_log(LOG_DEBUG, "insufficient space to encode option length %lu\n", (unsigned long) length);
             return 0;
         }
 

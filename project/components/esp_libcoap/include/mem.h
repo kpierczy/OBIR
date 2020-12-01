@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-20 16:46:38
+ *  Modified time: 2020-12-01 01:39:58
  *  Description:
  * 
  *      Constarined-devices, libcoap-specific memory allocation API.
@@ -46,7 +46,7 @@
  */
 COAP_STATIC_INLINE void*
 coap_malloc(size_t size) {
-  return malloc(size);
+    return malloc(size);
 }
 
 /**
@@ -54,7 +54,7 @@ coap_malloc(size_t size) {
  */
 COAP_STATIC_INLINE void 
 coap_free(void *object) {
-  free(object);
+    free(object);
 }
 
 #endif /* COAP_MEM_H_ */

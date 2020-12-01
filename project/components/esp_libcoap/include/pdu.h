@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-30 22:58:10
+ *  Modified time: 2020-12-01 03:27:15
  *  Description:
  * 
  *      File contains API related to creation, analysis and manipulation CoAP PDUs (Protocol Data Units).
@@ -78,9 +78,10 @@ struct coap_session_t;
 #define COAP_DEFAULT_MAX_PDU_RX_SIZE (8*1024*1024+256)
 #endif
 
-/* 1024 derived from RFC7252 4.6. Message Size max payload */
+/* 1024 derived from RFC7252 4.6. Message Size (suggested max payload) */
+#define PAYLOAD_MAX_SIZE 1024
 #ifndef COAP_DEBUG_BUF_SIZE
-#define COAP_DEBUG_BUF_SIZE (8 + 1024 * 2)
+#define COAP_DEBUG_BUF_SIZE (8 + PAYLOAD_MAX_SIZE * 2)
 #endif
 
 // CoAP message types

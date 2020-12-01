@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-30 21:51:43
+ *  Modified time: 2020-12-01 04:42:32
  *  Description:
  *  Credits: 
  *
@@ -1154,7 +1154,7 @@ static void coap_notify_observers(
                 observer->non_cnt++;
 
             // Check if response's code set in the handler belongs to 2.XX (Success) group
-            if ( COAP_RESPONSE_CLASS(response->code) <= 2 ){
+            if ( COAP_RESPONSE_CLASS(response->code) == 2 ){
 
                 // Send a message
                 coap_tid_t tid = coap_send( observer->session, response );

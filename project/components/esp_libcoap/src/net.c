@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-12-01 00:29:18
+ *  Modified time: 2020-12-01 05:04:05
  *  Description:
  * 
  *      
@@ -337,7 +337,7 @@ coap_queue_t *coap_pop_next(coap_context_t *context) {
     if (!context || !context->sendqueue)
         return NULL;
 
-    // Pop the head node from the queue
+    // Detach the head node from the queue
     coap_queue_t *next = context->sendqueue;
     context->sendqueue = context->sendqueue->next;
     next->next = NULL;
@@ -673,7 +673,7 @@ coap_tid_t coap_retransmit(
     if (!context || !node)
         return COAP_INVALID_TID;
 
-    // Reinitialize timeout when maximum number of retransmissions are not reached yet
+    // Check if maximum number of retransmissions is not reached yet
     if (node->retransmit_cnt < node->session->max_retransmit) {
 
         node->retransmit_cnt++;
@@ -705,8 +705,7 @@ coap_tid_t coap_retransmit(
 
         /**
          * Retransmit the packet. If PDU was not retransmitted immediately, because a new
-         * handshake is in progress, node was moved to the send queue of the session
-         * (i.e. delayqueue). In this case, return the context sendqueue node's ID.
+         * handshake is in progress, node was delayed. In this case, return the node's ID.
          */
         ssize_t bytes_written = coap_send_pdu(node->session, node->pdu, node);
         if (bytes_written < 0 && bytes_written != COAP_PDU_DELAYED)
@@ -1700,7 +1699,7 @@ COAP_STATIC_INLINE void coap_free_node(coap_queue_t *node) {
  *    @c COAP_PDU_DELAYED when @p pdu was delayed
  *    @c COAP_DROPPED_RESPONSE when tries to send a broadcast response
  *    @c COAP_INVALID_TID when @p pdu could not be delayed
- *    -1 when session is not connected
+ *    <= 0 when session is not connected
  *    
  */
 static ssize_t coap_send_pdu(
@@ -1729,9 +1728,7 @@ static ssize_t coap_send_pdu(
         session->con_active++;
 
     // Send the PDU
-    ssize_t bytes_written = coap_session_send_pdu(session, pdu);
-
-    return bytes_written;
+    return coap_session_send_pdu(session, pdu);
 }
 
 
@@ -1770,7 +1767,7 @@ static void coap_read_session(
     // Else, if reading succeded
     else if (bytes_read > 0) {
         
-        coap_log(LOG_DEBUG, "*  %s: received %zd bytes\n", coap_session_str(session), bytes_read);
+        coap_log(LOG_DEBUG, "*  %s: received %lu bytes\n", coap_session_str(session), (unsigned long) bytes_read);
 
         // Update RX/TX timestamp
         session->last_rx_tx = now;
@@ -1820,7 +1817,7 @@ static int coap_read_endpoint(coap_endpoint_t *endpoint, coap_tick_t now) {
         // Get / Create a session for the message
         coap_session_t *session = coap_endpoint_get_session(endpoint, &packet, now);
         if (session) {
-            coap_log(LOG_DEBUG, "*  %s: received %zd bytes\n", coap_session_str(session), bytes_read);
+            coap_log(LOG_DEBUG, "*  %s: received %lu bytes\n", coap_session_str(session), (unsigned long) bytes_read);
             result = coap_handle_dgram(session, packet.payload, packet.length);
         }
     }
@@ -1856,7 +1853,7 @@ COAP_STATIC_INLINE size_t get_wkc_len(coap_context_t *context, coap_opt_t *query
         return 0;
     }
 
-    coap_log(LOG_DEBUG, "get_wkc_len: coap_print_wellknown() returned %zu\n", len);
+    coap_log(LOG_DEBUG, "get_wkc_len: coap_print_wellknown() returned %lu\n", (unsigned long) len);
 
     return len;
 }

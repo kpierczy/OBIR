@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-30 00:08:33
+ *  Modified time: 2020-12-01 04:50:21
  *  Description:
  *  Credits: 
  *
@@ -153,7 +153,7 @@ int coap_write_block_opt(
 
             // Compute exponent for the new block size
             unsigned int new_block_size = coap_flsll((long long) available) - 5;
-            coap_log(LOG_DEBUG, "decrease block size for %zu to %d\n", available, 1 << (new_block_size + 4));
+            coap_log(LOG_DEBUG, "decrease block size for %lu to %d\n", (unsigned long) available, 1 << (new_block_size + 4));
 
             // If we decrease the block's size, there will be aleways more blocks to be send
             block->m = 1;
@@ -230,8 +230,8 @@ void coap_add_data_blocked_response(
 
             // If requested block outside of the data scope ...
             if (length <= (block2.num << (block2.szx + 4))) {
-                coap_log(LOG_DEBUG, "Illegal block requested (%d > last block = %zu)\n",
-                            block2.num, length >> (block2.szx + 4));
+                coap_log(LOG_DEBUG, "Illegal block requested (%d > last block = %lu)\n",
+                            block2.num, (unsigned long) (length >> (block2.szx + 4)));
 
                 // Response with 4.00 Bad Request
                 response->code = COAP_RESPONSE_BAD_REQUEST;
@@ -260,7 +260,7 @@ void coap_add_data_blocked_response(
     coap_add_option(response, COAP_OPTION_ETAG, sizeof(etag), etag);
 
     // If message is sent as the first block of notification ...
-    if ((block2.num == 0) && subscription){
+    if (block2.num == 0 && subscription != NULL){
 
         // Add 'Observe' option to the PDU
         unsigned char opt_val[4];
@@ -278,7 +278,7 @@ void coap_add_data_blocked_response(
     size_t opt_len = coap_encode_var_safe(opt_val, sizeof(opt_val), media_type);
     coap_add_option(
         response, 
-        COAP_OPTION_CONTENT_TYPE,
+        COAP_OPTION_CONTENT_FORMAT,
         opt_len,
         opt_val
     );
@@ -291,7 +291,7 @@ void coap_add_data_blocked_response(
         size_t opt_len = coap_encode_var_safe(opt_val, sizeof(opt_val), maxage);
         coap_add_option(
             response,
-            COAP_OPTION_OBSERVE,
+            COAP_OPTION_MAXAGE,
             opt_len,
             opt_val
         );
@@ -300,17 +300,20 @@ void coap_add_data_blocked_response(
     // Send data divided into blocks ...
     if(block2_requested){
 
-        // Write 'Size2' option
-        size_t opt_len = coap_encode_var_safe(opt_val, sizeof(opt_val), length);
-        coap_add_option(
-            response,
-            COAP_OPTION_SIZE2,
-            opt_len,
-            opt_val
-        );
+        // Compute Size2 option's size so that the coap_write_block_opt() function could
+        // take it into account in the free-space-mesuting process
+        size_t size_two_opt_len = 
+            coap_encode_var_safe(opt_val, sizeof(opt_val), length);
 
         // Write 'Block2' option as the last one
-        int res = coap_write_block_opt(&block2, COAP_OPTION_BLOCK2, response, length);
+        int res = 
+            coap_write_block_opt(&block2, COAP_OPTION_BLOCK2, response, length + (size_two_opt_len + 1));
+
+        /**
+         * @note: At this place we know exactly how much will the Size2 option as
+         *    the delta between Block2 and Size2 is known, and the Size2's length
+         *    will be surely not higher than 12 (@v length is of size sizeof(size_t)).
+         */
 
         switch (res) {
             case 0: // Illegal block                     
@@ -320,6 +323,14 @@ void coap_add_data_blocked_response(
                 response->code = COAP_RESPONSE_INTERNAL_SERVER_ERROR;
                 goto error;
         }
+
+        // Write 'Size2' option
+        coap_add_option(
+            response,
+            COAP_OPTION_SIZE2,
+            size_two_opt_len,
+            opt_val
+        );
 
         // Write data block into PDU
         coap_add_block(response, length, data, &block2);

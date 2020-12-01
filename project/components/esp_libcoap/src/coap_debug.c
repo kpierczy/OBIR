@@ -296,7 +296,7 @@ void coap_show_pdu(coap_log_t level, const coap_pdu_t *pdu) {
         outbuflen = strlen(outbuf);
         snprintf(&outbuf[outbuflen], sizeof(outbuf)-outbuflen,  " :: ");
 
-        unsigned char buf[1024];
+        unsigned char buf[PAYLOAD_MAX_SIZE];
 
         // Write binary payload
         if (is_binary(content_format)) {
@@ -307,19 +307,19 @@ void coap_show_pdu(coap_log_t level, const coap_pdu_t *pdu) {
 
             // Write information about payload's length
             outbuflen = strlen(outbuf);
-            snprintf(&outbuf[outbuflen], sizeof(outbuf)-outbuflen, "binary data length %zu\n", data_len);
+            snprintf(&outbuf[outbuflen], sizeof(outbuf)-outbuflen, "binary data length %lu\n", (unsigned long) data_len);
             
             // Flush the buffer before loading it with payload
             COAP_SHOW_OUTPUT(outbuf,level);
 
             // Reset the result buffer's length; start data dump with '<<'
             outbuf[0] = '\000';
-            snprintf(outbuf, sizeof(outbuf),  "<<");
+            snprintf(outbuf, sizeof(outbuf),  "<< ");
 
             // Output hex dump of binary data as a continuous entry
             while (data_len--) {
                 outbuflen = strlen(outbuf);
-                snprintf(&outbuf[outbuflen], sizeof(outbuf)-outbuflen, "%02x", *data++);
+                snprintf(&outbuf[outbuflen], sizeof(outbuf)-outbuflen, "%02x ", *data++);
             }
 
             // Finish data  dump with '>>'
@@ -339,12 +339,12 @@ void coap_show_pdu(coap_log_t level, const coap_pdu_t *pdu) {
             
             // Reset the result buffer's length; start data readable dump with '<<'
             outbuf[0] = '\000';
-            snprintf(outbuf, sizeof(outbuf),  "<<");
+            snprintf(outbuf, sizeof(outbuf),  "<< ");
 
             // Output readable dump of binary data as a continuous entry
             while (data_len--) {
                 outbuflen = strlen(outbuf);
-                snprintf(&outbuf[outbuflen], sizeof(outbuf)-outbuflen, "%c ", isprint (*data) ? *data : '.');
+                snprintf(&outbuf[outbuflen], sizeof(outbuf)-outbuflen, " %c ", isprint (*data) ? *data : '.');
                 data++;
             }
 
@@ -355,7 +355,7 @@ void coap_show_pdu(coap_log_t level, const coap_pdu_t *pdu) {
         // Write readable payload
         else if(print_readable(data, data_len, buf, sizeof(buf), false)) {
             outbuflen = strlen(outbuf);
-            snprintf(&outbuf[outbuflen], sizeof(outbuf)-outbuflen,  "'%s'", buf);
+            snprintf(&outbuf[outbuflen], sizeof(outbuf)-outbuflen,  "\n'%s'", buf);
         }
     }
 
@@ -563,7 +563,7 @@ print_timestamp(char *buf, size_t len, coap_tick_t t){
  * @param buflen:
 *    length of the @p result
  * @param encode_always:
- *   if true, all bytes from @p data (not only printable) are transformed to
+ *   if true, all bytes from @p data (not only no-printable) are transformed to
  *   the hex code.
  * 
  * @return size_t 
@@ -581,20 +581,23 @@ static size_t print_readable(
     if (buflen == 0)
         return 0;
 
-    
     static const uint8_t hex[] = "0123456789ABCDEF";
 
-    // Iterate over all input bytes
-    int i;
-    for(i = 0; i < len; ++i){
+    // As @p data pointer will move along the source buffer, save the start position
+    uint8_t *data_start = data;
 
-        // If @p encode_always flag is cleared, or character is printable, copy
-        // it from source buffer to result buffer without transforming
+    int i = 0;
+
+    // Iterate over all input bytes
+    while(data - data_start < len){
+
+        // If @p encode_always flag is cleared (i.e. printable characters are not to be hex-encoded)
+        //  and character is printable, copy it from source buffer to result buffer without transforming
         if (!encode_always && isprint(*data)) {
 
             // Check if result buffer has enough room for additional data and terminating zero
             if (i + 1 < buflen) { 
-                result[i] = *data++;
+                result[i++] = *data++;
             } else
                 break;
         } 
@@ -604,17 +607,16 @@ static size_t print_readable(
         // Check if result buffer has enough room for additional data and terminating zero
         // (printing a byte in hex requires 4 bytes itself)
         else if (i + 4 < buflen) {
-                *result++ = '0';
-                *result++ = 'x';
-                *result++ = hex[(*data & 0xf0) >> 4];
-                *result++ = hex[*data++ & 0x0f];
-                i += 3;
+                result[i++] = '0';
+                result[i++] = 'x';
+                result[i++] = hex[(*data & 0xf0) >> 4];
+                result[i++] = hex[*data++ & 0x0f];
         } else
             break;
     }
 
     // Add a terminating zero
-    *result = '\0'; 
+    result[i] = '\0'; 
 
     return i;
 }

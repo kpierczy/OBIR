@@ -9,8 +9,15 @@
 // Local port
 #define PORT 5683
 
-// Set this to 9 to get verbose logging from within libcoap
-#define COAP_LOGGING_LEVEL 0
+/**
+ * @brief: Log level for the libcoap internals
+ * 
+ * @note: Debugging tools require a few Kb of stack in some points. Assigning
+ *    too small stack to the stack and simultanously using a low (i.e. sensitive)
+ *    log level will lead to the Exception.
+ *  
+ */
+#define COAP_LOGGING_LEVEL LOG_DEBUG
 
 /* --------------------------- Global & static definitions --------------------------- */
 
@@ -78,44 +85,6 @@ void coap_example_thread(void *pvParameters){
         if (!ep) {
            break;
         }
-
-
-        /*-----------------------------------------------------------------------------*/
-
-        coap_pdu_t *pdu =
-            coap_pdu_init(
-                COAP_MESSAGE_CON,
-                12, 0, (size_t) 128
-            );
-
-        if(!pdu){
-            coap_log(LOG_INFO, "Null\n");
-            while(true);
-        }
-
-        // Get currnt time
-        time_t now;
-        time(&now);
-
-        coap_add_token(
-            pdu,
-            strlen("f"),
-            (uint8_t*) "f"
-        );
-
-        coap_add_option(
-            pdu, COAP_OPTION_CONTENT_FORMAT,
-            0,
-            COAP_MEDIATYPE_TEXT_PLAIN
-        );
-        
-        // Transform us time into string-formatted tm struct 
-        char strftime_buf[100] = "datatatata";
-        coap_add_data(
-            pdu, strlen("datatatata"), (uint8_t*) strftime_buf
-        );
-
-        coap_show_pdu(COAP_LOGGING_LEVEL, pdu);
 
         /*-----------------------------------------------------------------------------*/
 

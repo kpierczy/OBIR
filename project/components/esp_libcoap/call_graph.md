@@ -7,7 +7,7 @@
                         -> **coap_session_delay_pdu(observer->session, response, NULL)** [Puts the response in the session's delayqueue]
                         -> **coap_session_send_pdu(observer->session, response)** [Turns response PDU object into the typeless data payload and pass it deeper; calls coap_show_pdu(LOG_DEBUG, ...)]
                             -> **coap_session_send(observer->session, response->payload_buffer, response->payload_size)** [Checks whether session has it's own socket. If not, selects socket of the endpoint that session belongs to]
-                                -> **coap_socket_send(choosen_sock, observer->session, response->payload_buffer, response->payload_size)** [Calls send networ_send handler registered in the context (Default: coap_network_send(...))]
+                                -> **coap_socket_send(choosen_sock, observer->session, response->payload_buffer, response->payload_size)** [Calls networ_send handler registered in the context (Default: coap_network_send(...))]
                                     -> **coap_network_send(choosen_socket, observer->session, response->payload_buffer, response->payload_size)** [Checks coap_debug_send_packet(). If it returns true, sends data using sys-call send() or sendto() depending whether the choosen_sock was connected or not (socket is connected if the session was created with coap_session_create_client())]
                     -> **coap_wait_ack(observer->session, some_node)** [If the response was sent and it was a CON one, adds the the node representing PDU to the context's sendqueue]
         -> **coap_session_free(session)** [Called in the loops. All sessions hold by all endpoints that are not used, are freed]

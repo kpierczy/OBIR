@@ -3,7 +3,7 @@
  *  Author: Olaf Bergmann
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
- *  Modified time: 2020-11-28 14:47:38
+ *  Modified time: 2020-12-01 04:39:29
  *  Description:
  *  Credits: 
  *
@@ -146,6 +146,9 @@ coap_pdu_t *coap_pdu_init(
     coap_pdu_t *pdu = (coap_pdu_t *) coap_malloc(sizeof(coap_pdu_t));
     if (pdu == NULL) 
         return NULL;
+
+    // Clear the allocated region
+    memset(pdu, 0, sizeof(coap_pdu_t));
 
     // Clear the PDU (and allocate some memory for it)
     if(coap_pdu_clear(pdu, size) < 0){
@@ -591,7 +594,7 @@ static size_t coap_add_option_later_impl(
     // the last option cannot be added
     if (type < pdu->max_delta) {
         coap_log(LOG_WARNING,
-                "coap_add_option: options are not in correct order\n");
+                "coap_add_option: options are not in correct order (%u)\n", type);
         return 0;
     }
 
