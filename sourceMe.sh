@@ -93,8 +93,7 @@ for setting in ${SETTINGS[@]}; do
 done
 
 # Check if Copper addon is downloaded
-if ! -d $PROJECT_HOME/common/Copper || -z "$(ls -A $PROJECT_HOME/common/Copper)"
-then
+if [[ ! -d $PROJECT_HOME/common/Copper || -z "$(ls -A $PROJECT_HOME/common/Copper)" ]]; then
     git submodule update --init --recursive
 fi
 

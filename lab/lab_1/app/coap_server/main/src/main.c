@@ -19,7 +19,7 @@ TaskHandle_t main_handler;
 
 /* ------------------------------------- Declarations --------------------------------- */
 
-void coap_example_thread(void *p);
+void coap_thread(void *p);
 
 /* ---------------------------------------- Code -------------------------------------- */
 
@@ -38,7 +38,7 @@ void app_main(){
     wifi_connect(EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
 
     // Create UDP server tasl
-    xTaskCreate(coap_example_thread, "coap", 1024 * 5, NULL, 5, NULL);
+    xTaskCreate(coap_thread, "coap", 1024 * 5, NULL, 5, NULL);
     // Wait for udpp server task to finish
     main_handler = xTaskGetCurrentTaskHandle();
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);

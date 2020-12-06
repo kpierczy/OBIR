@@ -28,7 +28,7 @@ extern TaskHandle_t main_handler;
  * @brief Thread running CoAP server
  * @param pvParameters
  */
-void coap_example_thread(void *pvParameters){
+void coap_thread(void *pvParameters){
 
     // Wait for main to block on xTaskNotifyTake()
     vTaskDelay(pdMS_TO_TICKS(1000));

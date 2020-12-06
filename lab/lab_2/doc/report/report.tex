@@ -1,0 +1,76 @@
+\documentclass[11pt]{scrartcl}
+\usepackage[margin=2cm]{geometry}
+
+\usepackage[cp1250]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[polish]{babel}
+
+\usepackage{lipsum} % Lorem ipsum generator
+\usepackage{graphicx} % Graphics
+
+%======================================================================================================================
+
+\selectlanguage{polish}
+
+\setkomafont{title}{\rmfamily\bfseries}
+
+\title{Obiekty Internetu Rzeczy}
+\subtitle{(Laboratorium 1)}
+\author{Krzysztof Pierczyk}
+\date{listopad 2020}
+
+\renewcommand{\indent}{\hspace{0.5cm}}
+
+%======================================================================================================================
+
+\begin{document}
+
+    \maketitle
+
+	\section{Æwiczenie 1: Interakcja z~serwerem CoAP}
+
+	Pierwsze z~zadañ mia³o na celu zapoznanie siê funkcjonalnoœci¹ wtyczki \textbf{Copper} umo¿liwiaj¹cej komunikacjê za poœrednictwem protoko³u CoAP z~poziomu przegl¹darki internetowej. Niestety wtyczka nie jest wspierana w~aktualnej wersji Firefox, dlatego wymagana by³a instalacja starszej edycji. Wydanie dostarczone w~ramach przedmiotu zosta³o przygotowane dla platformy Windows. Ze wzglêdu na korzystanie z~dystrybucji Linuxa konieczne by³o rêczne pobranie odpowiedniej wersji przegl¹darki. Wybór pad³ na ostatni¹ ze wspieranych przez wtyczkê edycji, która umo¿liwia³a uruchomianie nieautoryzowanych dodatków (52.9.0esr). Kolejnym krokiem by³o uruchomienie serwera CoAP na platformie docelowej. W~zwi¹zku z~realizacj¹ æwiczenia na innej ni¿ domyœlnie p³ytce ewaluacyjnej (tj. NodeMCU z~uk³adem SoC ESP8266) konieczne by³o przygotowanie przyk³adowej implementacji. Wykorzystano w~tym celu platformê ESP-SDK oraz otwartoŸród³ow¹ bibliotekê \textbf{libcoap}. 
+	
+	Przygotowana aplikacja ³¹czy siê poprzez WiFi z~uprzednio skonfigurowanym punktem dostêpu i~wykorzystuj¹c protokó³ DHCP uzyskuje adres IP. Nastêpnie inicjalizuje zasoby i~rozpoczyna nas³uchiwanie na domyœlnym porcie CoAP (5683). Serwer udostêpnia dwa zasoby: \textbf{/time} oraz \textbf{/colour}. Na pierwszym z~nich mo¿liwe jest wykonanie jedynie metody GET. Zawiera on aktualn¹ datê oraz godzinê udostêpnian¹ w~postaci tekstu ASCII. Czas jest synchronizowany z~wykorzystaniem protoko³u SNTP (ang. \textit{Simple Network Time Protocol}). Zasób /colour stanowi tryplet 8-bitowych liczb ca³kowitych symbolizuj¹cych sk³adowe RGB pewnego koloru. Na tym zasobie mo¿liwe jest wykonanie zarówno metody GET jak i~PUT. Serwer udostepnia równie¿ abstrakcyjny zasób \textbf{/.well-known/core} zgodny z~RFC5786. Po wykonaniu na nim metody GET, klient otrzymuje przyk³adowe informacje o~pozosta³ych zasobach. 
+	
+	\vspace{0.5cm}
+	\begin{figure}[h]
+		\centering
+		\includegraphics[scale=0.7]{img/well_known.png}
+		\label{well_known}
+		\caption{Drugi blok odpowiedzi na zapytanie 'GET /.well-known/core'}
+	\end{figure}
+	\vspace{0.5cm}
+
+	W~ramach testów wykonano seriê zapytañ do serwera rejestruj¹c przy tym ruch sieciowy za pomoc¹ narzêdzia \textbf{tshark}. Plik wyjœciowy (\verb |ex_1.pcapng|) zosta³ do³¹czony do sprawozdania. Po jego uruchomieniu w~programie \textbf{wireshark} mo¿liwe jest zweryfikowanie poprawnoœci odpowiedzi wysy³anych przez serwer. Mo¿na tu zauwa¿yæ, ¿e wtyczka Copper domyœlnie przesy³a zapytania GET z~ustawion¹ opcj¹ \textit{Block2} oraz wielkoœci¹ bloku równ¹ 64. Pozosta³e cechy przesy³anych pakietów by³y zgodne z~oczekiwaniami.	Warto zwróciæ jednak uwagê na drugi blok odpowiedzi wys³anej w~zwiazku z~zapytaniem o~zasób \verb|/.well-known/core| (Rys. \ref{well_known}). Na jego koñcu znajduje siê (zaznaczony na czerwono) losowy ci¹g znaków. Krótkie œledztwo pozwoli³o ustaliæ, i¿ jest to b³¹d jednej funkcji z~biblioteki libcoap, która wysy³a w~tym przypadku blok okreœlonej d³ugosci (tu: 64) bez wzglêdu na faktyczn¹ iloœæ danych pozosta³ych do wys³ania. Sytuacja taka nie zachodzi przy okazji zapytañ o~pozosta³e zasoby. Zrezygnowanie z~wczesnej negocjacji rozmiaru bloku eliminuje ten problem. 
+
+
+	\section{Æwiczenie: przyk³adowy serwer UDP}
+
+	W~drugim zadaniu utworzony zosta³ serwer UDP nas³uchuj¹cy na porcie 2392. Œrodowisko ESP-SDK implementuje API gniazd sieciowych zgodnych z~gniazdami BSD, przez co konfiguracja przebieg³a podobnie jak na standardowej maszynie klasy PC. Jedynym zadaniem serwera by³o odwrócenie kolejnoœci znaków w~otrzymanym datagramie i~odes³anie go w~takiej postaci. Z~ciekawostek mo¿na dodaæ, ¿e wykorzystano w~tym procesie algorytm XOR. Faza testów obejmowa³a przes³anie kilku przyk³adowych wiadomoœci przy u¿yciu systemowego narzêdzia \textbf{netcat}. Zarejestrowany ruch sieciowy zosta³ za³¹czony do sprawozdania (\verb |ex_2.pcapng|).
+
+	\vspace{0.5cm}
+	\begin{figure}[h]
+		\centering
+		\includegraphics[scale=0.4]{img/becho.png}
+		\label{becho}
+		\caption{Przyk³adowa odpowiedŸ serwera UDP}
+	\end{figure}
+	\vspace{0.5cm}
+
+	\section{Æwiczenie 3: prosty kalkulator z~intefejsem sieciowym}
+
+	Ostatnie z~zadañ obejmowa³o zmodyfikowanie serwera utworzonego w~æwiczeniu drugim. Mia³ on zostaæ przygotowany do przyjêcia jednej z~czterech komend: \textit{NIECHN [hex-number]}, \textit{NIECHO [hex-number]}, \textit{*} oraz \textit{PODAJ}. Piewsze dwie ustawiaj¹ wartoœæ zmiennych przechowywanych na serwerze. Kolejna powoduje wykonanie mno¿enia aktualnych wartoœci oraz zachowanie wyniku w~osobnej zmiennej. Ostatnie polecenie skutkuje wys³aniem do klienta datagramu z~ostatnim zapisanym wynikiem mno¿enia. Rys. \ref{calc} przedstawia przyk³adowy wynik interakcji z~serwerem. Zarejestrowany ruch sieciowy ponownie zosta³ do³¹czony do sprawozdania (\verb |ex_3.pcapng|). Treœæ wysy³anych do serwera w~ramach realizacji scenariusza testowego to kolejno: PODAJ, NIECHN 0x576, NIECHO 0x298, *, PODAJ, NIECHN 0x311, NIECHO 0x987, *, PODAJ. Odpowiedzi serwera zawiera³y poprawne wyniki operacji.
+
+	\vspace{0.5cm}
+	\begin{figure}[h]
+		\centering
+		\includegraphics[scale=0.4]{img/calc.png}
+		\label{calc}
+		\caption{Przyk³adowe dzia³ania wykonane na zlecenie klienta}
+	\end{figure}
+	\vspace{0.5cm}
+
+\end{document}
+
+%======================================================================================================================
