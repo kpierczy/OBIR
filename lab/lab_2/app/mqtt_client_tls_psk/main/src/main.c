@@ -1,13 +1,15 @@
 /* ============================================================================================================
  *  File: main.c
  *  Author: Krzysztof Pierczyk
- *  Modified time: 2020-12-08 00:31:50
+ *  Modified time: 2020-12-08 00:34:55
  *  Description: 
  * 
- *      Programm presents and example usage of the esp-mqtt library over TCP protocol.
- *      It connects to the local access point with given SSID and password and performs
- *      MQTT connection to the server given in the mqtt_client.h file. Information
- *      about available heap size is published to the 'heap' topic with 1Hz rate.
+ *      Programm presents and example usage of the esp-mqtt library over TCP/TLSv1.2 protocol.
+ *      It connects to the local access point with given SSID and password and performs MQTT
+ *      connection to the server given in the mqtt_client.h file. The PSK is used for encryption
+ *      and the key itself should be embedded into the .S file during the compilation (@see: 
+ *      CMakeLists.txt and conf_mosquitto.bash). Information about available heap size is 
+ *      published to the 'heap' topic with 1Hz rate.
  *  
  * ============================================================================================================ */
 

@@ -1,3 +1,10 @@
+/* ============================================================================================================
+ *  File: mqtt_client.c
+ *  Author: Krzysztof Pierczyk
+ *  Modified time: 2020-12-08 00:37:04
+ *  Description: Initialization of the MQTT-library and the programm's main loop.
+ * ============================================================================================================ */
+
 #include <string.h>            // Basic string operations
 #include <sys/socket.h>        // Sockets-related constants
 #include "esp_log.h"           // Logging

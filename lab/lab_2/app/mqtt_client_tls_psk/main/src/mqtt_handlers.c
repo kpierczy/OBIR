@@ -1,7 +1,7 @@
 /* ============================================================================================================
  *  File: mqtt_handler.c
  *  Author: Krzysztof Pierczyk
- *  Modified time: 2020-12-08 00:35:48
+ *  Modified time: 2020-12-08 00:35:56
  *  Description: Implementation of the handlers called from the esp-mqtt library.
  * ============================================================================================================ */
 

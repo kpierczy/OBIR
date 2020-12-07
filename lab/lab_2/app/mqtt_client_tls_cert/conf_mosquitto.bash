@@ -15,7 +15,7 @@
 #  Note: Script should be run with 'sudo -E'
 # ============================================================================================================
 
-LAB_HOME=$PROJECT_HOME/lab/lab_2/app/mqtt_client
+LAB_HOME=$PROJECT_HOME/lab/lab_2/app/mqtt_client_tls_cert
 
 # Broker's PORT
 SERVER_PORT=1883

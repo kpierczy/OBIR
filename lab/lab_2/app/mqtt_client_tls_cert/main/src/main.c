@@ -1,3 +1,18 @@
+/* ============================================================================================================
+ *  File: main.c
+ *  Author: Krzysztof Pierczyk
+ *  Modified time: 2020-12-08 00:34:10
+ *  Description: 
+ * 
+ *      Programm presents and example usage of the esp-mqtt library over TCP/TLSv1.2 protocol.
+ *      It connects to the local access point with given SSID and password and performs MQTT
+ *      connection to the server given in the mqtt_client.h file. The certificate used for
+ *      server's checking should be embedded into the .S file during the compilation (@see: 
+ *      CMakeLists.txt and conf_mosquitto.bash). Information about available heap size is 
+ *      published to the 'heap' topic with 1Hz rate.
+ *  
+ * ============================================================================================================ */
+
 #include "freertos/FreeRTOS.h" // FreeRTOS tasks
 #include "esp_log.h"           // Logging mechanisms
 #include "nvs_flash.h"         // Non-Volatile storage flash

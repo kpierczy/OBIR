@@ -1,7 +1,7 @@
 /* ============================================================================================================
  *  File: mqtt_client.c
  *  Author: Krzysztof Pierczyk
- *  Modified time: 2020-12-08 00:36:56
+ *  Modified time: 2020-12-08 00:37:08
  *  Description: Initialization of the MQTT-library and the programm's main loop.
  * ============================================================================================================ */
 
@@ -10,11 +10,12 @@
 #include "esp_log.h"           // Logging
 #include "mqtt_client.h"       // MQTT client implementation
 #include "mqtt_utility.h"      // Handlers for the MQTT events
+#include "esp_tls.h"           // PSK hint structure
 
 /* ---------------------------------- Configuration ---------------------------------- */
 
 // Broker's URI
-#define BROKER_URI "mqtt://192.168.0.94:1883"
+#define BROKER_URI "mqtts://192.168.0.94:8883"
 
 /* --------------------------- Global & static definitions --------------------------- */
 
@@ -25,6 +26,9 @@ static char *TAG = "mqtt_client";
 
 // Global variables initialization
 extern TaskHandle_t main_handler;
+
+extern const uint8_t psk_start[] asm("_binary_psk_key_start");
+extern const uint8_t   psk_end[] asm("_binary_psk_key_end");
 
 /* ------------------------------------ Thread Code ----------------------------------- */
 
@@ -37,9 +41,17 @@ void mqtt_thread(void *pvParameters){
     // Wait for main to block on xTaskNotifyTake()
     vTaskDelay(pdMS_TO_TICKS(1000));
 
+    // Create a PSK hint structure for the TLS communication
+    struct psk_key_hint psk_hint = {
+        .key      = psk_start,
+        .key_size = psk_end - psk_start,
+        .hint     = "esp"
+    };
+
     // Configure MQTT client's parameters
     esp_mqtt_client_config_t mqtt_cfg = {
-        .uri = BROKER_URI
+        .uri          = BROKER_URI,
+        .psk_hint_key = &psk_hint
     };
     
     // Initialize the MQTT client using the defined configuration
