@@ -31,8 +31,7 @@ fi
 # ------------------------------------ ESP ------------------------------------
 
 # ESP8266 SDK download
-if  ! -d common/ESP8266_RTOS_SDK || -z "$(ls -A $PROJECT_HOME/common/ESP8266_RTOS_SDK)"
-then
+if  [[ ! -d common/ESP8266_RTOS_SDK || -z "$(ls -A $PROJECT_HOME/common/ESP8266_RTOS_SDK)" ]]; then
     git submodule update --init --recursive
 fi
 

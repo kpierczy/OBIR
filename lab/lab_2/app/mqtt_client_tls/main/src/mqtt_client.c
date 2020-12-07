@@ -7,7 +7,7 @@
 /* ---------------------------------- Configuration ---------------------------------- */
 
 // Broker's URI
-#define BROKER_URI "mqtt://192.168.0.94:1883"
+#define BROKER_URI "mqtts://192.168.0.94:8883"
 
 /* --------------------------- Global & static definitions --------------------------- */
 
@@ -18,6 +18,9 @@ static char *TAG = "mqtt_client";
 
 // Global variables initialization
 extern TaskHandle_t main_handler;
+
+extern const uint8_t server_cert_start[] asm("_binary_ca_crt_start");
+extern const uint8_t   server_cert_end[] asm("_binary_ca_crt_end");
 
 /* ------------------------------------ Thread Code ----------------------------------- */
 
@@ -32,7 +35,8 @@ void mqtt_thread(void *pvParameters){
 
     // Configure MQTT client's parameters
     esp_mqtt_client_config_t mqtt_cfg = {
-        .uri = BROKER_URI
+        .uri = BROKER_URI,
+        .cert_pem = (const char *) server_cert_start
     };
     
     // Initialize the MQTT client using the defined configuration
