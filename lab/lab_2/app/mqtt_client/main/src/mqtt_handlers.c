@@ -1,7 +1,7 @@
 /* ============================================================================================================
  *  File: mqtt_handler.c
  *  Author: Krzysztof Pierczyk
- *  Modified time: 2020-12-08 00:35:48
+ *  Modified time: 2020-12-08 14:39:41
  *  Description: Implementation of the handlers called from the esp-mqtt library.
  * ============================================================================================================ */
 
@@ -213,9 +213,7 @@ static void mqtt_event_handler_published(
     int32_t event_id,
     void *event_data
 ){
-    esp_mqtt_event_handle_t event = 
-        (esp_mqtt_event_handle_t) event_data;
-    ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+
 }   
 
 /**
@@ -239,4 +237,12 @@ static void mqtt_event_handler_data(
     void *event_data
 ){
     ESP_LOGI(TAG, "MQTT_EVENT_DATA");
+
+    esp_mqtt_event_handle_t event = 
+        (esp_mqtt_event_handle_t) event_data;
+
+    printf("Received from topic:%.*s. Data is:\n%.*s\r\n", 
+        event->topic_len, event->topic,
+        event->data_len, event->data
+    );
 }

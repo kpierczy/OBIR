@@ -5,72 +5,175 @@
 \usepackage[T1]{fontenc}
 \usepackage[polish]{babel}
 
-\usepackage{lipsum} % Lorem ipsum generator
-\usepackage{graphicx} % Graphics
+\usepackage{lipsum}             % Lorem ipsum generator
+\usepackage{listings}           % Code listings
+\usepackage[dvipsnames]{xcolor} % Colours
+\usepackage{graphicx}           % Graphics
 
-%======================================================================================================================
+%=================================================================================================================
 
 \selectlanguage{polish}
 
+% Title's font
 \setkomafont{title}{\rmfamily\bfseries}
 
+% Title  Content
 \title{Obiekty Internetu Rzeczy}
-\subtitle{(Laboratorium 1)}
+\subtitle{(Laboratorium 2)}
 \author{Krzysztof Pierczyk}
 \date{listopad 2020}
 
+% Listings configuration
+\lstdefinestyle{customc}{
+  belowcaptionskip=1\baselineskip,
+  breaklines=true,
+  frame=L,
+  xleftmargin=\parindent,
+  language=C,
+  showstringspaces=false,
+  basicstyle=\footnotesize\ttfamily,
+  keywordstyle=\bfseries\color{purple},
+  commentstyle=\itshape\color{ForestGreen},
+  identifierstyle=\color{blue},
+  stringstyle=\color{orange},
+}
+
 \renewcommand{\indent}{\hspace{0.5cm}}
 
-%======================================================================================================================
+%=================================================================================================================
 
 \begin{document}
 
     \maketitle
 
-	\section{Æwiczenie 1: Interakcja z~serwerem CoAP}
+	% ===================> Wstêp
+	\section{Wstêp}
 
-	Pierwsze z~zadañ mia³o na celu zapoznanie siê funkcjonalnoœci¹ wtyczki \textbf{Copper} umo¿liwiaj¹cej komunikacjê za poœrednictwem protoko³u CoAP z~poziomu przegl¹darki internetowej. Niestety wtyczka nie jest wspierana w~aktualnej wersji Firefox, dlatego wymagana by³a instalacja starszej edycji. Wydanie dostarczone w~ramach przedmiotu zosta³o przygotowane dla platformy Windows. Ze wzglêdu na korzystanie z~dystrybucji Linuxa konieczne by³o rêczne pobranie odpowiedniej wersji przegl¹darki. Wybór pad³ na ostatni¹ ze wspieranych przez wtyczkê edycji, która umo¿liwia³a uruchomianie nieautoryzowanych dodatków (52.9.0esr). Kolejnym krokiem by³o uruchomienie serwera CoAP na platformie docelowej. W~zwi¹zku z~realizacj¹ æwiczenia na innej ni¿ domyœlnie p³ytce ewaluacyjnej (tj. NodeMCU z~uk³adem SoC ESP8266) konieczne by³o przygotowanie przyk³adowej implementacji. Wykorzystano w~tym celu platformê ESP-SDK oraz otwartoŸród³ow¹ bibliotekê \textbf{libcoap}. 
+	W~ramach drugiego æwiczenia laboratoryjnego stworzony zosta³ prosty wêze³ IoT komunikuj¹cy siê za pomoc¹ protoko³u MQTT. Projekt zrealizowano w~oparciu o~p³ytkê rozwojow¹ NodeMCUv3 z~uk³adem SoC ESP8266. Dziêki dostarczonemu przez producenta œrodowisku programistycznemu \cite{esp-idf} mo¿liwe by³o wykorzystanie gotowej implementacji protoko³u w~postaci otwartoŸród³owej biblioteki \verb |esp-mqtt| \cite{esp-mqtt}. Utworzony program pracuje pod kontrol¹ popularnego systemu operacyjnego \textbf{FreeRTOS}.
+
+
+	% ===================> Opis rozwi¹zania
+	\section{Opis rozwi¹zania}
+
+	Biblioteka \verb |esp-mqtt| udostêpnia niezmiernie proste API pozwalaj¹ce na komunikacjê w~pe³ni zgodn¹ ze standardem MQTT 3.1.1. Jej wykorzystanie sprowadza siê do zaimplementowania dwóch podstawowych elementów: struktury inicjalizacyjnej oraz zestawu funkcji typu \textit{callback}. Pierwszy z~nich zaprezentowany zosta³ na poni¿szym listingu.
+
+	\vspace{0.5cm}
+	\lstinputlisting[language=C,label=mqtt-config,style=customc]{listings/mqtt-config.c}
+	\vspace{0.5cm}
+
+	Ka¿da instancja klasy \verb |esp_mqtt_client_config_t| opisuje pojedyncze po³¹czenie z~brokerem. Zawiera ona parametry umo¿liwiaj¹ce kontrolê wszystkich aspektów komunikacji. Na listingu przedstawione zosta³y tylko te pola struktury, których wartoœci domyœlne nie odpowiada³y za³o¿eniom projektowym. Pierwsze z~nich zawiera URI brokera. W~tym przypadku jest to adres i~port, na którym nas³uchuje lokalny serwer Mosquitto. Nastêpne pole konfiguruje identyfikator klienta umieszaczany w~wiadomoœci \verb |CONNECT|.
+
+	W~kontekœcie sesji mo¿liwe jest ustalenie czasu \verb |keepalive|, który determinuje jak d³ugo po³¹czenie bêdzie utrzymywane przy braku ruchu pomiêdzy klientem a~serwerem. W~tym przypadku zosta³ on ustalony na 5~sekund, aby mo¿liwe by³o przetestowanie dzia³ania mechanizmu \textit{Last Will \& Testament}. Ka¿de po³¹czenie bêdzie zestawiane jako czysta sesja, co konfiguruje pole \verb |disable_clean_session|. Sprawi to, ¿e wiadomoœci wysy³ane na tematy subskrybowane przez wêze³ nie bêdê kolejkowane na serwerze w~przypadku roz³¹czenia siê klienta.
 	
-	Przygotowana aplikacja ³¹czy siê poprzez WiFi z~uprzednio skonfigurowanym punktem dostêpu i~wykorzystuj¹c protokó³ DHCP uzyskuje adres IP. Nastêpnie inicjalizuje zasoby i~rozpoczyna nas³uchiwanie na domyœlnym porcie CoAP (5683). Serwer udostêpnia dwa zasoby: \textbf{/time} oraz \textbf{/colour}. Na pierwszym z~nich mo¿liwe jest wykonanie jedynie metody GET. Zawiera on aktualn¹ datê oraz godzinê udostêpnian¹ w~postaci tekstu ASCII. Czas jest synchronizowany z~wykorzystaniem protoko³u SNTP (ang. \textit{Simple Network Time Protocol}). Zasób /colour stanowi tryplet 8-bitowych liczb ca³kowitych symbolizuj¹cych sk³adowe RGB pewnego koloru. Na tym zasobie mo¿liwe jest wykonanie zarówno metody GET jak i~PUT. Serwer udostepnia równie¿ abstrakcyjny zasób \textbf{/.well-known/core} zgodny z~RFC5786. Po wykonaniu na nim metody GET, klient otrzymuje przyk³adowe informacje o~pozosta³ych zasobach. 
+	Ostatnie cztery pola konfiguruj¹ zachowania brokera w~sytuacji niespodziewanego zerwania po³¹czenia. W~naszym przypadku na temat \textbf{esp8266/status} wys³ana zostanie (z~poziomem \textit{QoS} = 1 oraz znacznikiem \textit{Retain} = \textit{true}) wiadomoœæ ''disconnected''. W~po³¹czeniu z~wiadomoœci¹ ''connected'', wysy³an¹ przez wêze³ zaraz po zestawieniu po³¹czenia, stworzy to mechanizm umo¿liwiaj¹cy rozpoznanie jego stanu przez innych klientów MQTT.
+
+	\vspace{0.5cm}
+	\lstinputlisting[language=C,label=mqtt-config,style=customc]{listings/handler.c}
+	\vspace{0.5cm}
+
+	Tak przygotowana struktura wykorzystywana jest do swtorzenia reprezentacji klienta MQTT przez bibliotekê. Dla ka¿dego klienta nale¿y zarejestrowaæ zestaw funkcji \textit{callback}. Ka¿da z~nich zostaje wywo³ana przez bibliotekê w~momencie wyst¹pienie okreœlonego zdarzenia (np. b³¹d komunikacji, zestawienie po³¹czenia, otrzymanie danych). Przyk³adowa funkcja zosta³a przedstawiona na powy¿szym listingu. Po skonfigurowaniu klienta oraz zarejestrowaniu funkcji nale¿y zainicjalizowaæ po³¹czenie poprzez wywo³anie \verb |esp_mqtt_client_start(client)|. Nale¿y zauwazyæ, ¿e funkcja ta tworzy odrêbny w¹tek w~systemie, który zajmuje siê analiz¹ oraz delegowaniem przychodz¹cych i~wychodzacych pakietów.
+
+	Po wykonaniu powy¿szych kroków w¹tek g³ówny mo¿e przyst¹piæ do subskrybowania oraz publikowania wiadomoœci na wybrane tematy. W~tym przypadku wêze³ rozpoczyna od wys³aniu w.w. informacji o~statusie oraz zasubskrybowania przyk³adowego tematu \textbf{temperature}. Informacje o~otrzymywanych danych bêd¹ wysy³ana poprzez port szeregowy. Ostatecznie, w¹tek rozpoczyna nieskoñczon¹ pêtle, w~której co sekundê publikuje na temat \textbf{esp8266/heap} informacje o~iloœci wolnej pamiêci na stercie.
+
+
+	% -------------------> Bibliografia
+	\subsection{Komunikacja poprzez TLS}
+
+	Biblioteka \verb |esp-mqtt| umo¿liwia tak¿e komunikacjê z~wykorzystaniem protoko³u TLSv1.2 (implementacja oparta o~\textbf{mbedTLS} \cite{mbedtls}). Na chwilê obecn¹ autoryzacja mo¿liwa jest tylko z~wykorzystaniem certyfikatów. W~ramach zadania zrealizowana zosta³a dodatkowa wersja wy¿ej przedstawionego klienta wykorzystuj¹ca protokó³ szyfruj¹cy. Przygotowanie odpowiedniego kana³u komnunikacyjnego sk³ada³o siê z~kilku kroków:
+
+	\begin{itemize}
+		\item przygotowania pary kluczy asymetrycznych oraz certyfikatu dla tymczasowego CA (ang. \textit{Certificate Authority}) 
+		\item przygotowania pary kluczy asymetrycznych dla serwera Mosquitto
+		\item zarejestrowanie certyfikatu serwera z~wykorzystaniem utworzonego CA
+		\item zapisanie certyfikatu CA w~pamiêci uk³adu SoC
+		\item skonfigurowanie Mosquitto do dzia³ania z~wykorzystaniem utworzonych kluczy oraz certyfikatu
+	\end{itemize}
+
+	Wszystkie operacje zosta³y przeprowadzone przy u¿yciu narzêdzia \textbf{openssl}. Binarny obraz certyfikatu CA zosta³ wbudowany w~strukturê oprogramowania wêz³a jako tablica danych ca³kowitoliczbowych. Zosta³a ona przekazana do biblioteki \verb |esp-mqtt| w~procesie konfiguracji, co umo¿liwi³o autoryzacjê serwera w~czasie nawi¹zywania po³¹czenia.
+
+
+	% ===================> Testowanie rozwi¹zania
+	\section{Testowanie rozwi¹zania}
+
+	Jak ju¿ wspomniano uk³ad ESP8266 zestawia³ po³¹czenie z~brokerem \textbf{Mosquitto} dzia³aj¹cym na komputerze do³¹czonym do sieci LAN. Serwer ten nas³uchiwa³ na standardowych portach 1883 (po³¹czenie nieszyfrowane) oraz 8883 (po³¹czenie szyfrowane). Do testowanie poprawnoœci komunikacji wykorzystano równie¿ narzêdzia \textbf{mosquitto\_sub} oraz \textbf{mosquitto\_pub} z~pakietu mosquitto. Przeprowadzono po trzy testy dla ka¿dej z~wersji programu (z~i~bez TLS):
+
+	\begin{itemize}
+		\item sprawdzenie informacji publikowanych na temacie esp8266/status
+		\item sprawdzenie informacji publikowanych na temacie esp8266/heap
+		\item sprawdzenia informacji otrzymwanych przez wêze³ z~tematu temperature
+	\end{itemize}
+
+	Ka¿dy ze scenariuszy testowych zosta³ zarejestrowany z~wykorzystaniem pakietu wireshark.
+
 	
-	\vspace{0.5cm}
-	\begin{figure}[h]
-		\centering
-		\includegraphics[scale=0.7]{img/well_known.png}
-		\label{well_known}
-		\caption{Drugi blok odpowiedzi na zapytanie 'GET /.well-known/core'}
-	\end{figure}
-	\vspace{0.5cm}
+	% -------------------> Publikowanie na temat esp8266/status
+	\subsection{Publikowanie na temat esp8266/status}
 
-	W~ramach testów wykonano seriê zapytañ do serwera rejestruj¹c przy tym ruch sieciowy za pomoc¹ narzêdzia \textbf{tshark}. Plik wyjœciowy (\verb |ex_1.pcapng|) zosta³ do³¹czony do sprawozdania. Po jego uruchomieniu w~programie \textbf{wireshark} mo¿liwe jest zweryfikowanie poprawnoœci odpowiedzi wysy³anych przez serwer. Mo¿na tu zauwa¿yæ, ¿e wtyczka Copper domyœlnie przesy³a zapytania GET z~ustawion¹ opcj¹ \textit{Block2} oraz wielkoœci¹ bloku równ¹ 64. Pozosta³e cechy przesy³anych pakietów by³y zgodne z~oczekiwaniami.	Warto zwróciæ jednak uwagê na drugi blok odpowiedzi wys³anej w~zwiazku z~zapytaniem o~zasób \verb|/.well-known/core| (Rys. \ref{well_known}). Na jego koñcu znajduje siê (zaznaczony na czerwono) losowy ci¹g znaków. Krótkie œledztwo pozwoli³o ustaliæ, i¿ jest to b³¹d jednej funkcji z~biblioteki libcoap, która wysy³a w~tym przypadku blok okreœlonej d³ugosci (tu: 64) bez wzglêdu na faktyczn¹ iloœæ danych pozosta³ych do wys³ania. Sytuacja taka nie zachodzi przy okazji zapytañ o~pozosta³e zasoby. Zrezygnowanie z~wczesnej negocjacji rozmiaru bloku eliminuje ten problem. 
-
-
-	\section{Æwiczenie: przyk³adowy serwer UDP}
-
-	W~drugim zadaniu utworzony zosta³ serwer UDP nas³uchuj¹cy na porcie 2392. Œrodowisko ESP-SDK implementuje API gniazd sieciowych zgodnych z~gniazdami BSD, przez co konfiguracja przebieg³a podobnie jak na standardowej maszynie klasy PC. Jedynym zadaniem serwera by³o odwrócenie kolejnoœci znaków w~otrzymanym datagramie i~odes³anie go w~takiej postaci. Z~ciekawostek mo¿na dodaæ, ¿e wykorzystano w~tym procesie algorytm XOR. Faza testów obejmowa³a przes³anie kilku przyk³adowych wiadomoœci przy u¿yciu systemowego narzêdzia \textbf{netcat}. Zarejestrowany ruch sieciowy zosta³ za³¹czony do sprawozdania (\verb |ex_2.pcapng|).
+	W~pierwszym scenariuszu testowym, klient MQTT zasubskrybowa³ kana³ esp8266/status po uwczesnym od³¹czeniu modu³u ESP8266 od zasilania. Dziêki temu ostatnia wiadomoœæ opublikowana na tym kanale (utrzymywana ze wzglêdu na obecnoœæ flagi \textit{Retain} w~pakiecie \verb |CONNECT|) powinna mieæ wartosæ ''disconnected''. Po ponownym pod³¹czeniu wêz³a ³¹czy siê on z~serwerem i~aktualizuje swój status. Taka sytuacja zosta³a przedstawiona na Rys. 1.
 
 	\vspace{0.5cm}
 	\begin{figure}[h]
 		\centering
-		\includegraphics[scale=0.4]{img/becho.png}
-		\label{becho}
-		\caption{Przyk³adowa odpowiedŸ serwera UDP}
+		\label{status}
+		\includegraphics[scale=0.7]{img/status.png}
+		\caption{Wiadomoœci otrzymywane przez klienta subskrybuj¹cego temat esp8266/status przed i~po uruchomieniu wêz³a (moment uruchomienia oznaczono czerwon¹ lini¹)}
 	\end{figure}
 	\vspace{0.5cm}
+	
 
-	\section{Æwiczenie 3: prosty kalkulator z~intefejsem sieciowym}
+	% -------------------> Publikowanie na temat esp8266/heap
+	\subsection{Publikowanie na temat esp8266/heap}
 
-	Ostatnie z~zadañ obejmowa³o zmodyfikowanie serwera utworzonego w~æwiczeniu drugim. Mia³ on zostaæ przygotowany do przyjêcia jednej z~czterech komend: \textit{NIECHN [hex-number]}, \textit{NIECHO [hex-number]}, \textit{*} oraz \textit{PODAJ}. Piewsze dwie ustawiaj¹ wartoœæ zmiennych przechowywanych na serwerze. Kolejna powoduje wykonanie mno¿enia aktualnych wartoœci oraz zachowanie wyniku w~osobnej zmiennej. Ostatnie polecenie skutkuje wys³aniem do klienta datagramu z~ostatnim zapisanym wynikiem mno¿enia. Rys. \ref{calc} przedstawia przyk³adowy wynik interakcji z~serwerem. Zarejestrowany ruch sieciowy ponownie zosta³ do³¹czony do sprawozdania (\verb |ex_3.pcapng|). Treœæ wysy³anych do serwera w~ramach realizacji scenariusza testowego to kolejno: PODAJ, NIECHN 0x576, NIECHO 0x298, *, PODAJ, NIECHN 0x311, NIECHO 0x987, *, PODAJ. Odpowiedzi serwera zawiera³y poprawne wyniki operacji.
+	W~przypadku drugiego testu pomocniczy klient obserwowa³ wiadomoœci pojawiaj¹ce siê na temacie esp8266/heap. Zgodnie z~oczekiwaniami wêze³ publikowa³ na nim iloœæ dostêpnej pamiêci (Rys. 2). Warto zauwa¿yæ, ¿e iloœc wykorzystywanej przez w¹tek MQTT pamiêci ustala siê dopiero po pewnej chwil od uruchomienia urz¹dzenia, co skutkuje odmienn¹ wartoœci¹ pierwszej próbki.
+
+
+	% -------------------> Otrzymywanie wiadomoœci z tematu temperature
+	\subsection{Otrzymywanie wiadomoœci z tematu temperature}
+
+	Ostatni z~testów polega³ na wys³aniu na topic temperature kilku wiadomoœci z~wykorzystaniem i~zaobserwowaniu ich odebrania przez wêze³ (zosta³ ona skunfigurowany tak, aby wyœwietlaæ informacje o~danych przychodzacych z~serwera na porcie szeregowym). Rezultat zosta³ przedstawiony na Rys. 3.
 
 	\vspace{0.5cm}
-	\begin{figure}[h]
+	\begin{figure}
 		\centering
-		\includegraphics[scale=0.4]{img/calc.png}
-		\label{calc}
-		\caption{Przyk³adowe dzia³ania wykonane na zlecenie klienta}
+		\label{heap}
+		\includegraphics[scale=0.7]{img/heap.png}
+		\caption{Wiadomoœci otrzymywane przez klienta subskrybuj¹cego temat esp8266/heap przed i~po uruchomieniu wêz³a (moment uruchomienia oznaczono czerwon¹ lini¹)}
 	\end{figure}
 	\vspace{0.5cm}
+
+	\vspace{0.5cm}
+	\begin{figure}
+		\centering
+		\label{heap}
+		\includegraphics[scale=0.38]{img/temperature.png}
+		\caption{Wiadomoœci otrzymywane przez wêz³ subskryj¹cy temat temperatuyre}
+	\end{figure}
+	\vspace{0.5cm}
+	
+
+	% ===================> Podsumowanie
+	\section{Podsumowanie}
+
+	Realizacja æwiczenia laboratoryjnego da³a mo¿liwoœæ zapoznania siê z~praktycznymi aspektami wykorzystania protoko³u MQTT w~wêz³ach IoT. W~porównaniu z~programow¹ obs³ug¹ CoAPa (tj. iloœci¹ kwestii, z~których programista musi zdawaæ sobie sprawê i~o~których musi pamiêtaæ) okaza³ on siê niezwykle prosty a~przy tym bardzo elastyczny. Zestawienie komunikacji by³o mo¿liwe ju¿ po godzinie spêdzonej z~dokumentacj¹ biblioteki. Ponadto odsprzêgniêcie producenta i~konsumenta danych sprawi³o, ¿e ¿aden z~nich nie musia³ braæ pod uwagê awarii drugiego, co stanowi kolejne u³atwienie w~przypadku wyboru MQTT jako metody komunikacji. 
+
+	Taki stan rzeczy jest oczywiœcie okupiony koniecznoœci¹ poœredniczenia brokera, na którego implementacjê przeniesiona zosta³a z³o¿onoœæ procesu komunikacji. Chocia¿ w~warunkach niewielkich projektów mo¿e stanowiæ to powa¿ny problem (gdy¿ wymaga stale pod³¹czonego do zasilania serwera klasy PC), to w~przypadku wspó³pracy wielu urz¹dzeñ wykorzystuj¹cych nierzadko rozwi¹zania chmurowe staje siê on marginalny. Niew¹tpliwie przyczynia siê do du¿ej popularnoœci, jak¹ MQTT zyskuje w~ostatnich latach.
+
+
+	% ===================> Bibliografia
+	\newpage
+	\begin{thebibliography}{2}
+		
+		\bibitem{esp-idf}
+		https://github.com/espressif/ESP8266\_RTOS\_SDK
+
+		\bibitem{esp-mqtt}
+		https://github.com/espressif/esp-mqtt
+
+		\bibitem{mbedtls}
+		https://github.com/espressif/mbedtls
+
+	\end{thebibliography}
 
 \end{document}
 
-%======================================================================================================================
+%=================================================================================================================

@@ -1,7 +1,7 @@
 /* ============================================================================================================
  *  File: mqtt_client.c
  *  Author: Krzysztof Pierczyk
- *  Modified time: 2020-12-08 00:36:56
+ *  Modified time: 2020-12-08 14:45:54
  *  Description: Initialization of the MQTT-library and the programm's main loop.
  * ============================================================================================================ */
 
@@ -39,12 +39,21 @@ void mqtt_thread(void *pvParameters){
 
     // Configure MQTT client's parameters
     esp_mqtt_client_config_t mqtt_cfg = {
-        .uri = BROKER_URI
+        .uri       = BROKER_URI,
+        .client_id = "esp8266",
+        // Session parameters
+        .disable_clean_session = true,
+        .keepalive             = 5,
+        // Last Will & Testament
+        .lwt_topic  = "esp8266/status",
+        .lwt_msg    = "disconnected",
+        .lwt_qos    = 1,
+        .lwt_retain = true,
     };
     
     // Initialize the MQTT client using the defined configuration
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
-    // Register handlers for library's events (assign to all events types with ESP_EVENT_ANY_ID)
+    // Register handlers for library's events
     mqtt_register_events_handlers(client);
     // Run the client (@note: this call will create a new FreeRTOS task for MQTT events dispatching and return immediately)
     esp_mqtt_client_start(client);
@@ -52,14 +61,20 @@ void mqtt_thread(void *pvParameters){
     // Wait for MQTT thread to start
     vTaskDelay(1000/portTICK_PERIOD_MS);
 
+    // Publish a state message to notice subscribers that the node is active
+    esp_mqtt_client_publish(client, "esp8266/status", "connected", 0, 1, true);
+
+    // Subscribe an example topic
+    esp_mqtt_client_subscribe(client, "temperature", 1);
+
     while(true){
 
         // Publish information about the free heap size
         char buf[256];
         snprintf(buf, 256, "%dB", esp_get_free_heap_size());
-        esp_mqtt_client_publish(client, "heap", buf, 0, 1, 0);
+        esp_mqtt_client_publish(client, "esp8266/heap", buf, 0, 1, false);
 
-        // Wait for the next publish
+        // Wait for the next publication
         vTaskDelay(1000/portTICK_PERIOD_MS);
     }
     
