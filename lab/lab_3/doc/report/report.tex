@@ -34,7 +34,7 @@
 	% ===================> Wstêp
 	\section{Wstêp}
 
-	Ostatnie z~zadañ laboratoryjnych polega³o na zwizualizowaniu danych pomiarowych w~œrodowisku \textbf{Node-RED}. Dane pochodzi³y z~symulowanych przez program \verb|/opt/obir_services/obir_exe| wêz³ów IoT komunikuj¹cych siê za poœrednictwem brokera MQTT dzia³aj¹cego na maszynie wirtualnej. Po skonfigurowaniu i~uruchomieniu maszyny wirtualnej (MAC interfejsu sieciowego: 080027bb8047) mo¿liwe by³o odczytanie danych z~czterech dostêpnych tematów:
+	Ostatnie z~zadañ laboratoryjnych polega³o na zwizualizowaniu danych pomiarowych w~œrodowisku \textbf{Node-RED}. Dane pochodzi³y z~symulowanych przez program \verb|/opt/obir_services/obir_exe| wêz³ów IoT komunikuj¹cych siê za poœrednictwem brokera MQTT dzia³aj¹cego na maszynie wirtualnej. Po skonfigurowaniu i~uruchomieniu maszyny (MAC interfejsu sieciowego: 080027bb8047) mo¿liwe by³o odczytanie wartoœci z~czterech dostêpnych tematów:
 
 	\begin{itemize}
 		\item \textit{sensor/3338/temperature} (zakres wartoœci od 32 do 117)
@@ -47,13 +47,13 @@
 	% ===================> Opis rozwi¹zania
 	\section{Opis rozwi¹zania}
 
-	Pierwszym krokiem by³o skonfigurowanie odpowiedniego przep³ywu (ang. \textit{Flow}) z~wykorzystaniem przegll¹darkowego interfejsu serwera Node-RED. Ka¿dy z~dostêpnych tematów otrzyma³ w³asny wêze³ subskrybuj¹cy. Otrzymywane dane przychodzi³y w~formie bufora znaków ASCII, którego jednym z~elementów by³ zapis faktycznej wartoœci pomiarowej. Aby go wyekstrahowaæ i~przekonwertowaæ do wartoœci liczbowej u¿ytu bloków \verb|function| skonfigurowanego z~poni¿szym kodem jêzyka JavaScript. Ka¿dy z~wêz³ów subskrybuj¹cych otrzyma³ w³asn¹ blok konweruj¹cy.
+	Pierwszym krokiem by³o skonfigurowanie odpowiedniego przep³ywu (ang. \textit{Flow}) z~wykorzystaniem przegl¹darkowego interfejsu serwera Node-RED. Ka¿dy z~dostêpnych tematów otrzyma³ w³asny wêze³ subskrybuj¹cy. Dane przychodzi³y w~formie bufora znaków ASCII, którego jednym z~elementów by³ zapis faktycznej wartoœci pomiarowej. Aby go wyekstrahowaæ i~przekonwertowaæ do postaci liczbowej u¿ytu bloku \verb|function| skonfigurowanego z~poni¿szym kodem jêzyka JavaScript. Ka¿dy z~wêz³ów subskrybuj¹cych otrzyma³ w³asny blok konweruj¹cy.
 
 	\vspace{0.5cm}
 	\lstinputlisting[language=JavaScript,label=convertion]{listings/function.js}
 	\vspace{0.5cm}
 
-	W~celu weryfikacji poprawnoœci wprowadzonego kodu wyjœcie ka¿dego z~bloków funkcyjnych zosta³o wyprowadzone do wêz³a \verb|debug|, który umo¿liwia obseracjê danych wejœciowych w~konsoli. Ostatnim krokiem by³o przygotowanie wizualizacji danych w~panelu \textbf{NodeRED Dashboard}. Pos³u¿y³y do tego trzy bloki: dwa typu \verb|chart| oraz jeden typu \verb|gauge|. Wyjœcie tematu zawieraj¹cego dane o~temperaturze zosta³o pod³¹cozne do wejœcia pierwszego z~wykresów. Wejœcia drugiego zestawiono z~kolei z~wyjœciami lini przep³ywów przetwarzaj¹cych dane z~tematów \textit{*/light}. Ostatnia linia przep³ywu (skojarzona z~tematem \textit{*/humidity}) zosta³a skierowana do bloku \verb|gauge|. W~ten sposób otrzymano diagram przep³ywu widoczny na Rys.1.
+	W~celu weryfikacji poprawnoœci wprowadzonego kodu wyjœcie ka¿dego z~bloków funkcyjnych zosta³o wyprowadzone do wêz³a \verb|debug|, który umo¿liwia obserwacjê danych wejœciowych w~konsoli. Ostatnim krokiem by³o przygotowanie wizualizacji danych w~panelu \textbf{NodeRED Dashboard}. Pos³u¿y³y do tego trzy bloki: dwa typu \verb|chart| oraz jeden typu \verb|gauge|. Wyjœcie tematu zawieraj¹cego dane o~temperaturze zosta³o pod³¹cozne do wejœcia pierwszego z~wykresów. Wejœcia drugiego zestawiono z~kolei z~wyjœciami lini przep³ywów przetwarzaj¹cych dane z~tematów \textit{*/light}. Ostatnia linia przep³ywu (skojarzona z~tematem \textit{*/humidity}) zosta³a skierowana do bloku \verb|gauge|. W~ten sposób otrzymano diagram widoczny na Rys.1.
 
 	\begin{figure}
 		\centering
@@ -63,7 +63,7 @@
 	\end{figure}
 	\vspace{0.5cm}
 
-	We wszystkich blokach wizualizacyjnych skonfigurowano tak¿e granice wartoœci zgodne z~opisanymi w~treœci zadania. Ponadto przypisano im równie¿ odpowiednie tytu³y. Wykresy sformatowano w~ten sposób, aby pokazywa³y one ostatnie 30 próbek, przy czym wartoœci osi X przyjêto w~formacie \textit{HH:mm}. Zastosowano tak¿e monotoniczn¹ interpolacjê wielomianem trzeciego stopnia, aby poprawiæ wygl¹d panelu. Nale¿y podkreœliæ, ¿e dopuszczalnoœæ takiego rozwi¹zania zale¿y silnie od charakteru obserwowanych danych. Po dodaniu odpowiednich bloków typu \verb|spacer| w~menu konfiguracyjnym \verb|Dashboard| otrzymany rezultat ukazany na Rys.2.
+	We wszystkich blokach wizualizacyjnych skonfigurowano tak¿e granice wartoœci zgodne z~opisanymi w~treœci zadania. Ponadto przypisano im równie¿ odpowiednie tytu³y. Wykresy sformatowano w~ten sposób, aby pokazywa³y one ostatnie 30 próbek, przy czym wartoœci osi X przyjêto w~formacie \textit{HH:mm}. Zastosowano tak¿e monotoniczn¹ interpolacjê wielomianem trzeciego stopnia, aby poprawiæ wygl¹d panelu. Nale¿y podkreœliæ, ¿e dopuszczalnoœæ takiego rozwi¹zania zale¿y silnie od charakteru obserwowanych danych. Po dodaniu odpowiednich bloków typu \verb|spacer| w~menu konfiguracyjnym \verb|Dashboard| otrzymano rezultat ukazany na Rys.2.
 
 	\vspace{0.5cm}
 	\begin{figure}[h]
