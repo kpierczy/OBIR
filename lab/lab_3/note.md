@@ -12,4 +12,4 @@
 
 # Handy links
 
-1. VBoxManage documentation : [https://www.virtualbox.org/manual/ch08.html#vboxmanage-sharedfolder]
+1. VBoxManage documentation : [https://www.virtualbox.org/manual/ch08.html]

@@ -1,0 +1,85 @@
+\documentclass[11pt]{scrartcl}
+\usepackage[margin=2cm]{geometry}
+
+\usepackage[cp1250]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[polish]{babel}
+
+\usepackage{lipsum}             % Lorem ipsum generator
+\usepackage[dvipsnames]{xcolor} % Colours
+\usepackage{jslistings}         % Code listings
+\usepackage{graphicx}           % Graphics
+
+%=================================================================================================================
+
+\selectlanguage{polish}
+
+% Title's font
+\setkomafont{title}{\rmfamily\bfseries}
+
+% Title  Content
+\title{Obiekty Internetu Rzeczy}
+\subtitle{(Laboratorium 3)}
+\author{Krzysztof Pierczyk}
+\date{grudzieñ 2020}
+
+\renewcommand{\indent}{\hspace{0.5cm}}
+
+%=================================================================================================================
+
+\begin{document}
+
+    \maketitle
+
+	% ===================> Wstêp
+	\section{Wstêp}
+
+	Ostatnie z~zadañ laboratoryjnych polega³o na zwizualizowaniu danych pomiarowych w~œrodowisku \textbf{Node-RED}. Dane pochodzi³y z~symulowanych przez program \verb|/opt/obir_services/obir_exe| wêz³ów IoT komunikuj¹cych siê za poœrednictwem brokera MQTT dzia³aj¹cego na maszynie wirtualnej. Po skonfigurowaniu i~uruchomieniu maszyny wirtualnej (MAC interfejsu sieciowego: 080027bb8047) mo¿liwe by³o odczytanie danych z~czterech dostêpnych tematów:
+
+	\begin{itemize}
+		\item \textit{sensor/3338/temperature} (zakres wartoœci od 32 do 117)
+		\item \textit{sensor/3338/humidity} (zakres wartoœci od 16 do 62)
+		\item \textit{sensor/3338/light} (zakres wartoœci od 12 do 71)
+		\item \textit{sensor/8735/light} (zakres wartoœci od 18 do 53)
+	\end{itemize}
+
+
+	% ===================> Opis rozwi¹zania
+	\section{Opis rozwi¹zania}
+
+	Pierwszym krokiem by³o skonfigurowanie odpowiedniego przep³ywu (ang. \textit{Flow}) z~wykorzystaniem przegll¹darkowego interfejsu serwera Node-RED. Ka¿dy z~dostêpnych tematów otrzyma³ w³asny wêze³ subskrybuj¹cy. Otrzymywane dane przychodzi³y w~formie bufora znaków ASCII, którego jednym z~elementów by³ zapis faktycznej wartoœci pomiarowej. Aby go wyekstrahowaæ i~przekonwertowaæ do wartoœci liczbowej u¿ytu bloków \verb|function| skonfigurowanego z~poni¿szym kodem jêzyka JavaScript. Ka¿dy z~wêz³ów subskrybuj¹cych otrzyma³ w³asn¹ blok konweruj¹cy.
+
+	\vspace{0.5cm}
+	\lstinputlisting[language=JavaScript,label=convertion]{listings/function.js}
+	\vspace{0.5cm}
+
+	W~celu weryfikacji poprawnoœci wprowadzonego kodu wyjœcie ka¿dego z~bloków funkcyjnych zosta³o wyprowadzone do wêz³a \verb|debug|, który umo¿liwia obseracjê danych wejœciowych w~konsoli. Ostatnim krokiem by³o przygotowanie wizualizacji danych w~panelu \textbf{NodeRED Dashboard}. Pos³u¿y³y do tego trzy bloki: dwa typu \verb|chart| oraz jeden typu \verb|gauge|. Wyjœcie tematu zawieraj¹cego dane o~temperaturze zosta³o pod³¹cozne do wejœcia pierwszego z~wykresów. Wejœcia drugiego zestawiono z~kolei z~wyjœciami lini przep³ywów przetwarzaj¹cych dane z~tematów \textit{*/light}. Ostatnia linia przep³ywu (skojarzona z~tematem \textit{*/humidity}) zosta³a skierowana do bloku \verb|gauge|. W~ten sposób otrzymano diagram przep³ywu widoczny na Rys.1.
+
+	\begin{figure}
+		\centering
+		\includegraphics[scale=0.6]{img/flow.png}
+		\caption{Finalny diagram przep³ywu œrodowiska Node-Red}
+		\label{flow}
+	\end{figure}
+	\vspace{0.5cm}
+
+	We wszystkich blokach wizualizacyjnych skonfigurowano tak¿e granice wartoœci zgodne z~opisanymi w~treœci zadania. Ponadto przypisano im równie¿ odpowiednie tytu³y. Wykresy sformatowano w~ten sposób, aby pokazywa³y one ostatnie 30 próbek, przy czym wartoœci osi X przyjêto w~formacie \textit{HH:mm}. Zastosowano tak¿e monotoniczn¹ interpolacjê wielomianem trzeciego stopnia, aby poprawiæ wygl¹d panelu. Nale¿y podkreœliæ, ¿e dopuszczalnoœæ takiego rozwi¹zania zale¿y silnie od charakteru obserwowanych danych. Po dodaniu odpowiednich bloków typu \verb|spacer| w~menu konfiguracyjnym \verb|Dashboard| otrzymany rezultat ukazany na Rys.2.
+
+	\vspace{0.5cm}
+	\begin{figure}[h]
+		\centering
+		\includegraphics[scale=0.25]{img/dashboard.png}
+		\caption{Panel Dashboard œrodowiska Node-Red}
+		\label{dashboard}
+	\end{figure}
+	\vspace{0.5cm}
+
+
+	% ===================> Podsumowanie
+	\section{Podsumowanie}
+
+	Aplikacja systemu Node-RED przedstawiona w~niniejszym sprawozdaniu nale¿y z~pewnoœci¹ do gatunku trywialnych. Mimo to pokazuje ona w~jak szybki i~intuicyjny sposób mo¿liwe jest monitorowanie, analizowanie oraz sterowanie prac¹ wielu dzia³aj¹cych niezale¿ie wêz³ów IoT. Prosty interfejs, dostêpnoœæ wielu kluczowych bloków przetwarzania, elastyczny panel wizualizacji oraz szerokie zaanga¿owanie spo³ecznoœci w~rozwijanie mo¿liwoœci systemu sprawiaj¹, ¿e jest on wyborem odpowiednim zarówno dla prostych rozwi¹zañ typu Smar-Home jak i~dla bardziej z³o¿onych projektów. Ponadto mo¿liwoœæ skonfigurowania lokalnego serwera na maszynie klasy PC lub nawet Raspperry-Pi znacz¹co obni¿aj¹ prób wejœcia dla nowych u¿ytkowników. Osobiœcie uwa¿am, ¿e Node-RED stanie siê moim pierwszym wyborem w~przypadku wiêkszoœci projektów DIY zastêpuj¹c tym samym rozwi¹zania takie jak OpenHAB czy Home Assistant.
+
+\end{document}
+
+%=================================================================================================================

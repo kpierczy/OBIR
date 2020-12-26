@@ -1,0 +1,372 @@
+[
+    {
+        "id": "4889ec80.849724",
+        "type": "tab",
+        "label": "OBIR",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "3cfebd01.0b1492",
+        "type": "mqtt in",
+        "z": "4889ec80.849724",
+        "name": "Temperature",
+        "topic": "sensor/3338/temperature",
+        "qos": "2",
+        "datatype": "auto",
+        "broker": "3b421edf.bbbd3a",
+        "x": 450,
+        "y": 180,
+        "wires": [
+            [
+                "8259a5cc.598168"
+            ]
+        ]
+    },
+    {
+        "id": "f179770a.2abf08",
+        "type": "mqtt in",
+        "z": "4889ec80.849724",
+        "name": "Humidity",
+        "topic": "sensor/3338/humidity",
+        "qos": "2",
+        "datatype": "auto",
+        "broker": "3b421edf.bbbd3a",
+        "x": 440,
+        "y": 300,
+        "wires": [
+            [
+                "b3930fba.c2054"
+            ]
+        ]
+    },
+    {
+        "id": "8b442a8d.fbc8c8",
+        "type": "mqtt in",
+        "z": "4889ec80.849724",
+        "name": "Light 1",
+        "topic": "sensor/8735/light",
+        "qos": "2",
+        "datatype": "auto",
+        "broker": "3b421edf.bbbd3a",
+        "x": 430,
+        "y": 420,
+        "wires": [
+            [
+                "45511ce9.f20b84"
+            ]
+        ]
+    },
+    {
+        "id": "ecf0512d.ad72d",
+        "type": "mqtt in",
+        "z": "4889ec80.849724",
+        "name": "Light 2",
+        "topic": "sensor/3338/light",
+        "qos": "2",
+        "datatype": "auto",
+        "broker": "3b421edf.bbbd3a",
+        "x": 430,
+        "y": 540,
+        "wires": [
+            [
+                "7121a110.5670b"
+            ]
+        ]
+    },
+    {
+        "id": "8259a5cc.598168",
+        "type": "function",
+        "z": "4889ec80.849724",
+        "name": "Temp_fun",
+        "func": "var t=msg.payload.split(\"{\")[1].split(\"}\")[0].split(\",\")[2].split(\":\")[1].trim();\nmsg.payload=parseInt(t);\nmsg.topic=\"Temperature\"\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 640,
+        "y": 180,
+        "wires": [
+            [
+                "26714424.dd567c",
+                "e650f542.3236e8"
+            ]
+        ]
+    },
+    {
+        "id": "b3930fba.c2054",
+        "type": "function",
+        "z": "4889ec80.849724",
+        "name": "Hum_fun",
+        "func": "var t=msg.payload.split(\"{\")[1].split(\"}\")[0].split(\",\")[2].split(\":\")[1].trim();\nmsg.payload=parseInt(t);\nmsg.topic=\"Humidity\"\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 640,
+        "y": 300,
+        "wires": [
+            [
+                "72e1ae4b.efdfd",
+                "e186dbcc.1b9a48"
+            ]
+        ]
+    },
+    {
+        "id": "45511ce9.f20b84",
+        "type": "function",
+        "z": "4889ec80.849724",
+        "name": "Lig1_fun",
+        "func": "var t=msg.payload.split(\"{\")[1].split(\"}\")[0].split(\",\")[2].split(\":\")[1].trim();\nmsg.payload=parseInt(t);\nmsg.topic=\"Light 1\"\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 640,
+        "y": 420,
+        "wires": [
+            [
+                "490ef83b.f36108",
+                "e228bc1c.c20d5"
+            ]
+        ]
+    },
+    {
+        "id": "7121a110.5670b",
+        "type": "function",
+        "z": "4889ec80.849724",
+        "name": "Lig2_fun",
+        "func": "var t=msg.payload.split(\"{\")[1].split(\"}\")[0].split(\",\")[2].split(\":\")[1].trim();\nmsg.payload=parseInt(t);\nmsg.topic=\"Light 2\"\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 640,
+        "y": 540,
+        "wires": [
+            [
+                "a574293d.915128",
+                "e228bc1c.c20d5"
+            ]
+        ]
+    },
+    {
+        "id": "26714424.dd567c",
+        "type": "debug",
+        "z": "4889ec80.849724",
+        "name": "Temp_payload",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 880,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "72e1ae4b.efdfd",
+        "type": "debug",
+        "z": "4889ec80.849724",
+        "name": "Hum_payload",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 880,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "490ef83b.f36108",
+        "type": "debug",
+        "z": "4889ec80.849724",
+        "name": "Lig1_payload",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 870,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "a574293d.915128",
+        "type": "debug",
+        "z": "4889ec80.849724",
+        "name": "Lig2_payload",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 870,
+        "y": 540,
+        "wires": []
+    },
+    {
+        "id": "e228bc1c.c20d5",
+        "type": "ui_chart",
+        "z": "4889ec80.849724",
+        "name": "Lig_chart",
+        "group": "a57e6ab0.92f8c",
+        "order": 15,
+        "width": 10,
+        "height": 7,
+        "label": "Lights",
+        "chartType": "line",
+        "legend": "true",
+        "xformat": "HH:mm",
+        "interpolate": "monotone",
+        "nodata": "",
+        "dot": false,
+        "ymin": "12",
+        "ymax": "71",
+        "removeOlder": 1,
+        "removeOlderPoints": "30",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#1f77b4",
+            "#e60000",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "useOldStyle": false,
+        "outputs": 1,
+        "x": 860,
+        "y": 480,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "e650f542.3236e8",
+        "type": "ui_chart",
+        "z": "4889ec80.849724",
+        "name": "Temp_chart",
+        "group": "a57e6ab0.92f8c",
+        "order": 14,
+        "width": 10,
+        "height": 7,
+        "label": "Temperature",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm",
+        "interpolate": "monotone",
+        "nodata": "",
+        "dot": false,
+        "ymin": "32",
+        "ymax": "117",
+        "removeOlder": 1,
+        "removeOlderPoints": "30",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#1f77b4",
+            "#0b9d01",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "useOldStyle": false,
+        "outputs": 1,
+        "x": 870,
+        "y": 240,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "e186dbcc.1b9a48",
+        "type": "ui_gauge",
+        "z": "4889ec80.849724",
+        "name": "Hum_gaug",
+        "group": "a57e6ab0.92f8c",
+        "order": 2,
+        "width": 10,
+        "height": 7,
+        "gtype": "gage",
+        "title": "Humidity",
+        "label": "%",
+        "format": "{{value}}",
+        "min": "16",
+        "max": "62",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "x": 870,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "3b421edf.bbbd3a",
+        "type": "mqtt-broker",
+        "name": "localmqtt",
+        "broker": "127.0.0.1",
+        "port": "1883",
+        "clientid": "",
+        "usetls": false,
+        "compatmode": false,
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "node-red/local/status",
+        "birthQos": "0",
+        "birthPayload": "hi!",
+        "closeTopic": "node-red/local/status",
+        "closeQos": "0",
+        "closePayload": "bye",
+        "willTopic": "node-red/local/status",
+        "willQos": "0",
+        "willPayload": "oops"
+    },
+    {
+        "id": "a57e6ab0.92f8c",
+        "type": "ui_group",
+        "name": "Home",
+        "tab": "4c6cd3c5.16e92c",
+        "order": 1,
+        "disp": false,
+        "width": "30",
+        "collapse": false
+    },
+    {
+        "id": "4c6cd3c5.16e92c",
+        "type": "ui_tab",
+        "name": "Home",
+        "icon": "dashboard",
+        "disabled": false,
+        "hidden": false
+    }
+]

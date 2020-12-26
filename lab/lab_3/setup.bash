@@ -19,9 +19,9 @@ VM_NAME="obirvm"
 # Virtual machine MAC address
 VM_MAC="080027bb8047"
 
-# Folder shared 
+# Folder shared (to not share a folder put "" into VM_SHARED_MOUNT)
 VM_SHARED="$LAB_HOME/shared"
-VM_SHARED_MOUNT="/home/student/shared"
+VM_SHARED_MOUNT=""
 
 # ----------------------------------------------------------------------------------------------------------------
 
@@ -77,13 +77,17 @@ if [[ $1 == "" ]]; then
         fi
     fi
 
-# Running Node-Red
+# Running Virtual machine and Node-Red
 elif [[ $1 == "run" ]]; then
 
+    # Virtualmachine
+    vboxmanage startvm $VM_NAME
+
+    # Red-Node center
     google-chrome 127.0.0.1:1880
 
 # Virtual machine cleanup
-elif [[ $1 == "clean" ]]; then
+elif [[ $1 == "rm" ]]; then
 
     # Delete the image from Virtual-Box
     if vboxmanage list vms | grep $VM_NAME > /dev/null; then
@@ -91,7 +95,7 @@ elif [[ $1 == "clean" ]]; then
     fi
 
 # Environment cleaning
-elif [[ $1 == "close" ]]; then
+elif [[ $1 == "clean" ]]; then
 
     # Delete the image from Virtual-Box
     if vboxmanage list vms | grep $VM_NAME > /dev/null; then
