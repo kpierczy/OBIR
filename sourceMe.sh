@@ -18,8 +18,8 @@ FIREFOX_VERSION="52.9.0esr"
 
 # -------------------------------- Preparation --------------------------------
 
-export PROJECT_HOME
-export IDF_TOOLS_PATH
+export PROJECT_HOME=$PROJECT_HOME
+export IDF_TOOLS_PATH=$IDF_TOOLS_PATH
 
 mkdir -p $PROJECT_HOME/common
 
@@ -28,7 +28,47 @@ if ! which locate >> /dev/null; then
     sudo apt isntall mlocate
 fi
 
+# --------------------------------- Utilities ---------------------------------
+
+# Install CMake
+if ! which cmake > /dev/null; then
+    sudo apt update &> /dev/null
+    sudo apt install -y cmake
+fi
+
+# Install ncurses & ncursesw
+if [[ $(sudo apt list 2> /dev/null | grep libncurses5-dev) == "" ]]; then
+    sudo apt update &> /dev/null
+    sudo apt install -y libncurses5-dev
+fi
+if [[ $(sudo apt list 2> /dev/null | grep libncursesw5-dev) == "" ]]; then
+    sudo apt update &> /dev/null
+    sudo apt install -y libncursesw5-dev
+fi
+
+# Install flex & bison
+if ! which flex > /dev/null; then
+    sudo apt update &> /dev/null
+    sudo apt install -y flex
+fi
+if ! which bison > /dev/null; then
+    sudo apt update &> /dev/null
+    sudo apt install -y bison
+fi
+
+# Install gperf
+if ! which gperf > /dev/null; then
+    sudo apt update &> /dev/null
+    sudo apt install -y gperf
+fi
+
 # ------------------------------------ ESP ------------------------------------
+
+# Add user to dialout group
+if ! groups | grep dialout > /dev/null; then
+    sudo usermod -a -G dialout $USER
+    echo "LOG: Relogging is need as the user was added to 'dialout' group"
+fi
 
 # ESP8266 SDK download
 if  [[ ! -d common/ESP8266_RTOS_SDK || -z "$(ls -A $PROJECT_HOME/common/ESP8266_RTOS_SDK)" ]]; then
@@ -114,12 +154,12 @@ fi
 if ! which wireshark > /dev/null; then
     echo "LOG: Wireshark will be installed..."
     sudo apt install wireshark
-    sudo apt isntall libcap-dev
+    sudo apt install libcap-dev
 fi
 
 # Install TShark
 if ! which tshark > /dev/null; then
     echo "LOG: TShark will be installed..."
     sudo apt install tshark
-    sudo apt isntall libcap-dev
+    sudo apt install libcap-dev
 fi
