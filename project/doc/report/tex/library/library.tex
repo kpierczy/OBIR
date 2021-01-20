@@ -1,0 +1,12 @@
+\section{Implementacja protokołu}
+
+Po przeanalizowaniu potencjalnych profitów z~obydwu podejść do implementacji protokołu CoAP zdecydowano się na wariant pośredni. Punktem wyjściowym prac stała się popularna biblioteka \verb|libcoap| \cite{libcoap} stworzona przez Olafa Bergmanna. Poza realizacją bazowego standardu RFC7252 inkorporuje ona również standardy pochodne, m.in. RFC7641 (mechnizm obserwacji zasobów), RFC7959 (transfer blokowy), RFC8132 (metody PATCH i~FETCH) oraz inne. Biblioteka została napisana w~sposób multiplatformowy. Jest ona kompatybilna nie tylko z~interfejsami programistycznymi systemów klasy desktop jak \textit{Windows} czy \textit{POSIX}, ale dostarzca także porty dla systemu \textit{Contiki} oraz popularnego stosu TCP/IP \textit{lwIP}. Argumentem przemawiającym za wyborem gotowej implementacji była możliwość zapoznania się z~podejściem do wdrażania standardu przez osoby bardziej doświadczone oraz możliwość potencjalnego wykorzystania znajomości tej popularnej biblioteki w~życiu zawodowym.
+
+Oryginalny kod źródłowy postanowiono zmodyfikować tak, aby dopasować go do wybranej platformy sprzętowej. Oznaczało to usunięcie elementów realizujących multiplatformowość oraz próbę poprawienia fragmentów mających szczególny wpływ na zużycie zasobów. Zadanie to zostało ułatwione przez fakt częściowej zgodności interfejsu programistycznego dostarczanego przez ESP-RTOS-SDK ze standardem \textit{POSIX}. Ponadto, ze względu na ograniczenia czasowe, zdecydowano usunąć z~biblioteki mechanizmy szyfrujące. Najważniejszą decyzją projektową było postawienie na \textbf{pełną implementację standardów RFC7252, RFC7641 oraz RFC7959}. Chociaż wykracza to poza zakres wymagań projektowych uznano, że możliwość holistycznego zrozumienia protokołu przełoży się na poszerzenie świadomości ogólnych zasad rządzących standardami komunikacyjnymi.
+
+Jako że przyjęte założenie wymagały ingerencji w~każdy fragment oryginalnego kodu postanowiono także poprawić oryginalną dokumentację. Jak w~wielu projektach otwartoźródłowych jest ona niejednolita a~w~wielu miejscach po prostu wybrakowana. Jej modyfikacja nie stanowiła tylko zaspokojenia perfekcjonistycznych potrzeb autorów, ale stała się także swego rodzaju weryfikatorem zrozumienia mechanizmu działania biblioteki.
+
+% Implementation's features
+\input{tex/library/features.tex}
+% Implementation's architecture
+\input{tex/library/architecture.tex}

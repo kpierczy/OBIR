@@ -1,0 +1,208 @@
+% =================================================================================================================
+% ------------------------------------------------ Data structures ------------------------------------------------
+% =================================================================================================================
+
+\subsection{Architektura - struktury danych}
+
+Biblioteka \verb|libcoap| została napisana w~całości w~języku C. Jej główny koncept opiera się na manipulacji jawnie zdefiniowanymi strukturami danych reprezentującymi poszczególne obiekty związane z~protokołem (jak np. zasób, obserwator, sesja). Elementem centralnym jest struktura \verb|coap_context_t| zawierająca pełny zbiór informacji na temat stanu klienta/serwera CoAP. Wszystkie operacje natury stanowej odwołują się do instancji tej struktury w~celu ustalenia parametrów sesji, zajętości kolejki retransmitowanych wiadomości, czy historii generowanych kodów wiadomości (ang. \textit{message ID}). Takie podejście sprawia, że sama biblioteka nie posiada stanu wewnętrznego, a~co za tym idzie jej funkcje mają charakter reentrantny. Dzięki temu możliwe jest uruchomienie na jednej platformie kilku niezależnie działających wątków wykorzystujących protokół CoAP. Interakcja z~biblioteką od strony programisty jest bardzo przejrzysta i~sprowadza się kolejno do:
+
+\begin{enumerate}
+    \item stworzenia instancji struktury opisującej kontekst
+    \item zadeklarowania portów, na których nasłuchiwał będzie serwer
+    \item zarejestrowania zasobów dostępnych na serwerze
+    \item zarejestrowania funkcji obsługujących zawartość zapytania o~zasoby (ang. \textit{resource handlers})
+    \item cyklicznego wywoływania funkcji \verb|coap_run_once()|
+\end{enumerate}
+
+Jako że, jak powiedziano, cały zamysł implementacji kładzie szczególny nacisk na manipulację kilkoma kluczowymi strukturami danych, następne podrozdziały skupią się na ich opisaniu i~określeniu ich miejsca w~kompozycji protokołu.
+
+
+% ------------------------------------ Description of coap_context_t structure ------------------------------------
+
+\subsubsection{Struktura coap\_context\_t}
+
+Poniższy listing przedstawia pola struktury \verb|coap_context_t|. Ich omówienie powinno rzucić jaśniejsze światło na jej rolę w~całym projekcie. Wskaźnik \verb|app| przechowuje adres bloku danych użytkownika. Nie jest on wykorzystywany przez bibliotekę. Programista może zdecydować, by umieścić w~nim dane, które będą mogły być współdzielone poprzez instancje serwera/klientów działajacych w~obrębie pojedynczego kontekstu. Tablice \verb|resources| oraz \verb|unknown_resources| przechowują instancje struktury \verb|coap_resource_t| (opisanej w~dalszej części pracy) odnoszących się do zasobów umieszczonych na serwerze. Wyodrębnienie zbioru zasobów nienazwanych ma pomóć w~radzeniu sobie z~zapytaniami o~zasoby nieznane serwerowi w~czasie ich obsługi. Tablica \verb|sendqueue| przechowuje pakiety, które oczekują na potwierdzenie (pakiet ACK). Każda z~nich posiada własny stempel czasowy oraz liczbę dotychczasowych retransmisji. Wartości stempli są przechowywane relatywnie do wartości pola \verb|sendqueue_basetime|.
+
+Najważniejszymi elementami kontekstu są tablice \verb|endpoint| oraz \verb|sessions|. Ich elementy reprezentują kolejno gniazda, na których nasłuchuje serwer zarejestrowany w~danym kontekście oraz otwarte sesje pomiędzy hostem a~odległym serwerem. Strktura kontekstu protokołu została zaprojektowana tak, aby zmaksymalizować elastyczność jej użycia. W~tym celu zawiera ona wskaźniki do funkcji odpowiedzialnych za obsługę przychodzących wiadomości określonego typu (NACK, RST) oraz za sam mechanizm sieciowy. Dzięki temu możliwa jest ich dynamiczna podmiana w~trakcie działania systemu.
+
+Ostatni segment pól stanowią parametry kontekstu. Dzięki dostosowaniu zmiennej \verb|known_options| możemy ustalić jakie kody opcji będą rozpoznawane w~ramach danego kontekstu, a~jakie odrzucane. \verb|session_timeout| oraz \verb|max_idle_sessions| odpowiadają z~kolei za politykę serwera względem utrzymywania otwartych sesji.
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/structures/coap_context_t.c}
+\vspace{0.5cm}
+
+
+% ------------------------------------ Description of coap_resource_t structure ------------------------------------
+
+\subsubsection{Struktura coap\_resource\_t}
+
+Jednym z~najważniejszych pojęć przewijających się w~kontekście protokołu coap jest \textbf{zasób}. W~implementacji \verb|libcoap| obiekt ten opisywany jest przez osobną strukturę - \verb|coap_resource_t|. Podobnie jak w~przypadku \verb|coap_context_t| jej pierwszym polem jest wskaźnik do orbitralnego pola danych. Użytkownik może go wykorzystać, aby odwołać się do informacji powiązanych z~zasobem z~poziomu obsługi zapytań (informacją taką może być np. reprezentacja zasobu w~pamięci).
+
+Kolejnym elementem, który pojawia się w~strukturze jest tablica funkcji. Zawiera ona wskaźniki do procedur obsługujących zapytania poszczególnych typów odnoszące się do danego zasobu (kolejno GET, POST, PUT, DELETE, FETCH, PATCH i~IPATCH). Metody te można rejestrowac w~ramach zasobu dzięki funkcji \verb|coap_register_handler()|. Metody te musze posiadać określoną sygnaturę. Ich zadaniem jest odpowiednie skonfigurowanie wiadomości zwrotnej do klienta, przy czym część formatowania odbywa się automatycznie przed wywołaniem handlera. Należy pamiętać, że metody te sa wywoływane wewnątrz procedury \verb|coap_run_once()| co oznacza, że ich wykonanie odbywa się bez potrzeba tworzenia nowego wątku. Pole \verb|hh| stanowi zmienną pomocniczą wykorzystywaną przez mechanizm haszujący w~przypadku zagnieżdżania zasobów w~tablicy. W~tym miejscu warto wspomnieć, że \verb|libcoap| wykorzystuje gotową implementację tablic haszujących autorstwa Troya D. Hansona.
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/structures/coap_resource_t.c}
+\vspace{0.5cm}
+
+Zestaw flag bitowych zawarty w~strukturze wykorzystywany jest przede wszystkim w~przypadku obserwacji zasobów przez klientów. Łańcuch URI identyfikujący zasób jest również częścią struktury \verb|coap_resource_t|. Ponadto, zgodnie ze standardem każdy zasób może posiadać arbitralny ciąg opisujących go atrybutów umieszczanych w~tablicy \verb|link_attr|. Ostatnim elementem związanym z~zasobami są obserwatorzy. Aby zgodnie z~\cite{rfc_observer} serwer mógł wysyłać wiadomości z~rosnącymi wartościami pola \textit{Observe}, ostatnia użyta wartość jest przechowywana w~zmiennej \verb|observe|.
+
+
+% ------------------------------------ Description of coap_enpoint_t structure ------------------------------------
+
+\subsubsection{Struktura coap\_endpoint\_t}
+
+Obiekty typu \verb|coap_endpoint_t| reprezentują gniazda sieciowe, na których nasłuchuje serwer. W~ramach jednego kontekstu może być ich zarejestrowana dowolna ilość. Pole \verb|next| służy do tworzenia list jednokierunkowych. \verb|default_mtu| określa wielkość MTU (ang. \textit{Maximum Transimission Unit}) w~bajtach dla danego interfejsu. 
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/structures/coap_endpoint_t.c}
+\vspace{0.5cm}
+
+\verb|sock| oraz \verb|bind_addr| stanowią element łączący bibliotekę z~infrastrukturą sieciową systemu. Ostatecznie w~strukturze obecna jest również lista aktywnych sesji.
+
+
+
+% ------------------------------------ Description of coap_session_t structure ------------------------------------
+
+\subsubsection{Struktura coap\_session\_t}
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/structures/coap_session_t.c}
+\vspace{0.5cm}
+
+Tak jak struktura \verb|coap_context_t| jest centralnym punktem implementacji protokołu jako całości, tak struktura \verb|coap_session_t| (wraz z~opisaną poniżej \verb|coap_pdu_t|) jest środkiem ciężkości mechanizmów komunikacji. Rola pierwszych trzech pól struktury może zostać wywnioskowana ze wcześniejszych opisów. Pole \verb|type| determinuje charakter obiektu. Może on okreslać, czy sesja została stworzona przez lokalnego hosta w~ramach zapytania klienckiego, czy na skutek przyjęcia zapytania do serwera. \verb|state| dopełnia tę informację określając, czy sesja związana jest aktualnie z~jakimś połączeniem internetowym czy też nie. Zmienna \verb|ref| stanowi licznik odwołań do obiektu sesji z~globalnej kolejki wiadomości oczekujących na potwierdzenie. Gdy wartość licznika spadnie do zera sesja jest uznawana za istniejąca w~trybie IDLE. Nie jest jest usuwana z~systemu od razu, gdyż może być wykorzystana przy ponownym zapytania/odpowiedzi. Jeśli jednak pozostanie ona w~stanie IDLE zbyt długo, zostanie usunięta na skutek wywołania \verb|coap_run_once()|.
+
+Nazwy parametrów z~sekcji \textit{Session's parameters} wydają się być autodeskryptywne. Jedynym wartym wspomnienia jest \verb|ack_random_factor|. Jest to współczynnik słóżący do generowania pseudolosowych okresów oczekiwania pomiędzy kolejnymi retransmisjami, który jest wymagany przez standard. Sekcja \textit{Endpoints' info} zawiera zmienne wiążące sesję z~systemowym interfejsem sieciowym podobnie jak miało to miejsce w~przypadku \verb|coap_endpoint_t|.
+
+Ostatni sekcja zawiera informacje na temat wysyłanych pakietów. \verb|tx_mid| jest to MID ostatniego wysyłanego pakietu. \verb|con_active| określa ilość wiadomości typu CON oczekujących na potwierdzenie (ACK). Parametry \verb|last_rx_tx| oraz \verb|last_tx_rst| stanowią stemple czasowe wysyłanych za pośrednictwem sesji wiadomości. Najciekawsza jest jednak tablica \verb|delayqueue|. Gdy sesja nada wiadomość typu CON odsyła ją do globalnej kolejki znajdującej się w~instancji kontekstu. Kolejka ta ma jednak ograniczoną pojemność (ograniczoną liczbę równolegle utrzymywanych, niezatwierdzonych wiadomości). Jeżeli sesja nie może umieścić w~kolejce kolejnej wiadomości typu CON, wstrzymuje się ona z~jej nadaniem. Opóźnione w~ten sposób pakiety są oddelegowywane do kolejki \verb|delayqueue| i~rozpatrywane przy następnym wywołaniu \verb|coap_run_once|.\\
+
+
+% ------------------------------------ Description of coap_subscription_t structure ------------------------------------
+
+\subsubsection{Struktura coap\_subscription\_t}
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/structures/coap_subscription_t.c}
+\vspace{0.5cm}
+
+Opis klienta obserwującego dany zasób również został zdefiniowany w~jawnie określnej strukturze. Zawiera ona przede wszystkim kluczowe informacje pozwalające konstruować pakiety wysyłane po zaistnieniu modyfikacji zasobu. Flaga \verb|dirty| ustawiana jest, gdy notyfikacja z~jakiegoś powodu nie mogła zostać wysłana. \verb|fail_cnt| stanowi z~kolei licznik retransmisji tych notyfikacji. Maksymalna ilość notyfikacji, które mogą zostać wysłane do klienta bez potwierdzenia (ACK) przechowywany jest w~liczniku \verb|non_cnt|.
+
+Jeżeli zapytanie o~wpisanie klienta do listy obserwatorów zostało wysłane z~ustawioną opcją \textit{Block2} zostanie to odwzorowane z~użyciem flagi \verb|has_block2|. W~strukturze przechowywany jest także obiekt \verb|coap_block_t|, który śledzi rozmiar wysyłanych bloków oraz indeks następnego bloku do nadania w~ramach notyfikacji. Informacje dotyczące obserwatora zamykają token oraz zapytanie (ang. \textit{querry}) użyte w~pakiecie subskrybującym.\\
+
+
+% ------------------------------------ Description of coap_pdu_t structure ------------------------------------
+
+\subsubsection{Struktura coap\_pdu\_t}
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/structures/coap_pdu_t.c}
+\vspace{0.5cm}
+
+\verb|coap_pdu_t| stanowi opis pakietu, który zostanie stworzony. Przed wysłaniem wiadomości w~ramach aktywnej sesji jego zawartość zostanie przeanalizowana pod kątem zajętości pamięci i, jeżeli nie przekracza ona wartości dopuszczalnego MTU, przetransformowana do postaci bufora binarnego. Pierwsze dwa pola - \verb|type| i~\verb|code| - odpowiadają wartościom z~nagłówka pakietu CoAP. \verb|tid| reprezentuje MID, natomiast \verb|max_delta| najwyższy indeks opcji wpisany do pakietu. Najważniejszymi polami są \verb|token| oraz \verb|data|. Pierwszy z~nich wskazuje bufor pamięci, w~którym umieszczony jest token. Jak pokazano na listingu wskaźnik ten odnosi się do pierwszego bajtu za nagłówkiem. W~obszarze pamięci pomiędzy \verb|token| a~\verb|data| znajdują się zapisane opcje. Na tym etapie są one już zakodowane do postaci binarnej z~wykorzystaniem kodowania różnicowego (ang. \textit{delta encoding}). Obszar opcji jest zamykany poprzez znacznik $0xFF$ w~momencie wpisania pierwszego bajtu danych do pakietu. Pola \verb|alloc_size|, \verb|used_size| oraz \verb|max_size| określają kolejno ilość pamięci zaalokowaną na rzecz pakietu, ilość wykorzystanej pamięci (z~zaalokowanej publi) oraz maksymalny rozmiar pakietu (bez uwzględnienia nagłówka). \\
+
+
+
+% ------------------------------------ Description of options structures ------------------------------------
+
+\subsubsection{Struktury danych związana z~opcjami}
+
+Ostatnimi z~kluczowych struktur danych wykorzystanych w~projekcie są te powiązane z~enkodowaniem i~dekodowaniem pól opcji. Mamy w~tym przypadku do czynienia z~trzema takimi strukturami. Pierwsza z~nich - \verb|coap_optlist_t| - reprezentuje wysokopoziomowy opis listy opcji (które będą wpisane lub zostały odczytane z~pakietu).
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/structures/options/coap_optlist_t.c}
+\vspace{0.5cm}
+
+Nazwy zawartych w~niej zmiennych wydają się być wystarczająco wymowne. Warto jednak zauważyć, że pole \verb|number| odnosi się do \underline{bezwzględnego identyfikatora opcji}. Gotową listę opcji można przekazać do funkcji \verb|coap_add_optlist_pdu()|, która przekonwertuje opis opcji do postaci binarnej. Do wstawiania kolejnych opcji do listy służy funkcja \verb|coap_insert_optlist()|. Po każdy wstawieniu opcji lista jest sortowana zgodnie z~rosnącymi numerami opcji. 
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/structures/options/coap_opt_iterator_t.c}
+\vspace{0.5cm}
+
+Następne dwie struktury danych służą do dekodowania opcji z~pakietów w~postaci binarnej. \verb|coap_opt_iterator_t| służy do iterowania po zakodowanych opcjach. Opcje takie są opisywane przez strukturę \verb|coap_option_t|. W~czasie dekodowania iterator parsuje kolejne segmenty danych (utrzymując wskaźnik do następnego segmentu w~zmiennej \verb|next_option|) do opisu w~postaci tej struktury.
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/structures/options/coap_option_t.c}
+\vspace{0.5cm}
+
+
+% ---------------------------------------- Data structures - summary ------------------------------------
+
+\subsubsection{Struktury danych - podsumowanie}
+
+Opisane struktury są kluczowymi do zrozumienia mechanizmu działania wykorzystanej implementacji protokołu CoAP. Nie są one jednak jedyne. Decyzja o~dostarczeniu pełnej funkcjonalności protokołu poskutkowała kodem, który wraz z~dokumentacją liczy ponad $15'000$ linii. W~naturalny sposób przekłada się to na dziesiątki pomniejszych struktur oraz funkcji pomocniczych, których nie sposób ująć w~sprawozdaniu o~sensownych ramach.
+
+Instancje obiektów są powiązane w~trakcie działania programu poprzez wywołania funkcji z~biblioteki \verb|libcoap|. Zarówno twórcy biblioteki jak i~my (poprzez wprowadzone modyfikacje) dołożyliśmy starań aby zmaksymalizować wygodę korzystania z~dostarczanych rozwiązań. Bezpośrednia ingerencja w~zdefiniowane struktury danych przez użytkownika nie powinna mieć miejsca. Dla wszystkich przewidzianych mechanizmów dostarczone zostały odpowiednie funkcje.
+
+
+% =================================================================================================================
+% -------------------------------------------------- Data flow ----------------------------------------------------
+% =================================================================================================================
+
+\subsection{Architektura - przepływ danych}
+
+Przepływ sterowania z~wykorzystaniem \verb|libcoap| został zaprojektowany tak, aby w~jak największym stopniu odciążyć programistę w~aspektach zależnych od protokołu. Projekt prostego serwera zamyka się w~kilkudziesięciu liniach kodu. Niniejszy podrozdział przedstawia podstawowe API, z~którym styka się programista w~przypadku rutynowych zadań.
+
+
+% ------------------------------------------- Stack's initialization ----------------------------------------
+
+\subsubsection{Inicjalizacja stosu danych}
+
+Pierwszym krokiem na drodze do wykorzystania biblioteki jest inicjalizacja kontekstu. W~przypadku aplikacji typu serwer należy również zadeklarować interfejsy sieciowe, na których program będzie nasłuchiwał.
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/flow/init.c}
+\vspace{0.5cm}
+
+
+% ------------------------------------------- Resources' initialization ----------------------------------------
+
+\subsubsection{Zasoby}
+
+Po zainicjalizowaniu kontekstu możliwe jest zarejestrowanie zasobów dostępnych na serwerze. Niniejszy listing pokazuje przykładowy przebieg rejestracji zasobu \verb|time|. W~czasie tworzenia instancji zasobu możliwe jest ustawienie atrubutów oraz możliwości obserwowania.
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/flow/resource.c}
+\vspace{0.5cm}
+
+Procedura obsługująca zapytania związane z~danym zasobem (tu: \verb|hnd_get|) powinna mieć pokazaną niżej sygnaturę.
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/flow/resource_handler.c}
+\vspace{0.5cm}
+
+Efektem działania funkcji (z~punktu widzenia biblioteki) powinno być ustawienie porządanego kodu odpowiedzi, opcji, oraz danych. To jak odpowiedzieć zdecyduje się serwer zależy w~pełni od projektanta aplikacji. W~przypadku zapytania GET może on ustawić kod błędu, lub zwrócić rządany zasób. Może też (jak w~przypadku zasobów o~długim czasie dostępu) zdecydowac się na odesłanie pustej odpowiedzi i~uruchomienie wewnętrznych mechanizmów serwera, które w~sposób asynchroniczny przygotują i~wyślą pakiet z~reprezentacją zasobu. Implementacja biblioteki nie stawia w~tym kontekście żadnych wymagań.
+
+Przedstawione wyżej funkcje są najczęściej używanymi w~kontekście zasobów. Jedyną nieukazaną tam jest \verb|coap_resource_notify_observers()|. Funkcja ta powinna zostać wywołana zawsze, gdy serwer zmieni stan zasobu. Ustawi ona odpowiednią flagę, dzięki której następna iteracja \verb|coap_run_once()| roześle powiadomienia do zadeklarowanych obserwatorów.
+
+
+% ------------------------------------------- Resources' initialization ----------------------------------------
+
+\subsubsection{Tworzenie pakietów}
+
+Chociaż w~niektórych przypadkach serwer jest w~stanie operowac jedynie z~wykorzystaniem odpowiedzi przygotowanych przez funkcje biblioteczne przed wywołaniem skoku do dedykowanego handlera, to jednak w~niektórych przypadkach (jak zapytania o~zasób o~długim czasie dostępu) odpowiedź musi być wysyłana asynchronicznie. Ponadto manualnego konstruowania pakietów nie da się uniknąć w~przypadku zapytań klienckich. Poniższy listing ukazuje procedurę tworzenia właśnie tego typu pakietu. Sesję kliencką tworzy się poprzez procedurę \verb|coap_new_client_session()|. Pierwszym argumentem wywołania jest w~tym przypadku zainicjalizowany wcześniej kontekst, drugim interfejs lokalny przez który wysłane zostanie zapytanie (w~przypadku NULL'a zastosowany zostanie IF\_ANY), a~trzecim adres serwera docelowego. Po pomyślnym stworzeniu sesji można przejść do budowy pakietu.
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/flow/pdu_init.c}
+\vspace{0.5cm}
+
+Budowę pakietu należy rozpocząć od wywołania funkcji \verb|coap_pdu_init()|. Podać należy typ wiadomości oraz kod zapytania. MID może zostać wygenerowane automatycznie na bazie wykorzystywanej sesji. Po inicjalizacji PDU należy \underline{zawsze} w~pierwszej kolejności dodać token.
+
+Kolejny listing przedstawia dodawanie do PDU zestawu opcji (tu: URI\_PATH oraz URI\_QUERY). Każda opcja musi zostać dodana do listy \verb|optlist_chain|, która zawiera jej wysokopoziomowy opis. Dodanie do listy realizuje funkcja \verb|coap_insert_optlist()|. Z~kolei \verb|coap_new_optlist()| tworzy instancję wysokopoziomowego opisu opcji.
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/flow/pdu_option.c}
+\vspace{0.5cm}
+
+Po skonfigurowaniu łańcucha możliwe jest przekonwertowanie opcji do postaci binarnej poprzez wywołanie \verb|coap_add_optlist_pdu()|. Funkcja ta sortuje odpowiednio listę opcji oraz zamienia indeksy absolutne na różnicowe (\textit{delta coding}). Ręczne tworzenie pakietów daje się do pewnego stopnia zautomatyzować w~przypadku odpowiedzi na zapytania. Biblioteka \verb|libcoap| udostepnia pomocnicza funkcję \verb|coap_add_data_blocked_response()|. Jest ona wywoływana najczęściej z~wnętrza handlera GET. Analizuje ona zawartość zapytania i~ustawia odpowiednie opcje w~pakiecie zwrotnym (np. MAX\_AGE, OBSERVE, ...). Jeżeli zapytanie zawierało opcję BLOCK\_2, to funkcja ta wstawi do pakietu odpowiedni fragment przekazanych jej danych. Sygnatura funkcji prezentuje się nastepująco:
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/flow/pdu_data_block.c}
+\vspace{0.5cm}
+
+
+% =================================================================================================================
+% --------------------------------------------------- Summary -----------------------------------------------------
+% =================================================================================================================
+
+\subsection{Architektura - podsumowanie}
+
+Przedstawiona część dostępnego API jest tylko niewielkim wycinkiem całości. Opisanie wszystkich zawartych mechanizmów wymagałoby znacznie szerszej dokumentacji. W~naszej opinii prezentacja ta wystarczy jednak aby zapoznać się z~koncepcją stojącą za implementacją \verb|libcoap| a~także aby zdobyć wiedzę potrzebną do napisania prostych aplikacji typu klient-serwer. Wyszczególnione zostały tu kluczowe zagadnienia dotyczące zarządzania sesją, tworzenia zasobów oraz konstrukcji pakietów. Pozostała część biblioteki stanowi solidne uzupełnienie tych mechanizmów o~procedury i~struktury danych, które upraszczają niektóre rutynowe zabiegi.

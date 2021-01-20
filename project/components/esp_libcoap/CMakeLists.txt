@@ -4,7 +4,6 @@ set(include_dirs include)
 # Source code files
 set(srcs
     "src/address.c"
-    "src/async.c"
     "src/block.c"
     "src/coap_hashkey.c"
     "src/coap_io.c"

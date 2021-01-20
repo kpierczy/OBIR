@@ -1,7 +1,8 @@
 /* ============================================================================================================
- *  File:
+ *  File: resource.h
  *  Author: Olaf Bergmann
- *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  License: BSD
+ *  Source: https://github.com/obgm/libcoap/tree/develop
  *  Modified by: Krzysztof Pierczyk
  *  Modified time: 2020-11-30 21:51:55
  *  Description:
@@ -41,7 +42,6 @@
 
 # include <assert.h>
 #include "uthash.h"
-#include "async.h"
 #include "str.h"
 #include "pdu.h"
 #include "net.h"
@@ -737,7 +737,7 @@ coap_resource_get_userdata(coap_resource_t *resource){
  *    0 otherwise
  */
 COAP_STATIC_INLINE void
-coap_resource_set_get_observable(coap_resource_t *resource, int mode){
+coap_resource_set_observable(coap_resource_t *resource, int mode){
   resource->observable = mode ? 1 : 0;
 }
 

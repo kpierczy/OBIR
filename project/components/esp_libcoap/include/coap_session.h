@@ -1,7 +1,8 @@
 /* ============================================================================================================
- *  File:
+ *  File: coap_session.h
  *  Author: Olaf Bergmann
- *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  License: BSD
+ *  Source: https://github.com/obgm/libcoap/tree/develop
  *  Modified by: Krzysztof Pierczyk
  *  Modified time: 2020-12-01 00:20:38
  *  Description:
@@ -16,7 +17,6 @@
  *      due to lack of needings from the modifications' authors. 
  * 
  * ============================================================================================================ */
-
 
 /* -------------------------------------------- [Original header] --------------------------------------------- */
 
@@ -553,15 +553,5 @@ coap_fixed_point_t coap_session_get_ack_timeout(coap_session_t *session);
  *    current ack randomize value
  */
 coap_fixed_point_t coap_session_get_ack_random_factor(coap_session_t *session);
-
-/**
- * @brief: Sends a ping message for the session.
- * 
- * @param session:
- *    the CoAP session
- * @returns:
- *    @c COAP_INVALID_TID if there is an error
- */
-coap_tid_t coap_session_send_ping(coap_session_t *session);
 
 #endif  /* COAP_SESSION_H */

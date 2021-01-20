@@ -1,12 +1,13 @@
 /* ============================================================================================================
  *  File: net.c
  *  Author: Olaf Bergmann
- *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  License: BSD
+ *  Source: https://github.com/obgm/libcoap/tree/develop
  *  Modified by: Krzysztof Pierczyk
  *  Modified time: 2020-12-01 05:04:05
  *  Description:
  * 
- *      
+ *      Set of netowrk-related functions
  * 
  *  Credits: 
  *
@@ -45,7 +46,6 @@
 #include "coap_config.h"
 #include "mem.h"
 #include "str.h"
-#include "async.h"
 #include "resource.h"
 #include "option.h"
 #include "encode.h"
@@ -347,11 +347,6 @@ coap_queue_t *coap_pop_next(coap_context_t *context) {
         context->sendqueue->t += next->t;
     
     return next;
-}
-
-
-void coap_context_set_keepalive(coap_context_t *context, unsigned int seconds) {
-    context->ping_timeout = seconds;
 }
 
 

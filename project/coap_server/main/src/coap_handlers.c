@@ -37,7 +37,7 @@ int resources_init(coap_context_t *context){
         sntp_setservername(0, "pool.ntp.org");
         sntp_init();
     }
-
+    
     // Create a new resource
     if( !(resource = coap_resource_init(coap_make_str_const("time"), 0)) ){
         coap_delete_all_resources(context);
@@ -53,11 +53,11 @@ int resources_init(coap_context_t *context){
     coap_register_handler(resource, COAP_REQUEST_GET, hnd_get);
 
     // Set the resource as observable
-    coap_resource_set_get_observable(resource, 1);
+    coap_resource_set_observable(resource, 1);
 
     // Add the resource to the context
     coap_add_resource(context, resource);
-
+    
 
     /* =================================================== */
     /*               Resource: 'colour'                    */
@@ -75,13 +75,12 @@ int resources_init(coap_context_t *context){
     coap_add_attr(resource,  coap_make_str_const("if"),    coap_make_str_const("\"GET PUT\""), 0);
     coap_add_attr(resource, coap_make_str_const("put"),   coap_make_str_const("\"%d %d %d\""), 0);
     
-
     // Register handlers for methods called on the resourse
     coap_register_handler(resource,    COAP_REQUEST_GET, hnd_get);
     coap_register_handler(resource,    COAP_REQUEST_PUT, hnd_put);
 
     // Set the resource as observable
-    coap_resource_set_get_observable(resource, 1);
+    coap_resource_set_observable(resource, 1);
 
     // Add the resource to the context
     coap_add_resource(context, resource);

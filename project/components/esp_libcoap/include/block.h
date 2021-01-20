@@ -1,7 +1,8 @@
 /* ============================================================================================================
- *  File:
+ *  File: block.h
  *  Author: Olaf Bergmann
- *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  License: BSD
+ *  Source: https://github.com/obgm/libcoap/tree/develop
  *  Modified by: Krzysztof Pierczyk
  *  Modified time: 2020-11-30 21:26:20
  *  Description:
@@ -172,11 +173,13 @@ int coap_add_block(
 );
 
 /**
- * @brief: Adds the data of size @p length to @p data or (if block transfer is required)
- *    it's appropriate to the @p response pdu. Adds a ETAG option that is the hash of the
- *    entire data if the data is to be split into blocks.
+ * @brief: Helper function used to construct simple response to the GET request. Adds
+ *    basic options deduced from the @p request (block2, maxage, content-format, observe).
+ *    If block transfer is required adds only requested block of @p data to the @p response.
+ *    Block responses are also flavoured with the ETag option that's value is a hash of the
+ *    whole @p data block.
  * 
- *    Usually used by the default GET request handler.
+ * @note: @p response PDU must be a clean one, without options and data.
  *
  * @param resource:
  *    the resource the data is associated with.

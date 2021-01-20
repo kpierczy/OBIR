@@ -1,7 +1,8 @@
 /* ============================================================================================================
- *  File:
+ *  File: bits.h
  *  Author: Olaf Bergmann
- *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  License: BSD
+ *  Source: https://github.com/obgm/libcoap/tree/develop
  *  Modified by: Krzysztof Pierczyk
  *  Modified time: 2020-11-19 19:00:54
  *  Description:

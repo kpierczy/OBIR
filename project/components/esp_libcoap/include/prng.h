@@ -1,12 +1,13 @@
 /* ============================================================================================================
- *  File:
+ *  File: prng.h
  *  Author: Olaf Bergmann
- *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  License: BSD
+ *  Source: https://github.com/obgm/libcoap/tree/develop
  *  Modified by: Krzysztof Pierczyk
  *  Modified time: 2020-11-22 23:46:52
  *  Description:
  * 
- *      Library-specific RNG API.
+ *      Library-specific RNG API
  * 
  *  Credits: 
  *
@@ -16,7 +17,6 @@
  *      due to lack of needings from the modifications' authors. 
  * 
  * ============================================================================================================ */
-
 
 /* -------------------------------------------- [Original header] --------------------------------------------- */
 

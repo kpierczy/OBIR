@@ -1,3 +1,25 @@
+/* ============================================================================================================
+ *  File: coap.h
+ *  Author: Olaf Bergmann
+ *  License: BSD
+ *  Source: https://github.com/obgm/libcoap/tree/develop
+ *  Modified by: Krzysztof Pierczyk
+ *  Modified time: 2020-11-20 15:23:10
+ *  Description:
+ * 
+ *      Consolidation of the library's header files
+ * 
+ *  Credits: 
+ *
+ *      This file is a modification of the original libcoap source file. Aim of the modification was to 
+ *      provide cleaner, richer documented and ESP8266-optimised version of the library. Core API of the 
+ *      project was not changed or expanded, although some elemenets (e.g. DTLS support) have been removed 
+ *      due to lack of needings from the modifications' authors. 
+ * 
+ * ============================================================================================================ */
+
+/* -------------------------------------------- [Original header] --------------------------------------------- */
+
 /* Modify head file implementation for ESP32 platform.
  *
  * Uses libcoap software implementation for failover when concurrent
@@ -14,13 +36,14 @@
  * of use.
  */
 
+/* ------------------------------------------------------------------------------------------------------------ */
+
 #ifndef _COAP_H_
 #define _COAP_H_
 
 #include "libcoap.h"
 
 #include "address.h"
-#include "async.h"
 #include "bits.h"
 #include "block.h"
 #include "coap_io.h"

@@ -1,10 +1,14 @@
 /* ============================================================================================================
- *  File:
+ *  File: option.c
  *  Author: Olaf Bergmann
+ *  License: BSD
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
  *  Modified time: 2020-12-01 05:03:03
  *  Description:
+ *     
+ *     Set of funtions used to create and manipulate CoAP options
+ * 
  *  Credits: 
  *
  *      This file is a modification of the original libcoap source file. Aim of the modification was to 

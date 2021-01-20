@@ -1,10 +1,14 @@
 /* ============================================================================================================
- *  File:
+ *  File: subscribe.c
  *  Author: Olaf Bergmann
- *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  License: BSD
+ *  Source: https://github.com/obgm/libcoap/tree/develop
  *  Modified by: Krzysztof Pierczyk
  *  Modified time: 2020-11-24 15:50:37
  *  Description:
+ * 
+ *     Set of funtions used to manage CoAP resources' observing mechanisms (RFC7641)
+ * 
  *  Credits: 
  *
  *      This file is a modification of the original libcoap source file. Aim of the modification was to 

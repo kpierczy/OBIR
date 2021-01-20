@@ -1,7 +1,8 @@
 /* ============================================================================================================
- *  File:
+ *  File: str.h
  *  Author: Olaf Bergmann
- *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  License: BSD
+ *  Source: https://github.com/obgm/libcoap/tree/develop
  *  Modified by: Krzysztof Pierczyk
  *  Modified time: 2020-11-26 00:30:25
  *  Description:
@@ -16,7 +17,6 @@
  *      due to lack of needings from the modifications' authors. 
  * 
  * ============================================================================================================ */
-
 
 /* -------------------------------------------- [Original header] --------------------------------------------- */
 

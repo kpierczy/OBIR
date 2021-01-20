@@ -1,10 +1,14 @@
 /* ============================================================================================================
- *  File:
+ *  File: coap_io.c
  *  Author: Olaf Bergmann
- *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  License: BSD
+ *  Source: https://github.com/obgm/libcoap/tree/develop
  *  Modified by: Krzysztof Pierczyk
  *  Modified time: 2020-12-01 01:25:19
  *  Description:
+ * 
+ *      Set of IO-related, platform-dependant functions
+ * 
  *  Credits: 
  *
  *      This file is a modification of the original libcoap source file. Aim of the modification was to 

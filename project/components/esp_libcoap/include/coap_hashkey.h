@@ -1,12 +1,13 @@
 /* ============================================================================================================
- *  File:
+ *  File: coap_haskey.h
  *  Author: Olaf Bergmann
- *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  License: BSD
+ *  Source: https://github.com/obgm/libcoap/tree/develop
  *  Modified by: Krzysztof Pierczyk
  *  Modified time: 2020-11-20 13:46:22
  *  Description:
  * 
- *      Basic implementation of simple string hashes.
+ *      Basic implementation of simple string hashes
  * 
  *  Credits: 
  *
@@ -16,7 +17,6 @@
  *      due to lack of needings from the modifications' authors. 
  * 
  * ============================================================================================================ */
-
 
 /* -------------------------------------------- [Original header] --------------------------------------------- */
 

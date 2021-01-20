@@ -1,32 +1,135 @@
-\documentclass[11pt]{scrartcl}
-\usepackage[margin=2cm]{geometry}
+\documentclass[a4paper,12pt,titlepage,floatssmall,abstract=off]{article}
 
-\usepackage[cp1250]{inputenc}
+% Page geometry's formatting
+\usepackage[left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage{indentfirst}
+\usepackage{placeins}
+\usepackage{float}
+% Language-specific settings
 \usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
 \usepackage[polish]{babel}
+\usepackage{polski}
+% Elements' embedding
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{hyperref}
+% Text-formatting
+\usepackage[dvipsnames]{xcolor}
+\usepackage[autostyle]{csquotes}
+\usepackage{moresize}
+\usepackage{amsmath}
+% Miscellaneous
+\usepackage[backend=biber,style=ieee]{biblatex}
+\usepackage[enable]{easy-todo}
+\usepackage{lipsum}
 
-\usepackage{lipsum} % Lorem ipsum generator
-\usepackage{graphicx} % Graphics
+% ============================================================================================================== %
+% ----------------------------------------------- Configuration ------------------------------------------------ %
+% ============================================================================================================== %
 
-%======================================================================================================================
+% Bibliography file
+\addbibresource{tex/bibliography.bib}
 
-\selectlanguage{polish}
+% Unordered list
+\renewcommand{\labelitemi}{\textbullet}
 
-\setkomafont{title}{\rmfamily\bfseries}
+% Removing clearpage after abstract
+\makeatletter
+\renewenvironment{abstract}{%
+      %\titlepage
+      %\null\vfil
+      \@beginparpenalty\@lowpenalty
+      \small
+      \begin{center}%
+        \bfseries \abstractname
+        \@endparpenalty\@M
+      \end{center}\quotation}%
+     {\quotation\par%\vfil\null\endtitlepage
+     }
+\makeatother
 
-\title{Obiekty Internetu Rzeczy}
-\subtitle{Implementacja protoko³u CoAP \\ dla platformy ESP8266 \\ \vspace{5cm}}
-\author{Patryk Troæ, Krzysztof Pierczyk}
-\date{styczeñ 2021}
+% Listings formatting
+\lstdefinestyle{customc}{
+  belowcaptionskip=1\baselineskip,
+  breaklines=true,
+  frame=L,
+  xleftmargin=\parindent,
+  language=C,
+  showstringspaces=false,
+  basicstyle=\footnotesize\ttfamily,
+  keywordstyle=\bfseries\color{purple},
+  commentstyle=\itshape\color{ForestGreen},
+  identifierstyle=\color{blue},
+  stringstyle=\color{orange},
+}
 
-\renewcommand{\indent}{\hspace{0.5cm}}
+% ============================================================================================================== %
+% --------------------------------------------- Macrodefinitions ----------------------------------------------- %
+% ============================================================================================================== %
 
-%======================================================================================================================
+% Redefininiton of the title page
+\renewcommand{\maketitle}{
+\begin{titlepage}
+    \vfill
+    \begin{center}
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.9]{img/header.png}
+            \vspace{0.5cm}
+        \end{figure}
+    \end{center}
+    \vspace{2cm}
+    \begin{center}
+        {\HUGE {\bf Obiekty Internetu Rzeczy}}\\
+        \vspace {0.4cm}
+        {\Large {(projekt)}}
+    \end{center}
+    \vspace{4cm}
+    \begin{center}
+        {\bf \LARGE Aplikacji wÄ™zÅ‚a Internetu Rzeczy \\z~interfejsem CoAP}
+        \vspace{3cm}
+    \end{center}
+    \vfill
+    \begin{center}
+        {\bf \normalsize Pierczyk Krzysztof, TroÄ‡ Patryk}
+    \end{center}
+    \vfill
+    \begin{center}
+        \large{Warszawa, \today \par}
+    \end{center}
+\end{titlepage}
+}
+
+
+% ============================================================================================================== %
+% --------------------------------------------------- Text ----------------------------------------------------- %
+% ============================================================================================================== %
 
 \begin{document}
 
-    \maketitle
+% Title
+\maketitle
+
+% Table of content
+\tableofcontents
+\clearpage
+
+% Chapters
+\input{tex/intro.tex}
+\clearpage
+\input{tex/library/library.tex}
+\clearpage
+\input{tex/application/application.tex}
+\clearpage
+\input{tex/tests/tests.tex}
+\clearpage
+\input{tex/summary.tex}
+
+% Bibliography
+\clearpage
+\printbibliography
 
 \end{document}
 
-%======================================================================================================================
+

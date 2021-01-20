@@ -3,3 +3,11 @@
 *.fls
 *.log
 *.synctex.gz
+*.bcf
+*.out
+*.run.xml
+*.bbl
+*.blg
+*.toc
+*.aux
+out/*

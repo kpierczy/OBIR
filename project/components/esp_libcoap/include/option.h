@@ -1,7 +1,8 @@
 /* ============================================================================================================
- *  File:
+ *  File: option.h
  *  Author: Olaf Bergmann
- *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  License: BSD
+ *  Source: https://github.com/obgm/libcoap/tree/develop
  *  Modified by: Krzysztof Pierczyk
  *  Modified time: 2020-11-30 22:10:58
  *  Description:
@@ -220,7 +221,7 @@ typedef struct {
  *
  * @code
  * 
- *    coap_optlist_t *optlist = NULL;
+ *    coap_optlist_t *optlist_chain = NULL;
  *    coap_pdu_t *pdu = coap_new_pdu(session);
  *   
  *    ... other set up code ...

@@ -1,3 +1,25 @@
+/* ============================================================================================================
+ *  File: coap_debug.c
+ *  Author: Olaf Bergmann
+ *  License: BSD
+ *  Source: https://github.com/obgm/libcoap/tree/develop
+ *  Modified by: Krzysztof Pierczyk
+ *  Modified time: 2020-12-01 04:50:21
+ *  Description:
+ * 
+ *      Set of debug-realted functions
+ * 
+ *  Credits: 
+ *
+ *      This file is a modification of the original libcoap source file. Aim of the modification was to 
+ *      provide cleaner, richer documented and ESP8266-optimised version of the library. Core API of the 
+ *      project was not changed or expanded, although some elemenets (e.g. DTLS support) have been removed 
+ *      due to lack of needings from the modifications' authors. 
+ * 
+ * ============================================================================================================ */
+
+/* -------------------------------------------- [Original header] --------------------------------------------- */
+
 /* debug.c -- debug utilities
  *
  * Copyright (C) 2010--2012,2014--2019 Olaf Bergmann <bergmann@tzi.org> and others
@@ -5,6 +27,8 @@
  * This file is part of the CoAP library libcoap. Please see
  * README for terms of use.
  */
+
+/* ------------------------------------------------------------------------------------------------------------ */
 
 # include <assert.h>
 #include <stdarg.h>
@@ -584,7 +608,7 @@ static size_t print_readable(
     static const uint8_t hex[] = "0123456789ABCDEF";
 
     // As @p data pointer will move along the source buffer, save the start position
-    uint8_t *data_start = data;
+    const uint8_t *data_start = data;
 
     int i = 0;
 

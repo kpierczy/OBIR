@@ -1,12 +1,13 @@
 /* ============================================================================================================
- *  File:
+ *  File: coap_time.h
  *  Author: Olaf Bergmann
- *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  License: BSD
+ *  Source: https://github.com/obgm/libcoap/tree/develop
  *  Modified by: Krzysztof Pierczyk
  *  Modified time: 2020-11-20 15:23:10
  *  Description:
  * 
- *      Basic time functions wrappers for the libcoap usage.
+ *      Basic time functions wrappers for the libcoap usage
  * 
  *  Credits: 
  *

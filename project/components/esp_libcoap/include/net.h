@@ -1,7 +1,8 @@
 /* ============================================================================================================
- *  File:
+ *  File: net.h
  *  Author: Olaf Bergmann
- *  Source: https://github.com/obgm/libcoap/tree/develop/include/coap2
+ *  License: BSD
+ *  Source: https://github.com/obgm/libcoap/tree/develop
  *  Modified by: Krzysztof Pierczyk
  *  Modified time: 2020-11-30 22:50:29
  *  Description:
@@ -16,7 +17,6 @@
  *      due to lack of needings from the modifications' authors. 
  * 
  * ============================================================================================================ */
-
 
 /* -------------------------------------------- [Original header] --------------------------------------------- */
 
@@ -51,7 +51,6 @@
 struct coap_queue_t;
 struct coap_resource_t;
 struct coap_context_t;
-struct coap_async_state_t;
 
 
 /* -------------------------------------------- [Data structures] --------------------------------------------- */
@@ -171,9 +170,6 @@ typedef struct coap_context_t {
     struct coap_resource_t *resources; 
     // Hash table or list of unknown resources (can be used for handling requests related to unknown resources )
     struct coap_resource_t *unknown_resource; 
-    
-    // List of asynchronous transactions [?]
-    struct coap_async_state_t *async_state;
 
     // Queue of of sent packets (waiting for ACK) (retransmisssion queue)
     coap_queue_t *sendqueue;
@@ -219,9 +215,7 @@ typedef struct coap_context_t {
     // Number of seconds of inactivity after which an unused session will be closed (0 means use default)
     unsigned int session_timeout;        
     // Maximum number of simultaneous unused sessions per endpoint (0 means no maximum)
-    unsigned int max_idle_sessions;      
-    // Minimum inactivity time before sending a ping message (0 means disabled)
-    unsigned int ping_timeout;                     
+    unsigned int max_idle_sessions;                    
   
 } coap_context_t;
 
@@ -306,22 +300,6 @@ coap_queue_t *coap_pop_next( coap_context_t *context );
  *    NULL on failure
  */
 coap_context_t *coap_new_context(const coap_address_t *listen_addr);
-
-/**
- * @brief: Set the context keepalive timer for sessions. A keepalive message will be
- *    sent after if a session has been inactive, i.e. no packet sent or received, for
- *    the given number of seconds. 
- *
- * @param context:
- *    The coap_context_t object
- * @param seconds:
- *    Number of seconds for the inactivity timer, or zero to disable CoAP-level keepalive
- *    messages.
- * @returns:
- *    1 if successful
- *    0 else
- */
-void coap_context_set_keepalive(coap_context_t *context, unsigned int seconds);
 
 /**
  * @brief: CoAP stack context must be released with coap_free_context(). This function

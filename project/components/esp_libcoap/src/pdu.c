@@ -1,10 +1,14 @@
 /* ============================================================================================================
- *  File:
+ *  File: pdu.c
  *  Author: Olaf Bergmann
+ *  License: BSD
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
  *  Modified time: 2020-12-01 04:39:29
  *  Description:
+ * 
+ *      Set of funtions used to create and manipulate CoAP packages
+ * 
  *  Credits: 
  *
  *      This file is a modification of the original libcoap source file. Aim of the modification was to 

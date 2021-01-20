@@ -1,10 +1,13 @@
 /* ============================================================================================================
- *  File:
+ *  File: coap_session.c
  *  Author: Jean-Claue Michelou
  *  Source: https://github.com/obgm/libcoap
  *  Modified by: Krzysztof Pierczyk
  *  Modified time: 2020-12-01 04:02:56
  *  Description:
+ * 
+ *      Set of functions used to manipulate and manage user's sessions
+ * 
  *  Credits: 
  *
  *      This file is a modification of the original libcoap source file. Aim of the modification was to 
@@ -270,22 +273,6 @@ ssize_t coap_session_delay_pdu(
     coap_log(LOG_DEBUG, "** %s: tid=%d: delayed\n", coap_session_str(session), node->id);
 
     return COAP_PDU_DELAYED;
-}
-
-
-coap_tid_t coap_session_send_ping(coap_session_t *session){
-    
-    // If session's state was not established, PING cannot be sent
-    if (session->state != COAP_SESSION_STATE_ESTABLISHED)
-        return 0;
-
-    // Create PING packet
-    coap_pdu_t *ping = coap_pdu_init(COAP_MESSAGE_CON, COAP_RESPONSE_EMPTY, 0, 1);
-    if (!ping)
-        return COAP_INVALID_TID;
-
-    // Set packet
-    return coap_send(session, ping);
 }
 
 
