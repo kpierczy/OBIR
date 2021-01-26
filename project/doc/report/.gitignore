@@ -10,4 +10,4 @@
 *.blg
 *.toc
 *.aux
-out/*
+out
