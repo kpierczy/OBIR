@@ -1,0 +1,37 @@
+\subsection{Zasoby w serwerze}
+
+Zgodnie z treścią zadania przygotowaliśmy 5 zasobów realizujących konkretne zadania. Wśród nich jest 1 zasób odpowiedzialny za zbiór wyrażeń algebraicznych w notacji polskiej odwrotnej (zapis i obliczenia), 3 natomiast są metrykami (statystykami) dotyczącymi przesyłanych datagramów pomiędzy klientem a serwerem. Wszystkie te zasoby są udostępniane przez piąty zasób o ścieżce \textit{./well-known/core}.
+
+\subsubsection{RPN}
+
+Jest to zasób odpowiadający za obsługę zbioru wyrażeń algebraicznych w notacji polskiej odwrotnej. Jego ścieżka jest \textit{/rpn}. Współpracuje on z zadeklarowaną globalnie tablicą dwuwymiarową znaków i licznikiem zapisanych wyrażeń o następujących deklaracjach i inicjacjach:
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/resources/rpn_variables.c}
+\vspace{0.5cm}
+
+Zasób ten realizuje 3 rodzaje żądań:
+\begin{enumerate}
+    \item GET - pobiera wszystkie wyrażenia ze zbioru i wysyła je do klienta. W jej przypadku należy w Uri-query wpisać \textit{all}, aby żądanie zostało zrealizowane.
+    \item GET - wysyła dla podanej wartości \textit{n} i numeru wyrażenia (\textit{wyr}) wynik. Aby wywołać realizację tego żądania, należy zamieścić w Uri-query tekst: \textit{wyr=x\&n=y} lub \textit{n=x\&wyr=y}, gdzie \textit{x} i \textit{y} są naszymi zmiennymi. Podajemy jedynie liczby całkowite, jeśli chodzi o wartość \textit{wyr} numeracja wyrażeń w tablicy zaczyna się od 1. Jeśli zabraknie któregoś elementu, lub będzie nieprawidłowo podany, klient dostanie wiadomość o braku danego wyrażenia. Jeśli wartość \textit{wyr} będzie większa od liczby zapisanych w zbiorze wyrażeń, również otrzymamy odpowiednią wiadomość.
+    \item PUT - przesyła daną wejściową do tablicy wyrażeń algebraicznych, jeśli nie jest przekroczony rozmiar tablicy. W przeciwnym przypadku zwraca wiadomość o kodzie 400. 
+\end{enumerate}
+
+Jak wspomnieliśmy wyżej, zasób ten zakłada poprawność przesyłanych wyrażeń oraz to, że argumentami, składnikami i wynikiem będą liczby całkowite. Szczegółowe i pełne działanie tego zasobu przedstawimy w rozdziale dotyczącym testów.
+
+\subsubsection{Metrics}
+
+Kolejne 3 zasoby są metrykami udostępniającymi zebrane dane dotyczące wymiany wiadomości między serwerem a klientem. Są nimi 3 zasoby:
+\begin{enumerate}
+    \item GET\_inputs (o ścieżce metrics/GET\_inputs ) - zasób, którego zadaniem jest zbieranie ilości odebranych żądań GET. Liczba żądań jest przechowywana w globalnej zmiennej GET\_counter, inkrementowanej przy każdym odebraniu żądania GET.
+    \item PUT\_inputs (o ścieżce metrics/PUT\_inputs ) - zasób, którego zadaniem jest zbieranie ilości odebranych żądań PUT. Zasób ten charakteryzuje się tym, że jako odpowiedź wysyła wiadomość CON, więc wymaga potwierdzenia od klienta otrzymania danych. Na jej przykładzie tez jest zrealizowane "tracenie" danych w trakcie przesyłania. Liczba żądań jest przechowywana w globalnej zmiennej PUT\_counter, inkrementowanej przy każdym odebraniu żądania PUT.
+    \item Waiting\_for\_ACK (o ścieżce metrics/Waiting\_for\_ACK ) - zasób informujący o ilości wysłanych wiadomości CON oczekujących na potwierdzenie, na podstawie licznika zawartego w strukturze \verb|coap_session_t|. Zasób ten jest traktowany jako zasób o długim czasie dostępu, dlatego po odebraniu żądania wysyła potwierdzenie ACK, by następnie przesłać w oddzielniej wiadomości rezultat swojej pracy.
+\end{enumerate}
+
+\subsubsection{Zasoby w serwerze - podsumowanie}
+
+Zasoby te mają wyłączoną możliwość obserwowania. Zmienną \textit{ct} mają ustawioną na \textit{plain text}. W zależności od potrzeb mają zadeklarowaną reakcję na GET i PUT. 
+
+\subsection{Implementacja serwera - podsumowanie}
+
+W tym rozdziale chcieliśmy przedstawić działanie naszego serwera od założeń semantycznych po rozwiązania programistyczne. Dzięki zadeklarowanej bibliotece \verb|libcoap| tworzenie owego serwera było bardzo intuicyjne i proste.

@@ -1,1 +1,24 @@
 \subsection{Scenariusz demonstracyjny}
+
+\subsubsection{Założenia projektu}
+
+Na początku chcielibyśmy przypomnieć założenia dotyczące naszego projektu. Otóż nasz projekt ma za zadanie zrealizować:
+\begin{enumerate}
+    \item Obsługa wiadomości NON (GET i/lub PUT, zależnie od potrzeb dla danego zasobu). Obsługa opcji Content-Format, Uri-Path, Accept. Obsługa tokena i MID.
+    \item Obsługa żądań CON (GET i/lub PUT, zależnie od potrzeb dla danego zasobu) i CoAP PING. Wybrana metryka z p. 3 poniżej powinna być traktowana jako „zasób o długim czasie dostępu”. W tym przypadku należy stosownie zareagować na żądanie CON, aby uniknąć retransmisji. Wysyłanie odpowiedzi CON (z retransmisją) dla wybranej metryki z p. 3 poniżej.
+    \item Zasób opisujący pozostałe zasoby. Ścieżka /.well-known/core. Ścieżki i atrybuty pozostałych zasobów powinny być określone przez Zespół. Obsługa GET: pobranie reprezentacji zasobu (w formacie CoRE Link Format).
+    \item  Zbiór wyrażeń arytmetycznych zapisanych za pomocą ciągu znaków w notacji polskiej odwrotnej (RPN), np. ”n n * 2 * n 3 * + 7 +” (odpowiednik 2n\^2+3n+7). Obsługa PUT: dodanie nowego wyrażenia do zbioru (zaczynamy od zbioru pustego, a liczba elementów w
+zbiorze zwiększa się o 1 po każdej operacji PUT). Gdy wyczerpie się pamięć przydzielona na wyrażenia, serwer powinien odesłać odpowiedni kod błędu. Obsługa GET: pobranie wszystkich wyrażeń ze zbioru. Obsługa GET: pobranie wartości wybranego wyrażenia dla argumentu n zadanego w komponencie query w URI.
+\item Trzy metryki (statystyki) opisujących wymianę wiadomości/datagramów między klientem CoAP a platformą EBSimUnoEth. Metryki powinny być zaprojektowane przez Zespół. Obsługa GET: pobranie reprezentacji metryki1. Obsługa GET: pobranie reprezentacji metryki2. Obsługa GET: pobranie reprezentacji metryki3. Jeśli Zespół ma zaimplementować obsługę żądań CON (patrz wyżej), to jedna z metryk
+powinna być traktowana jako „zasób o długim czasie dostępu”. W tym przypadku należy stosownie zareagować na żądanie CON, aby uniknąć retransmisji. Jeśli Zespół ma zaimplementować wysyłanie odpowiedzi CON (patrz wyżej), to odpowiedzi takie powinny być generowane dla jednej z metryk. Odpowiedzi CON będziemy testować na tym zasobie. 
+\end{enumerate}
+
+\subsubsection{Skrypt testujący}
+
+Poniżej przedstawiamy napisany przez nas skrypt w języku powłoki bash służący do testu naszego serwera:
+
+\vspace{0.5cm}
+\lstinputlisting[language=bash,label=coap_context_t,style=customc]{listings/tests/test.bash}
+\vspace{0.5cm}
+
+Powyższe komendy mają na celu zaprezentować działanie naszego serwera i sprawdzenie, czy wymagania projektu są spełnione. Poszczególne kroki, które w nim realizujemy będziemy omawiać od razu przy pokazaniu wyników testów.

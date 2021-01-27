@@ -227,7 +227,7 @@ void hnd_get(
         );
 	}
 	
-	// Handle ' GET /metrics/PUT_inputs' request
+	// Handle ' GET /metrics/GET_inputs' request
     if( resource == coap_get_resource_from_uri_path(session->context, coap_make_str_const("metrics/GET_inputs")) ){
         
         char bufor[20];
@@ -247,7 +247,7 @@ void hnd_get(
         );
     }
     
-    // Handle ' GET /metrics/GET_inputs' request
+    // Handle ' GET /metrics/PUT_inputs' request
     if( resource == coap_get_resource_from_uri_path(session->context, coap_make_str_const("metrics/PUT_inputs")) ){
         
         packet_loss_flag=1;
@@ -281,6 +281,7 @@ void hnd_get(
        char bufor[35];
        uint8_t size;
         size=snprintf(bufor, 35, "CON messages waiting for ACK: %d", session->con_active);
+        response->type = COAP_MESSAGE_NON;
         //Sending data with dedicated function
         coap_add_data_blocked_response(
             resource,

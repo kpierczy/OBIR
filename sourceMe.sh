@@ -1,11 +1,13 @@
-#===========================================================================
-# This file performs actions that are required to configure project  
-# environment (i.e. downloading dependencies, setting envs, etc.)    
+# ================================================================================================================
+# This file performs actions that are required to configure project environment (i.e. downloading dependencies, 
+# setting envs, etc.)    
 # 
-# NOTE : ESP8266_RTOS_SDK building tools use /usr/bin/python which by
-#        default points to /usr/bin/python2. To change it to python3 
-#        make use of 'update-alternatives'.                          
-#===========================================================================
+# @ Note : ESP8266_RTOS_SDK building tools use /usr/bin/python which by default points to /usr/bin/python2. To
+#     change it to python3 make use of 'update-alternatives': 
+#
+#          sudo update-alternatives --install /usr/bin/python python /usr/bin/python3.8 3
+#                       
+# ================================================================================================================
 
 # Home location of the project
 PROJECT_HOME="/home/cris/Desktop/Pierczyk_Krzysztof"
@@ -16,7 +18,7 @@ IDF_TOOLS_PATH=$PROJECT_HOME/common/idf-tools
 # Firefox version downloaded to run Copper
 FIREFOX_VERSION="52.9.0esr"
 
-# -------------------------------- Preparation --------------------------------
+# ------------------------------------------------- Preparation --------------------------------------------------
 
 export PROJECT_HOME=$PROJECT_HOME
 export IDF_TOOLS_PATH=$IDF_TOOLS_PATH
@@ -28,7 +30,7 @@ if ! which locate >> /dev/null; then
     sudo apt isntall mlocate
 fi
 
-# --------------------------------- Utilities ---------------------------------
+# -------------------------------------------------- Utilities ---------------------------------------------------
 
 # Install CMake
 if ! which cmake > /dev/null; then
@@ -62,7 +64,7 @@ if ! which gperf > /dev/null; then
     sudo apt install -y gperf
 fi
 
-# ------------------------------------ ESP ------------------------------------
+# ----------------------------------------------------- ESP ------------------------------------------------------
 
 # Add user to dialout group
 if ! groups | grep dialout > /dev/null; then
@@ -87,7 +89,7 @@ export PATH=$PATH:$IDF_PATH/components/app_update
 
 cd $PROJECT_HOME
 
-# ---------------------------------- Copper -----------------------------------
+# ---------------------------------------------------- Copper ----------------------------------------------------
 
 # Check if firexof 55.0.3 is installed
 if [[ ! -d $PROJECT_HOME/common/firefox ]]; then
@@ -148,7 +150,7 @@ else
     echo "${SIGNATURE_SETTING/true/false}" >> $DEFAULT/prefs.js
 fi
 
-# -------------------------------- Wireshark ----------------------------------
+# -------------------------------------------------- Wireshark ---------------------------------------------------
 
 # Install Wireshark
 if ! which wireshark > /dev/null; then

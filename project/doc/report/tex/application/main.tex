@@ -1,0 +1,56 @@
+\subsection{Program główny}
+
+Poniżej omówię pliki z kodem źródłowym odpowiedzialne za implementację serwera CoAP. Wymienię główne funkcje i realizowane rozwiązania programistyczne.
+
+\subsubsection{coap\_server\_main.c}
+
+Program główny (main) zawiera się w pliku \verb|coap_server_main.c|. Główna funkcja jest odpowiedzialna za uruchomienie tramsmisji \textit{Wi-Fi} i połączenie z lokalną siecią, następnie przechodzimy do funkcji odpowiedzialnej za obsługę całego interfejsu CoAP. Później uruchamiany jest serwer UDP, po którego zakończniu następuje zatrzymanie działania serwera CoAP, a następnie rozłączenie się z siecią \textit{Wi-Fi}. Całość wygląda następująco:
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/API/main.c}
+\vspace{0.5cm}
+
+Opróćz głównej funkcji mamy również zadeklarowane zmienne globalne potrzebne do połączenia modułu z siecią Wi-Fi (czyli nazwa sieci i hasło, które łatwo można zmienić przed kompilacją programu do naszych zapotrzebowań) oraz funkcja odpowiedzialna za obsługę protokołu CoAP, której inicjację mamy w pliku, który poniżej mamy zamiar omówić.
+
+\subsubsection{coap\_server.c}
+
+W tym pliku mamy zawartą zainicjowaną funkcję \textit{void coap\_example\_thread\(void *pvParameters\)}, która jest odpowiedzialna za serwer CoAP, odbieranie i przesyłanie danych do klienta, oraz kontrolę zasobów. Na początku jest inicjalizacja kontekstu i stosu danych (która została wcześniej przez nas omówiona), potem mamy opisaną pętlę główną serwera, która wygląda następująco:
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/API/loop.c}
+\vspace{0.5cm}
+
+Na samaym początku jest wyłączane tracenie pakietów, które włączamy dopiero przy realizacji żądania GET metryki wysyłającej odpowiedź CON, lecz to omówimy później. Serwer w tej pętli uruchamia funkcję, która przetwarza wszystkie oczekujące pakiety do wysłania dla określonego kontekstu i czeka na przetworzenie wszystkich pakietów wejściowych przed powrotem. Jeśli pojawią się na tym etapie błędy, serwer jest cofany do etapu inicjalizacji. Następnie mamy kilka linii kodu, która kalibruje czas końcowy do rzeczywistego czasu, który jest realizowany w praktyce.
+Pętla ta jest tak na prawdę sercem naszego serwera i ona nadaje rytm działania.
+
+\subsubsection{coap\_handlers}
+
+Ten plik kodu odpowiada za inicjację, charakterystykę zasobów i reakcje na wiadomości klienta ich dotyczące. Składa się z kilku funkcji:
+
+\begin{enumerate}
+    \item \verb|int resources_init(coap_context_t *context)| jest funkcją inicjującą zasoby w danym kontekście. Jest ona złożona z funkcji inicjujących poszczególne zasoby w naszym serwerze według wzoru, którego przykład przedstawiliśmy w podrozdziale \verb|2.3.2 Zasoby|. Charakterystykę zasobów omówimy w osobnym podrozdziale
+    \item \verb|void resources_deinit(coap_context_t *context)| odpowiedzialna za usunięcie zasobów z kontekstu.
+    \item \verb|void hnd_get| odpowiedzialna za obsługę żądań GET ze strony klienta. Jej główne zadania i dane wejściowe również zostały omówione wyżej. Jest ona podzielona na kilka wariantów, w zależności od tego, jakiego zasobu dane żądanie dotyczy, kończy się ta funkcja wysłaniem przygotowanej przez serwer odpowiedzi. Jako przykład przedstawiam realizację dla jednego z zasobów:
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/API/get_example.c}
+\vspace{0.5cm}
+
+    \item  \verb|void hnd_get| odpowiedzialna za obsługę żądań PUT ze strony klienta. Na podstawie otrzymanego payloadu wykonuje dane polecenia i wysyła adekwatną wiadomość do klienta: 204 (Changed) lub 400 (Bad Request). Zawiera też na końcu wspomnianą wcześniej funkcję \verb|coap_resource_notify_observes()| odpowiadającą za rozesłanie powiadomienia do potencjalnych obserwatorów zasobów.
+\end{enumerate}
+
+Poza wyżej wymienionymi funkcjami ten plik ma też zadeklarowane zmienne globalne wspomagające działanie zasobów.
+
+\subsubsection{rpn\_stack}
+
+W tym pliku mamy zawarty algorytm obliczania wartości wyrażenia w notacji polskiej odwrotnej. Notacja ta jest zbudowana na "stosie" (który w praktyce jest tabelą liczb) i metodach odpowiedzialnych za zdejmowanie i kładzenie na stosie danych wartości. Główną funkcją jest poniższa funkcja:
+
+\vspace{0.5cm}
+\lstinputlisting[language=C,label=coap_context_t,style=customc]{listings/API/rpn.c}
+\vspace{0.5cm}
+
+Funkcja ta wyciąga kolejne składniki z ciągu znaków przesłanego na wejściu i w zależności od tego, czy ma do czynienia ze zmienną \textit{n}, czy ze znakiem działania, czy z liczbą wykonuje odpowiednie zadania na stosie: w przypadku liczby kładzie ją na stosie, w przypadku zmiennej kładzie jej przesłaną wartość na stosie, a w przypadku działania zdejmuje ze stosu 2 liczby, wykonuje dane działanie i kładzie wynik na stosie. Funkzja ta zakłąda, że zapis w notacji został wykonany poprawnie, a także że argumenty i wynik działania jest liczbą całkowitą.
+
+\subsubsection{Program główny - podsumowanie}
+
+Wymienione zostały w tym podrozdziale funkcje, które są realizowane przez program główny naszego serwera oraz najważniejsze jego elementy. Dokładna semantyka stojąca za naszymi rozwiązaniami zostanie omówiona w następnym podrozdziale dotyczącym zasobów
